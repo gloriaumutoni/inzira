@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  PROFESSIONAL
+  COMPANY
+  COORDINATOR
+  ADMIN
+}
+
+enum Level {
+  O_LEVEL
+  A_LEVEL
+}
+
+enum SessionStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkshopStatus {
+  OPEN
+  FULL
+  COMPLETED
+}
+
+enum BookingStatus {
+  REGISTERED
+  ATTENDED
+  CANCELLED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String
+  lastName  String
+  role      Role
+  createdAt DateTime @default(now())
+
+  student      Student?
+  professional Professional?
+  company      Company?
+  coordinator  SchoolCoordinator?
+  notifications Notification[]
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  school    String
+  level     Level
+  createdAt DateTime @default(now())
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+  bookings Booking[]
+  interests Interest[]
+  journals JournalEntry[]
+}
+
+model Professional {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  jobTitle  String
+  company   String
+  bio       String
+  sector    String
+  videoUrl  String?
+  createdAt DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  careers  Career[]
+  sessions Session[]
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  name        String
+  description String
+  sector      String
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workshops Workshop[]
+}
+
+model SchoolCoordinator {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  school    String
+  district  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Career {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  sector         String
+  combinations   String[]
+  professionalId String
+  createdAt      DateTime @default(now())
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  sessions     Session[]
+}
+
+model Session {
+  id             String        @id @default(cuid())
+  studentId      String
+  professionalId String
+  careerId       String?
+  scheduledAt    DateTime
+  duration       Int           @default(30)
+  status         SessionStatus @default(PENDING)
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  career       Career?      @relation(fields: [careerId], references: [id], onDelete: SetNull)
+}
+
+model Workshop {
+  id          String         @id @default(cuid())
+  companyId   String
+  title       String
+  description String
+  date        DateTime
+  capacity    Int
+  status      WorkshopStatus @default(OPEN)
+  createdAt   DateTime       @default(now())
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  studentId  String
+  workshopId String
+  status     BookingStatus @default(REGISTERED)
+  createdAt  DateTime      @default(now())
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, workshopId])
+}
+
+model Interest {
+  id        String   @id @default(cuid())
+  studentId String
+  category  String
+  score     Int
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  studentId String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
