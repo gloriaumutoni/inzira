@@ -1,96 +1,41 @@
 # Inzira — Career Guidance Platform for Rwandan Students
 
-Inzira ("the path" in Kinyarwanda) connects Rwandan secondary school students
-with verified professionals and companies to help them make informed career and
-A-level subject combination choices.
+Inzira ("the path") connects Rwandan O-level students with verified professionals
+and companies to help them choose A-level subject combinations with real career insight.
+
+**GitHub:** https://github.com/gloriaumutoni/inzira
 
 ---
 
-## Problem
+## Video Demo
 
-Rwandan O-level students choose their A-level subject combinations with very
-little exposure to the careers those combinations lead to. This decision shapes
-their university options and professional trajectory — yet most students make it
-based on peer pressure or parental preference rather than lived insight from
-professionals already working in those fields.
+> 5–10 minute walkthrough of all role flows — student, professional, company, coordinator, admin.
 
-## Solution
-
-Inzira provides:
-- **Interest assessments** mapped to Rwanda's 15 A-level subject combinations
-- **Professional profiles** and 30-minute mentorship sessions
-- **Company workshops** hosted by Kigali companies
-- **Career explorer** with real O-level and A-level combination mappings
-
-Pilot: Gasabo and Nyarugenge districts — 100–150 students, 15–20 professionals,
-5–8 companies.
+_[Demo link — coming soon]_
 
 ---
 
-## Roles
+## Designs
 
-| Role               | Permissions                                                   |
-| ------------------ | ------------------------------------------------------------- |
-| Student            | Interest assessment, browse careers, book sessions, workshops |
-| Professional       | Host sessions, manage public profile                          |
-| Company            | Create and manage workshops                                   |
-| SchoolCoordinator  | Read-only cohort dashboard                                    |
-| Admin              | Full platform management                                      |
+**Figma mockups:** _[Figma link — coming soon]_
 
----
+### App screenshots
 
-## Tech Stack
-
-| Layer      | Tool                  | Why                                                           |
-| ---------- | --------------------- | ------------------------------------------------------------- |
-| Frontend   | React 18 + TypeScript | Component model + type safety across the full stack           |
-| Build tool | Vite                  | Fast HMR, native ESM, first-class TypeScript support          |
-| Styling    | Tailwind CSS v3       | Utility-first — design tokens enforced via config             |
-| Routing    | React Router v6       | Nested routes + loader pattern for role-based navigation      |
-| Auth       | Clerk                 | Handles JWT, session management, and role metadata out of box |
-| HTTP       | Axios                 | Interceptors for attaching Clerk JWT to every API request     |
-| Backend    | Express + TypeScript  | Minimal, familiar, easy to layer middleware on                |
-| ORM        | Prisma                | Type-safe queries generated from schema, migration tooling    |
-| Database   | Supabase (PostgreSQL) | Managed Postgres, free tier, row-level security support       |
-| Media      | Cloudinary            | CDN + transformation pipeline for professional profile videos |
-| Email      | Resend                | Developer-friendly transactional email with React templates   |
-| Deploy     | Vercel + Render       | Zero-config deploys; Vercel for client, Render for server     |
-| CI/CD      | GitHub Actions        | Type-check + Prisma validate on every push                    |
-
----
-
-## Project Structure
-
-```
-inzira/
-├── .github/workflows/      GitHub Actions CI/CD pipelines
-├── client/                 React frontend (Vite)
-│   ├── public/             Static assets
-│   └── src/
-│       ├── components/
-│       │   ├── ui/         Button, Card, Input, Badge, Spinner
-│       │   ├── layout/     Navbar, PageWrapper
-│       │   └── auth/       RoleGuard, ProtectedRoute
-│       ├── contexts/       AuthContext, UIContext
-│       ├── hooks/          useAuth, useRole, useUser
-│       ├── lib/            Axios instance (api.ts)
-│       ├── pages/          Landing, Login, NotFound, dashboards/
-│       ├── routes/         AppRouter.tsx
-│       └── types/          Shared TypeScript interfaces
-└── server/                 Express backend
-    └── src/
-        ├── middleware/     authMiddleware, roleGuard, errorHandler
-        ├── prisma/         schema.prisma, singleton client
-        ├── routes/         One file per resource
-        ├── utils/          response helpers, SDK inits
-        └── types/          Role enum, Express augmentation
-```
+| Screen | Preview |
+| ------ | ------- |
+| Landing page | _[screenshot — coming soon]_ |
+| Student dashboard | _[screenshot — coming soon]_ |
+| Career explorer | _[screenshot — coming soon]_ |
+| Professional profile + session booking | _[screenshot — coming soon]_ |
+| Company workshop management | _[screenshot — coming soon]_ |
+| Coordinator cohort dashboard | _[screenshot — coming soon]_ |
 
 ---
 
 ## Setup
 
 ### Prerequisites
+
 - Node.js 20+
 - A Clerk account (free) — [clerk.com](https://clerk.com)
 - A Supabase project (free) — [supabase.com](https://supabase.com)
@@ -98,29 +43,37 @@ inzira/
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-org/inzira.git
+git clone https://github.com/gloriaumutoni/inzira.git
 cd inzira
 
-# Install server dependencies
 cd server && npm install
-
-# Install client dependencies
 cd ../client && npm install
 ```
 
-### 2. Configure environment variables
+### 2. Environment variables
 
-```bash
-# Server
-cp server/.env.example server/.env
-# Fill in DATABASE_URL, CLERK_SECRET_KEY, and optional SDK keys
+Create `.env` files from the table below.
 
-# Client
-cp client/.env.example client/.env
-# Fill in VITE_CLERK_PUBLISHABLE_KEY and VITE_API_BASE_URL
+**`server/.env`**
+
+```
+DATABASE_URL=postgresql://...          # Supabase connection string
+CLERK_SECRET_KEY=sk_...
+CORS_ORIGIN=http://localhost:5173
+CLOUDINARY_CLOUD_NAME=                 # Sprint 2
+CLOUDINARY_API_KEY=                    # Sprint 2
+CLOUDINARY_API_SECRET=                 # Sprint 2
+RESEND_API_KEY=                        # Sprint 3
 ```
 
-### 3. Set up the database
+**`client/.env`**
+
+```
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
+VITE_API_BASE_URL=http://localhost:3001
+```
+
+### 3. Database
 
 ```bash
 cd server
@@ -128,20 +81,17 @@ npx prisma migrate dev --name init
 npx prisma generate
 ```
 
-### 4. Start development servers
+### 4. Run locally
 
 ```bash
-# Terminal 1 — backend
-cd server && npm run dev
+# Terminal 1
+cd server && npm run dev        # → http://localhost:3001
 
-# Terminal 2 — frontend
-cd client && npm run dev
+# Terminal 2
+cd client && npm run dev        # → http://localhost:5173
 ```
 
-Backend runs on http://localhost:3001  
-Frontend runs on http://localhost:5173
-
-### 5. Verify
+### 5. Verify the server
 
 ```bash
 curl http://localhost:3001/api/v1/health
@@ -150,30 +100,84 @@ curl http://localhost:3001/api/v1/health
 
 ---
 
-## Environment Variables
+## Deployment
 
-See `server/.env.example` and `client/.env.example` for full documentation.
+| Service | Host | Trigger |
+| ------- | ---- | ------- |
+| Frontend | [Vercel](https://vercel.com) | Push to `main` → auto-deploy via GitHub Actions |
+| Backend | [Render](https://render.com) | Push to `main` → deploy hook via GitHub Actions |
+| Database | [Supabase](https://supabase.com) | Managed PostgreSQL — no deploy step |
 
-| Variable                    | Service    | Required |
-| --------------------------- | ---------- | -------- |
-| `DATABASE_URL`              | Supabase   | Yes      |
-| `CLERK_SECRET_KEY`          | Clerk      | Yes      |
-| `CORS_ORIGIN`               | Server     | Yes      |
-| `VITE_CLERK_PUBLISHABLE_KEY`| Clerk      | Yes      |
-| `VITE_API_BASE_URL`         | Client     | Yes      |
-| `CLOUDINARY_CLOUD_NAME`     | Cloudinary | Sprint 2 |
-| `RESEND_API_KEY`            | Resend     | Sprint 3 |
+### GitHub secrets required
+
+Add these in **GitHub → Settings → Secrets and variables → Actions**:
+
+| Secret | Where to get it |
+| ------ | --------------- |
+| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
+| `VERCEL_ORG_ID` | Vercel project settings |
+| `VERCEL_PROJECT_ID` | Vercel project settings |
+| `RENDER_DEPLOY_HOOK_URL` | Render → Service → Deploy Hook |
+
+### Production URLs
+
+| | URL |
+| - | --- |
+| Client | _[Vercel URL — coming soon]_ |
+| API | _[Render URL — coming soon]_ |
 
 ---
 
-## Sprints
+## Roles
 
-| Sprint | Dates          | Focus                                      |
-| ------ | -------------- | ------------------------------------------ |
-| S1     | Jun 8 – Jun 19 | Infrastructure, auth, CI/CD, core UI       |
-| S2     | Jun 19 – Jul 1 | Career explorer, profiles, session booking |
-| S3     | Jul 1 – Jul 13 | Workshops, coordinator dashboard, notifications |
-| S4     | Jul 13 – Jul 24| PWA, testing, cleanup, presentation        |
+| Role | What they can do |
+| ---- | ---------------- |
+| Student | Interest assessment, browse careers, book sessions, register for workshops |
+| Professional | Host mentorship sessions, manage public profile |
+| Company | Create and manage workshops |
+| SchoolCoordinator | Read-only cohort dashboard |
+| Admin | Full platform management |
+
+---
+
+## Tech Stack
+
+| Layer | Tool |
+| ----- | ---- |
+| Frontend | React 18 + TypeScript, Vite, Tailwind CSS v3, React Router v6 |
+| Auth | Clerk (JWT + session management) |
+| HTTP | Axios (interceptors attach Clerk JWT to every request) |
+| Backend | Express + TypeScript |
+| ORM | Prisma |
+| Database | Supabase (PostgreSQL) |
+| Media | Cloudinary |
+| Email | Resend |
+| Deploy | Vercel (client) + Render (server) |
+| CI/CD | GitHub Actions |
+
+---
+
+## Project Structure
+
+```
+inzira/
+├── .github/workflows/      CI, deploy-client, deploy-server
+├── client/
+│   └── src/
+│       ├── components/     ui/, layout/, auth/
+│       ├── contexts/       AuthContext, UIContext
+│       ├── hooks/          useAuth, useRole, useUser
+│       ├── lib/            api.ts (Axios instance)
+│       ├── pages/          Landing, Login, dashboards/
+│       ├── routes/         AppRouter.tsx
+│       └── types/          Shared TypeScript interfaces
+└── server/
+    └── src/
+        ├── middleware/     authMiddleware, roleGuard, errorHandler
+        ├── prisma/         schema.prisma, client singleton
+        ├── routes/         One file per resource
+        └── utils/          response helpers, Cloudinary, Resend
+```
 
 ---
 
