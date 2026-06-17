@@ -9,7 +9,7 @@ and companies to help them choose A-level subject combinations with real career 
 
 ## Video Demo
 
-> 5–10 minute walkthrough of all role flows — student, professional, company, coordinator, admin.
+> 5–10 minute walkthrough of all role flows — student, professional, company, counselor, admin.
 
 _[Demo link — coming soon]_
 
@@ -28,7 +28,7 @@ _[Demo link — coming soon]_
 | Career explorer | _[screenshot — coming soon]_ |
 | Professional profile + session booking | _[screenshot — coming soon]_ |
 | Company workshop management | _[screenshot — coming soon]_ |
-| Coordinator cohort dashboard | _[screenshot — coming soon]_ |
+| counselor's cohort dashboard | _[screenshot — coming soon]_ |
 
 ---
 
@@ -135,7 +135,7 @@ Add these in **GitHub → Settings → Secrets and variables → Actions**:
 | Student | Interest assessment, browse careers, book sessions, register for workshops |
 | Professional | Host mentorship sessions, manage public profile |
 | Company | Create and manage workshops |
-| SchoolCoordinator | Read-only cohort dashboard |
+| Counselor | Read-only student dashboard |
 | Admin | Full platform management |
 
 ---
