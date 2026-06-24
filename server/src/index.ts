@@ -1,33 +1,44 @@
-import "dotenv/config";
-import express from "express";
-import helmet from "helmet";
-import cors from "cors";
-import apiRouter from "./routes/index";
-import { errorHandler } from "./middleware/index";
+import 'dotenv/config'
+import express from 'express'
+import helmet from 'helmet'
+import cors from 'cors'
+import cookieParser from 'cookie-parser'
+import apiRouter from './routes/index'
+import { errorHandler } from './middleware/index'
 
-const app = express();
+const app = express()
 
-app.use(helmet());
+// Security headers
+app.use(helmet())
+
+// Allow requests from the frontend
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
     credentials: true,
-  }),
-);
-app.use(express.json());
+  })
+)
 
-app.use("/api/v1", apiRouter);
+// Parse JSON request bodies
+app.use(express.json())
 
-app.get("/api/v1/health", (_req, res) => {
-  res.json({ status: "ok", version: "1.0.0" });
-});
+// Parse cookies (needed for refresh token)
+app.use(cookieParser())
 
-app.use(errorHandler);
+// All API routes live under /api/v1
+app.use('/api/v1', apiRouter)
 
-const PORT = Number(process.env.PORT ?? 3001);
+// Health check endpoint — used to verify the server is running
+app.get('/api/v1/health', (_req, res) => {
+  res.json({ status: 'ok', version: '1.0.0' })
+})
 
+// Handle all errors
+app.use(errorHandler)
+
+const PORT = Number(process.env.PORT ?? 3001)
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  console.log(`Server running on port ${PORT}`)
+})
 
-export default app;
+export default app

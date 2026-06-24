@@ -1,39 +1,29 @@
-import { createContext, useContext } from "react";
-import { useUser as useClerkUser } from "@clerk/clerk-react";
-import { Role } from "@/types/index";
-
-type ClerkUser = NonNullable<ReturnType<typeof useClerkUser>["user"]>;
+// Placeholder — will be implemented in Step 3
+import React, { createContext, useContext } from 'react'
+import { Role } from '@/types/index'
 
 interface AuthContextType {
-  user: ClerkUser | null;
-  role: Role | null;
-  isLoaded: boolean;
-  isSignedIn: boolean;
+  user: null
+  role: Role | null
+  isLoaded: boolean
+  isSignedIn: boolean
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  role: null,
+  isLoaded: true,
+  isSignedIn: false,
+})
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoaded, isSignedIn } = useClerkUser();
-
-  const role = (user?.publicMetadata?.role as Role | undefined) ?? null;
-
   return (
     <AuthContext.Provider
-      value={{
-        user: user ?? null,
-        role,
-        isLoaded,
-        isSignedIn: isSignedIn ?? false,
-      }}
+      value={{ user: null, role: null, isLoaded: true, isSignedIn: false }}
     >
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
-export const useAuth = (): AuthContextType => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
-};
+export const useAuth = (): AuthContextType => useContext(AuthContext)
