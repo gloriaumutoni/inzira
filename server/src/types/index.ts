@@ -1,25 +1,19 @@
-export type Role =
-  | "STUDENT"
-  | "PROFESSIONAL"
-  | "COMPANY"
-  | "COORDINATOR"
-  | "ADMIN";
+import { Role } from "@prisma/client";
 
-export interface AuthPayload {
+export { Role };
+
+export interface JwtPayload {
   userId: string;
-  role: Role | null;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
+  role: Role;
 }
 
 declare global {
   namespace Express {
     interface Request {
-      auth?: AuthPayload;
+      auth?: {
+        userId: string;
+        role: Role;
+      };
     }
   }
 }

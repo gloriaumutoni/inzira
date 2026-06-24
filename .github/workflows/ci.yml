@@ -44,4 +44,4 @@ jobs:
         working-directory: client
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://localhost:3001/api/v1' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://localhost:3001/api' }}
