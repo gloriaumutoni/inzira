@@ -1,29 +1,10 @@
-import axios from "axios";
-
-declare global {
-  interface Window {
-    Clerk?: {
-      session?: {
-        getToken: () => Promise<string | null>;
-      };
-    };
-  }
-}
+import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL as string,
-});
+  withCredentials: true,
+})
 
-api.interceptors.request.use(async (config) => {
-  try {
-    const token = await window.Clerk?.session?.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  } catch {
-    // proceed unauthenticated
-  }
-  return config;
-});
+// Placeholder — token attachment will be implemented in Step 3
 
-export default api;
+export default api

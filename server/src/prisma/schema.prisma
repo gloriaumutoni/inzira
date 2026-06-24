@@ -55,7 +55,7 @@ model User {
   student      Student?
   professional Professional?
   company      Company?
-  coordinator  SchoolCoordinator?
+  coordinator  GuidanceCounselor?
   notifications Notification[]
 }
 
@@ -101,7 +101,7 @@ model Company {
   workshops Workshop[]
 }
 
-model SchoolCoordinator {
+model GuidanceCounselor {
   id        String   @id @default(cuid())
   userId    String   @unique
   school    String

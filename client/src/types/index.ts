@@ -58,7 +58,7 @@ export interface Company {
   user?: User;
 }
 
-export interface SchoolCoordinator {
+export interface GuidanceCounselor {
   id: string;
   userId: string;
   school: string;
