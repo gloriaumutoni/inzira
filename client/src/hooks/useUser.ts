@@ -1,18 +1,11 @@
-import { useClerk } from "@clerk/clerk-react";
-import { useAuth } from "@/contexts/AuthContext";
-
+// Placeholder — will be implemented in Step 3
 const useUser = () => {
-  const { user } = useAuth();
-  const { signOut } = useClerk();
+  return {
+    displayName: '',
+    avatarUrl: null as string | null,
+    email: null as string | null,
+    signOut: () => {},
+  }
+}
 
-  const displayName = user
-    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
-    : "";
-
-  const avatarUrl = user?.imageUrl ?? null;
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
-
-  return { displayName, avatarUrl, email, signOut };
-};
-
-export default useUser;
+export default useUser
