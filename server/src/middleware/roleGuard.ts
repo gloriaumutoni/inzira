@@ -1,9 +1,15 @@
-import { Request, Response, NextFunction } from 'express'
+import { Request, Response, NextFunction } from "express";
+import { Role } from "../types";
 
-// Placeholder — will be implemented in Step 3
-// This middleware will check if the user has the required role
 export const roleGuard =
-  (..._allowedRoles: string[]) =>
-  (_req: Request, _res: Response, next: NextFunction): void => {
-    next()
-  }
+  (...allowedRoles: Role[]) =>
+  (req: Request, res: Response, next: NextFunction): void => {
+    const role = req.auth?.role;
+
+    if (!role || !allowedRoles.includes(role)) {
+      res.status(403).json({ success: false, error: "Forbidden" });
+      return;
+    }
+
+    next();
+  };
