@@ -18,12 +18,12 @@ export interface ApiResponse<T> {
 
 export interface User {
   id: string;
-  clerkId: string;
   email: string;
   firstName: string;
   lastName: string;
   role: Role;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Student {
@@ -58,7 +58,7 @@ export interface Company {
   user?: User;
 }
 
-export interface SchoolCoordinator {
+export interface GuidanceCounselor {
   id: string;
   userId: string;
   school: string;

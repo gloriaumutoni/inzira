@@ -44,18 +44,20 @@ enum BookingStatus {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  email     String   @unique
-  firstName String
-  lastName  String
-  role      Role
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  firstName    String
+  lastName     String
+  role         Role
+  refreshToken String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  student      Student?
-  professional Professional?
-  company      Company?
-  coordinator  SchoolCoordinator?
+  student       Student?
+  professional  Professional?
+  company       Company?
+  coordinator   GuidanceCounselor?
   notifications Notification[]
 }
 
@@ -66,11 +68,11 @@ model Student {
   level     Level
   createdAt DateTime @default(now())
 
-  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions Session[]
-  bookings Booking[]
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions  Session[]
+  bookings  Booking[]
   interests Interest[]
-  journals JournalEntry[]
+  journals  JournalEntry[]
 }
 
 model Professional {
@@ -101,7 +103,7 @@ model Company {
   workshops Workshop[]
 }
 
-model SchoolCoordinator {
+model GuidanceCounselor {
   id        String   @id @default(cuid())
   userId    String   @unique
   school    String

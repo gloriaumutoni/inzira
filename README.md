@@ -21,14 +21,14 @@ _[Demo link — coming soon]_
 
 ### App screenshots
 
-| Screen | Preview |
-| ------ | ------- |
-| Landing page | _[screenshot — coming soon]_ |
-| Student dashboard | _[screenshot — coming soon]_ |
-| Career explorer | _[screenshot — coming soon]_ |
+| Screen                                 | Preview                      |
+| -------------------------------------- | ---------------------------- |
+| Landing page                           | _[screenshot — coming soon]_ |
+| Student dashboard                      | _[screenshot — coming soon]_ |
+| Career explorer                        | _[screenshot — coming soon]_ |
 | Professional profile + session booking | _[screenshot — coming soon]_ |
-| Company workshop management | _[screenshot — coming soon]_ |
-| counselor's cohort dashboard | _[screenshot — coming soon]_ |
+| Company workshop management            | _[screenshot — coming soon]_ |
+| counselor's cohort dashboard           | _[screenshot — coming soon]_ |
 
 ---
 
@@ -94,7 +94,7 @@ cd client && npm run dev        # → http://localhost:5173
 ### 5. Verify the server
 
 ```bash
-curl http://localhost:3001/api/v1/health
+curl http://localhost:3001/api/health
 # → {"status":"ok","version":"1.0.0"}
 ```
 
@@ -102,58 +102,58 @@ curl http://localhost:3001/api/v1/health
 
 ## Deployment
 
-| Service | Host | Trigger |
-| ------- | ---- | ------- |
-| Frontend | [Vercel](https://vercel.com) | Push to `main` → auto-deploy via GitHub Actions |
-| Backend | [Render](https://render.com) | Push to `main` → deploy hook via GitHub Actions |
-| Database | [Supabase](https://supabase.com) | Managed PostgreSQL — no deploy step |
+| Service  | Host                             | Trigger                                         |
+| -------- | -------------------------------- | ----------------------------------------------- |
+| Frontend | [Vercel](https://vercel.com)     | Push to `main` → auto-deploy via GitHub Actions |
+| Backend  | [Render](https://render.com)     | Push to `main` → deploy hook via GitHub Actions |
+| Database | [Supabase](https://supabase.com) | Managed PostgreSQL — no deploy step             |
 
 ### GitHub secrets required
 
 Add these in **GitHub → Settings → Secrets and variables → Actions**:
 
-| Secret | Where to get it |
-| ------ | --------------- |
-| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
-| `VERCEL_ORG_ID` | Vercel project settings |
-| `VERCEL_PROJECT_ID` | Vercel project settings |
-| `RENDER_DEPLOY_HOOK_URL` | Render → Service → Deploy Hook |
+| Secret                   | Where to get it                    |
+| ------------------------ | ---------------------------------- |
+| `VERCEL_TOKEN`           | Vercel → Account Settings → Tokens |
+| `VERCEL_ORG_ID`          | Vercel project settings            |
+| `VERCEL_PROJECT_ID`      | Vercel project settings            |
+| `RENDER_DEPLOY_HOOK_URL` | Render → Service → Deploy Hook     |
 
 ### Production URLs
 
-| | URL |
-| - | --- |
+|        | URL                          |
+| ------ | ---------------------------- |
 | Client | _[Vercel URL — coming soon]_ |
-| API | _[Render URL — coming soon]_ |
+| API    | _[Render URL — coming soon]_ |
 
 ---
 
 ## Roles
 
-| Role | What they can do |
-| ---- | ---------------- |
-| Student | Interest assessment, browse careers, book sessions, register for workshops |
-| Professional | Host mentorship sessions, manage public profile |
-| Company | Create and manage workshops |
-| Counselor | Read-only student dashboard |
-| Admin | Full platform management |
+| Role         | What they can do                                                           |
+| ------------ | -------------------------------------------------------------------------- |
+| Student      | Interest assessment, browse careers, book sessions, register for workshops |
+| Professional | Host mentorship sessions, manage public profile                            |
+| Company      | Create and manage workshops                                                |
+| Counselor    | Read-only student dashboard                                                |
+| Admin        | Full platform management                                                   |
 
 ---
 
 ## Tech Stack
 
-| Layer | Tool |
-| ----- | ---- |
+| Layer    | Tool                                                          |
+| -------- | ------------------------------------------------------------- |
 | Frontend | React 18 + TypeScript, Vite, Tailwind CSS v3, React Router v6 |
-| Auth | Clerk (JWT + session management) |
-| HTTP | Axios (interceptors attach Clerk JWT to every request) |
-| Backend | Express + TypeScript |
-| ORM | Prisma |
-| Database | Supabase (PostgreSQL) |
-| Media | Cloudinary |
-| Email | Resend |
-| Deploy | Vercel (client) + Render (server) |
-| CI/CD | GitHub Actions |
+| Auth     | Clerk (JWT + session management)                              |
+| HTTP     | Axios (interceptors attach Clerk JWT to every request)        |
+| Backend  | Express + TypeScript                                          |
+| ORM      | Prisma                                                        |
+| Database | Supabase (PostgreSQL)                                         |
+| Media    | Cloudinary                                                    |
+| Email    | Resend                                                        |
+| Deploy   | Vercel (client) + Render (server)                             |
+| CI/CD    | GitHub Actions                                                |
 
 ---
 
