@@ -1,50 +1,6 @@
 name: Deploy Client
 
 on:
-
-  push:
-
-    branches: [main]
-
-jobs:
-
-  deploy:
-
-    name: Deploy to Vercel
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - name: Checkout code
-
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-
-        uses: actions/setup-node@v4
-
-        with:
-
-          node-version: '20'
-
-      - name: Install Vercel CLI
-
-        run: npm install -g vercel
-
-      - name: Deploy to Vercel
-
-        working-directory: client
-
-        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
-
-        env:
-
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}name: Deploy Client
-
-on:
   push:
     branches: [main]
 
@@ -52,24 +8,16 @@ jobs:
   deploy:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
+          node-version: "20"
+      - name: Install Vercel CLI
+        run: npm install -g vercel
       - name: Deploy to Vercel
-        run: npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+        working-directory: client
+        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
