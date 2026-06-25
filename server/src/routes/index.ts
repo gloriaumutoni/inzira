@@ -6,6 +6,7 @@ import companiesRouter from './companies.routes'
 import careerGuidesRouter from './careerGuides.routes'
 import careersRouter from './careers.routes'
 import schoolsRouter from './schools.routes'
+import sessionsRouter from './sessions.routes'
 
 const router = Router()
 
@@ -16,5 +17,6 @@ router.use('/companies', companiesRouter)
 router.use('/career-guides', careerGuidesRouter)
 router.use('/careers', careersRouter)
 router.use('/schools', schoolsRouter)
+router.use('/sessions', sessionsRouter)
 
 export default router
