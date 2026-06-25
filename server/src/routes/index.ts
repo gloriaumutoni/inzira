@@ -11,6 +11,9 @@ import groupSessionsRouter from './groupSessions.routes'
 import workshopsRouter from './workshops.routes'
 import mentorshipsRouter from './mentorships.routes'
 import paymentsRouter from './payments.routes'
+import notificationsRouter from './notifications.routes'
+import googleCalendarRouter from './googleCalendar.routes'
+import adminRouter from './admin.routes'
 
 const router = Router()
 
@@ -26,5 +29,8 @@ router.use('/group-sessions', groupSessionsRouter)
 router.use('/workshops', workshopsRouter)
 router.use('/mentorships', mentorshipsRouter)
 router.use('/payments', paymentsRouter)
+router.use('/notifications', notificationsRouter)
+router.use('/google-calendar', googleCalendarRouter)
+router.use('/admin', adminRouter)
 
 export default router
