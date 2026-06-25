@@ -1,5 +1,6 @@
 import { prisma } from '../prisma/client'
 import { COMMISSION_RATE } from './auth.service'
+import { createNotification } from './notifications.service'
 
 export const list = async (userId: string, role: string, filters: {
   status?: string
@@ -158,6 +159,19 @@ export const confirm = async (id: string, professionalUserId: string) => {
     }),
   ])
 
+  const studentUser = await prisma.user.findFirst({
+    where: { student: { id: session.studentId } },
+  })
+  if (studentUser) {
+    await createNotification(
+      studentUser.id,
+      'SESSION_CONFIRMED',
+      'Session confirmed',
+      'Your session has been confirmed.',
+      `/sessions/${id}`
+    )
+  }
+
   return updated
 }
 
@@ -172,10 +186,25 @@ export const decline = async (id: string, professionalUserId: string, reason: st
   if (session.professionalId !== professional.id) throw new Error('Access denied')
   if (session.status !== 'PENDING') throw new Error('Session is not pending')
 
-  return prisma.session.update({
+  const updated = await prisma.session.update({
     where: { id },
     data: { status: 'CANCELLED', cancelReason: reason },
   })
+
+  const studentUser = await prisma.user.findFirst({
+    where: { student: { id: session.studentId } },
+  })
+  if (studentUser) {
+    await createNotification(
+      studentUser.id,
+      'SESSION_DECLINED',
+      'Session declined',
+      `Your session request was declined. Reason: ${reason}`,
+      '/sessions'
+    )
+  }
+
+  return updated
 }
 
 export const cancel = async (id: string, userId: string, role: string, reason: string) => {
@@ -213,10 +242,25 @@ export const complete = async (id: string, professionalUserId: string) => {
   if (session.professionalId !== professional.id) throw new Error('Access denied')
   if (session.status !== 'CONFIRMED') throw new Error('Session is not confirmed')
 
-  return prisma.session.update({
+  const updated = await prisma.session.update({
     where: { id },
     data: { status: 'COMPLETED' },
   })
+
+  const studentUser = await prisma.user.findFirst({
+    where: { student: { id: session.studentId } },
+  })
+  if (studentUser) {
+    await createNotification(
+      studentUser.id,
+      'SESSION_COMPLETED',
+      'Session completed',
+      'Your session is complete. Leave a review for your professional.',
+      `/sessions/${id}`
+    )
+  }
+
+  return updated
 }
 
 export const saveNotes = async (id: string, professionalUserId: string, notes: string) => {
