@@ -7,13 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
-
 enum Role {
   STUDENT
   PROFESSIONAL
   COMPANY
-  COORDINATOR
+  CAREER_GUIDE
   ADMIN
 }
 
@@ -22,180 +20,399 @@ enum Level {
   A_LEVEL
 }
 
+enum MentorPlan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum SessionType {
+  FREE_INTRO
+  PRO
+  PREMIUM
+}
+
 enum SessionStatus {
   PENDING
   CONFIRMED
   COMPLETED
   CANCELLED
+  RESCHEDULED
+}
+
+enum WorkshopFormat {
+  IN_PERSON
+  ONLINE
 }
 
 enum WorkshopStatus {
-  OPEN
-  FULL
-  COMPLETED
-}
-
-enum BookingStatus {
-  REGISTERED
-  ATTENDED
+  DRAFT
+  ACTIVE
+  PAST
   CANCELLED
 }
 
-// ─── Models ───────────────────────────────────────────────────────────────────
+enum PaymentMethod {
+  MOMO
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESSFUL
+  FAILED
+  REFUNDED
+}
+
+enum MentorshipStatus {
+  ACTIVE
+  CANCELLED
+  PAUSED
+}
 
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  password     String
-  firstName    String
-  lastName     String
+  username     String   @unique
+  passwordHash String
   role         Role
-  refreshToken String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  student       Student?
-  professional  Professional?
-  company       Company?
-  coordinator   GuidanceCounselor?
-  notifications Notification[]
+  student          Student?
+  professional     Professional?
+  company          Company?
+  careerGuide      CareerGuide?
+  notifications    Notification[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  refreshTokens    RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Student {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  school    String
-  level     Level
-  createdAt DateTime @default(now())
+  id              String     @id @default(cuid())
+  userId          String     @unique
+  firstName       String
+  lastName        String
+  schoolId        String?
+  level           Level
+  schoolYear      String
+  combination     String?
+  confidenceLevel Int?
+  mentorPlan      MentorPlan @default(FREE)
+  interests       String[]
+  profilePhoto    String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions  Session[]
-  bookings  Booking[]
-  interests Interest[]
-  journals  JournalEntry[]
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school          School?                 @relation(fields: [schoolId], references: [id])
+  sessions        Session[]
+  groupEnrolments GroupSessionEnrolment[]
+  workshopRegs    WorkshopRegistration[]
+  confidenceLogs  ConfidenceLog[]
+  mentorship      Mentorship?
+  reviewsGiven    Review[]
 }
 
 model Professional {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  jobTitle  String
-  company   String
-  bio       String
-  sector    String
-  videoUrl  String?
-  createdAt DateTime @default(now())
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  firstName               String
+  lastName                String
+  jobTitle                String
+  employer                String
+  sector                  String
+  linkedinUrl             String?
+  bio                     String
+  profilePhoto            String?
+  isVerified              Boolean   @default(false)
+  isActive                Boolean   @default(true)
+  sessionQuota            Int       @default(20)
+  sessionsUsedThisMonth   Int       @default(0)
+  offersFreeIntro         Boolean   @default(true)
+  offersProTier           Boolean   @default(true)
+  offersPremiumTier       Boolean   @default(false)
+  proRate                 Int       @default(5000)
+  premiumRate             Int       @default(10000)
+  premiumSessionsPerMonth Int       @default(2)
+  googleAccessToken       String?
+  googleRefreshToken      String?
+  googleTokenExpiry       DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  careers  Career[]
-  sessions Session[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability  Availability[]
+  sessions      Session[]
+  groupSessions GroupSession[]
+  mentorships   Mentorship[]
+  reviews       Review[]
 }
 
 model Company {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  name        String
-  description String
-  sector      String
-  logoUrl     String?
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  companyName   String
+  sector        String
+  description   String
+  website       String?
+  companySize   String
+  logoUrl       String?
+  contactPerson String
+  contactPhone  String
+  isVerified    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workshops Workshop[]
 }
 
-model GuidanceCounselor {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  school    String
-  district  String
-  createdAt DateTime @default(now())
+model CareerGuide {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  firstName    String
+  lastName     String
+  jobTitle     String
+  schoolId     String   @unique
+  profilePhoto String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id])
+}
+
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  district  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  students    Student[]
+  careerGuide CareerGuide?
 }
 
 model Career {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  sector       String
+  combinations String[]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Availability {
   id             String   @id @default(cuid())
-  title          String
-  description    String
-  sector         String
-  combinations   String[]
   professionalId String
+  dayOfWeek      Int
+  startHour      Int
+  isPremiumOnly  Boolean  @default(false)
+  isBooked       Boolean  @default(false)
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  sessions     Session[]
 }
 
 model Session {
-  id             String        @id @default(cuid())
-  studentId      String
-  professionalId String
-  careerId       String?
-  scheduledAt    DateTime
-  duration       Int           @default(30)
-  status         SessionStatus @default(PENDING)
-  notes          String?
-  createdAt      DateTime      @default(now())
+  id               String        @id @default(cuid())
+  studentId        String
+  professionalId   String
+  type             SessionType
+  status           SessionStatus @default(PENDING)
+  scheduledAt      DateTime
+  duration         Int
+  grossAmount      Int           @default(0)
+  commissionAmount Int           @default(0)
+  netAmount        Int           @default(0)
+  notes            String?
+  cancelReason     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  career       Career?      @relation(fields: [careerId], references: [id], onDelete: SetNull)
+  payment      Payment?
+  review       Review?
+}
+
+model GroupSession {
+  id              String   @id @default(cuid())
+  professionalId  String
+  title           String
+  description     String
+  sector          String
+  scheduledAt     DateTime
+  duration        Int
+  maxStudents     Int      @default(30)
+  isRecurring     Boolean  @default(true)
+  recurringDays   Int      @default(14)
+  isCancelled     Boolean  @default(false)
+  parentSessionId String?
+  joinLink        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  professional Professional            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  enrolments   GroupSessionEnrolment[]
+}
+
+model GroupSessionEnrolment {
+  id             String   @id @default(cuid())
+  groupSessionId String
+  studentId      String
+  joinedAt       DateTime @default(now())
+
+  groupSession GroupSession @relation(fields: [groupSessionId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([groupSessionId, studentId])
+}
+
+model Mentorship {
+  id              String           @id @default(cuid())
+  studentId       String           @unique
+  professionalId  String
+  status          MentorshipStatus @default(ACTIVE)
+  startDate       DateTime         @default(now())
+  nextBillingDate DateTime
+  sessionsUsed    Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  payments     Payment[]
 }
 
 model Workshop {
-  id          String         @id @default(cuid())
-  companyId   String
-  title       String
-  description String
-  date        DateTime
-  capacity    Int
-  status      WorkshopStatus @default(OPEN)
-  createdAt   DateTime       @default(now())
+  id                   String         @id @default(cuid())
+  companyId            String
+  title                String
+  description          String
+  sector               String
+  format               WorkshopFormat
+  location             String?
+  meetingLink          String?
+  scheduledAt          DateTime
+  duration             Int
+  maxRegistrations     Int?
+  registrationDeadline DateTime?
+  contactPerson        String
+  contactEmail         String
+  hasRefreshments      Boolean        @default(false)
+  hasCertificate       Boolean        @default(false)
+  specialRequirements  String?
+  status               WorkshopStatus @default(DRAFT)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  registrations WorkshopRegistration[]
+  agendaItems   WorkshopAgendaItem[]
 }
 
-model Booking {
-  id         String        @id @default(cuid())
-  studentId  String
+model WorkshopAgendaItem {
+  id         String   @id @default(cuid())
   workshopId String
-  status     BookingStatus @default(REGISTERED)
-  createdAt  DateTime      @default(now())
+  order      Int
+  content    String
+  createdAt  DateTime @default(now())
 
-  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, workshopId])
 }
 
-model Interest {
-  id        String   @id @default(cuid())
-  studentId String
-  category  String
-  score     Int
-  createdAt DateTime @default(now())
+model WorkshopRegistration {
+  id           String   @id @default(cuid())
+  workshopId   String
+  studentId    String
+  registeredAt DateTime @default(now())
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([workshopId, studentId])
 }
 
-model JournalEntry {
-  id        String   @id @default(cuid())
-  studentId String
-  title     String
-  content   String
-  createdAt DateTime @default(now())
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
   id        String   @id @default(cuid())
   userId    String
+  type      String
   title     String
-  message   String
-  read      Boolean  @default(false)
+  body      String
+  isRead    Boolean  @default(false)
+  link      String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  sessionId     String?       @unique
+  mentorshipId  String?
+  amount        Int
+  currency      String        @default("RWF")
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  momoReference String?
+  phoneNumber   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  session    Session?    @relation(fields: [sessionId], references: [id])
+  mentorship Mentorship? @relation(fields: [mentorshipId], references: [id])
+}
+
+model Review {
+  id             String   @id @default(cuid())
+  sessionId      String   @unique
+  studentId      String
+  professionalId String
+  rating         Int
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+}
+
+model ConfidenceLog {
+  id        String   @id @default(cuid())
+  studentId String
+  score     Int
+  note      String?
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
