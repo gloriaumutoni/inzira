@@ -1,8 +1,8 @@
 import { Router } from 'express'
+import authRouter from './auth.routes'
 
 const router = Router()
 
-// Routes will be added here step by step
-// Each route file is added as it is built
+router.use('/auth', authRouter)
 
 export default router
