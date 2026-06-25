@@ -8,6 +8,9 @@ import careersRouter from './careers.routes'
 import schoolsRouter from './schools.routes'
 import sessionsRouter from './sessions.routes'
 import groupSessionsRouter from './groupSessions.routes'
+import workshopsRouter from './workshops.routes'
+import mentorshipsRouter from './mentorships.routes'
+import paymentsRouter from './payments.routes'
 
 const router = Router()
 
@@ -20,5 +23,8 @@ router.use('/careers', careersRouter)
 router.use('/schools', schoolsRouter)
 router.use('/sessions', sessionsRouter)
 router.use('/group-sessions', groupSessionsRouter)
+router.use('/workshops', workshopsRouter)
+router.use('/mentorships', mentorshipsRouter)
+router.use('/payments', paymentsRouter)
 
 export default router
