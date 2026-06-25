@@ -12,7 +12,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   STUDENT: "bg-blue-100 text-blue-800",
   PROFESSIONAL: "bg-teal-100 text-teal-800",
   COMPANY: "bg-purple-100 text-purple-800",
-  COORDINATOR: "bg-orange-100 text-orange-800",
+  CAREER_GUIDE: "bg-orange-100 text-orange-800",
   ADMIN: "bg-red-100 text-red-800",
   success: "bg-green-100 text-green-800",
   warning: "bg-yellow-100 text-yellow-800",

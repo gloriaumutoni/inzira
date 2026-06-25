@@ -1,42 +1,41 @@
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Spinner } from "@/components/ui/index";
-import { Role } from "@/types/index";
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
+import { Role } from '@/types'
+import Spinner from '@/components/ui/Spinner'
 
 const ROLE_HOME: Record<Role, string> = {
-  STUDENT: "/student",
-  PROFESSIONAL: "/professional",
-  COMPANY: "/company",
-  COORDINATOR: "/coordinator",
-  ADMIN: "/admin",
-};
-
-interface Props {
-  children: React.ReactNode;
-  allowedRole?: Role;
+  STUDENT: '/student/home',
+  PROFESSIONAL: '/professional/home',
+  COMPANY: '/company/home',
+  CAREER_GUIDE: '/career-guide/home',
+  ADMIN: '/admin/overview',
 }
 
-const ProtectedRoute = ({ children, allowedRole }: Props) => {
-  const { isLoaded, isSignedIn, role } = useAuth();
-  const location = useLocation();
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  allowedRole: Role
+}
 
-  if (!isLoaded) {
+const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
+  const { isAuthenticated, isLoading, role } = useAuth()
+
+  if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner size="lg" className="text-accent" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Spinner />
       </div>
-    );
+    )
   }
 
-  if (!isSignedIn) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
   }
 
-  if (allowedRole && role && role !== allowedRole) {
-    return <Navigate to={ROLE_HOME[role]} replace />;
+  if (role !== allowedRole) {
+    return <Navigate to={ROLE_HOME[role!]} replace />
   }
 
-  return <>{children}</>;
-};
+  return <>{children}</>
+}
 
-export default ProtectedRoute;
+export default ProtectedRoute
