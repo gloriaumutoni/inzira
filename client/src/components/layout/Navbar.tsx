@@ -26,7 +26,7 @@ const ROLE_LINKS: Record<Role, NavLink[]> = {
     { label: "Workshops", to: "/company/workshops" },
     { label: "Analytics", to: "/company/analytics" },
   ],
-  COORDINATOR: [{ label: "Dashboard", to: "/coordinator" }],
+  CAREER_GUIDE: [{ label: "Dashboard", to: "/career-guide/home" }],
   ADMIN: [
     { label: "Users", to: "/admin/users" },
     { label: "Platform", to: "/admin/platform" },
@@ -34,7 +34,7 @@ const ROLE_LINKS: Record<Role, NavLink[]> = {
 };
 
 const Navbar = () => {
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated: isSignedIn } = useAuth();
   const { role } = useRole();
   const { displayName, avatarUrl, signOut } = useUser();
   const { sidebarOpen, setSidebarOpen } = useUI();

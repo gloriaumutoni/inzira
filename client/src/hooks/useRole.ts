@@ -6,7 +6,7 @@ interface UseRoleReturn {
   isStudent: boolean;
   isProfessional: boolean;
   isCompany: boolean;
-  isCoordinator: boolean;
+  isCareerGuide: boolean;
   isAdmin: boolean;
 }
 
@@ -17,7 +17,7 @@ const useRole = (): UseRoleReturn => {
     isStudent: role === "STUDENT",
     isProfessional: role === "PROFESSIONAL",
     isCompany: role === "COMPANY",
-    isCoordinator: role === "COORDINATOR",
+    isCareerGuide: role === "CAREER_GUIDE",
     isAdmin: role === "ADMIN",
   };
 };

@@ -13,8 +13,11 @@ const config: Config = {
         background: '#F8FAFC',
         surface: '#FFFFFF',
         border: '#E2E8F0',
-        'text-secondary': '#64748B',
-        'text-muted': '#94A3B8',
+        muted: '#64748B',
+        subtle: '#94A3B8',
+        success: '#16A34A',
+        error: '#DC2626',
+        warning: '#F59E0B',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

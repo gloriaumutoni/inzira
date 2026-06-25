@@ -1,21 +1,21 @@
-import { Routes, Route } from "react-router-dom";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import Landing from "@/pages/Landing";
-import Login from "@/pages/Login";
-import NotFound from "@/pages/NotFound";
-import StudentDashboard from "@/pages/dashboards/StudentDashboard";
-import ProfessionalDashboard from "@/pages/dashboards/ProfessionalDashboard";
-import CompanyDashboard from "@/pages/dashboards/CompanyDashboard";
-import CoordinatorDashboard from "@/pages/dashboards/CoordinatorDashboard";
-import AdminDashboard from "@/pages/dashboards/AdminDashboard";
+import { Routes, Route } from 'react-router-dom'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import Landing from '@/pages/Landing'
+import Login from '@/pages/Login'
+import Signup from '@/pages/Signup'
+import NotFound from '@/pages/NotFound'
+import StudentDashboard from '@/pages/dashboards/StudentDashboard'
+import ProfessionalDashboard from '@/pages/dashboards/ProfessionalDashboard'
+import CompanyDashboard from '@/pages/dashboards/CompanyDashboard'
+import CareerGuideDashboard from '@/pages/dashboards/CareerGuideDashboard'
+import AdminDashboard from '@/pages/dashboards/AdminDashboard'
 
 const AppRouter = () => (
   <Routes>
-    {/* Public routes */}
     <Route path="/" element={<Landing />} />
     <Route path="/login" element={<Login />} />
+    <Route path="/signup" element={<Signup />} />
 
-    {/* Protected role routes */}
     <Route
       path="/student/*"
       element={
@@ -41,10 +41,10 @@ const AppRouter = () => (
       }
     />
     <Route
-      path="/coordinator/*"
+      path="/career-guide/*"
       element={
-        <ProtectedRoute allowedRole="COORDINATOR">
-          <CoordinatorDashboard />
+        <ProtectedRoute allowedRole="CAREER_GUIDE">
+          <CareerGuideDashboard />
         </ProtectedRoute>
       }
     />
@@ -57,9 +57,8 @@ const AppRouter = () => (
       }
     />
 
-    {/* Catch-all */}
     <Route path="*" element={<NotFound />} />
   </Routes>
-);
+)
 
-export default AppRouter;
+export default AppRouter
