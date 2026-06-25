@@ -183,6 +183,10 @@ const Signup = () => {
     <div className="min-h-screen bg-primary flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md bg-surface rounded-2xl shadow-card p-8">
 
+        <div className="text-center mb-6">
+          <Link to="/" className="text-2xl font-bold text-primary hover:text-accent transition-colors">Inzira</Link>
+        </div>
+
         {/* Progress dots */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {[1, 2, 3].map((s) => (

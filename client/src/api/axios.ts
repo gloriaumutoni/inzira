@@ -14,10 +14,17 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+const PUBLIC_PATHS = ['/', '/login', '/signup']
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+
+    // Let the refresh endpoint's own 401 propagate — don't retry it
+    if (original.url?.includes('/auth/refresh')) {
+      return Promise.reject(error)
+    }
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
@@ -32,7 +39,9 @@ api.interceptors.response.use(
         return api(original)
       } catch {
         clearAccessToken()
-        window.location.href = '/login'
+        if (!PUBLIC_PATHS.includes(window.location.pathname)) {
+          window.location.href = '/login'
+        }
       }
     }
 

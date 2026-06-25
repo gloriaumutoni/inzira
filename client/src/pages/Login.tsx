@@ -46,7 +46,7 @@ const Login = () => {
     <div className="min-h-screen bg-primary flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-surface rounded-2xl shadow-card p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-primary">Inzira</h1>
+          <Link to="/" className="text-2xl font-bold text-primary hover:text-accent transition-colors">Inzira</Link>
           <h2 className="text-xl font-semibold text-primary mt-4">
             Welcome back
           </h2>
