@@ -31,6 +31,12 @@ const COMPANY_NAV: NavItem[] = [
   { label: 'Insights',  icon: BarChart2, path: '/company/insights' },
 ]
 
+const CAREER_GUIDE_NAV: NavItem[] = [
+  { label: 'Home',      icon: Home,      path: '/career-guide/home' },
+  { label: 'Workshops', icon: BookOpen,  path: '/career-guide/workshops' },
+  { label: 'Sessions',  icon: Calendar,  path: '/career-guide/sessions' },
+]
+
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',            icon: Home,     path: '/student/home' },
   { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
@@ -53,6 +59,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/company/home':              'Home',
   '/company/workshops':         'Workshops',
   '/company/insights':          'Insights',
+  '/career-guide/home':         'Home',
+  '/career-guide/workshops':    'Workshops',
+  '/career-guide/sessions':     'Career Discovery',
 }
 
 function getNavItems(role: Role, level?: Level): NavItem[] {
@@ -61,6 +70,7 @@ function getNavItems(role: Role, level?: Level): NavItem[] {
   }
   if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
   if (role === 'COMPANY') return COMPANY_NAV
+  if (role === 'CAREER_GUIDE') return CAREER_GUIDE_NAV
   return []
 }
 
@@ -157,6 +167,9 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
                   <CheckCircle size={10} />
                   Verified Partner
                 </span>
+              )}
+              {role === 'CAREER_GUIDE' && (
+                <span className="text-xs text-muted mt-0.5">Career Discovery</span>
               )}
             </div>
             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
