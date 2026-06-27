@@ -1,9 +1,7 @@
 name: Deploy Client
-
 on:
   push:
     branches: [main]
-
 jobs:
   deploy:
     name: Deploy to Vercel
@@ -16,7 +14,6 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
       - name: Deploy to Vercel
-        working-directory: client
         run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
