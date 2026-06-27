@@ -1,11 +1,10 @@
-// Placeholder — will be implemented in Step 3
 const useUser = () => {
   return {
-    displayName: '',
+    displayName: "",
     avatarUrl: null as string | null,
     email: null as string | null,
     signOut: () => {},
-  }
-}
+  };
+};
 
-export default useUser
+export default useUser;
