@@ -8,24 +8,34 @@ interface UseCareerResult {
   error: boolean
 }
 
-const useCareers = (limit = 4): UseCareerResult => {
+const useCareers = (params?: {
+  limit?: number
+  sector?: string
+  combination?: string
+}): UseCareerResult => {
   const [careers, setCareers] = useState<Career[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    const fetchCareers = async () => {
+    const fetch = async () => {
       try {
-        const { data } = await api.get(`/careers?limit=${limit}&isActive=true`)
-        setCareers(data.data.careers)
+        const query = new URLSearchParams({
+          isActive: 'true',
+          ...(params?.limit && { limit: String(params.limit) }),
+          ...(params?.sector && { sector: params.sector }),
+          ...(params?.combination && { combination: params.combination }),
+        })
+        const { data } = await api.get(`/careers?${query}`)
+        setCareers(data.data.careers ?? data.data)
       } catch {
         setError(true)
       } finally {
         setLoading(false)
       }
     }
-    fetchCareers()
-  }, [limit])
+    fetch()
+  }, [params?.sector, params?.combination, params?.limit])
 
   return { careers, loading, error }
 }

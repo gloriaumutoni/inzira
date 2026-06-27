@@ -42,7 +42,7 @@ const CareerCard = ({ career }: { career: Career }) => {
 const CARD_WIDTH = 272 // 256px + 16px gap
 
 const CareerCarousel = () => {
-  const { careers, loading, error } = useCareers(8)
+  const { careers, loading, error } = useCareers({ limit: 8 })
   const [index, setIndex] = useState(0)
 
   const canGoLeft = index > 0
