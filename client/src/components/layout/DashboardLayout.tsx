@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, BookOpen } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
@@ -18,6 +18,13 @@ const STUDENT_O_LEVEL_NAV: NavItem[] = [
   { label: 'Get Mentor', icon: Users,    path: '/student/get-mentor' },
 ]
 
+const PROFESSIONAL_NAV: NavItem[] = [
+  { label: 'Home',     icon: Home,        path: '/professional/home' },
+  { label: 'Sessions', icon: Calendar,    path: '/professional/sessions' },
+  { label: 'Mentees',  icon: Users,       path: '/professional/mentees' },
+  { label: 'Earnings', icon: DollarSign,  path: '/professional/earnings' },
+]
+
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',            icon: Home,     path: '/student/home' },
   { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
@@ -27,18 +34,23 @@ const STUDENT_A_LEVEL_NAV: NavItem[] = [
 ]
 
 const PAGE_TITLES: Record<string, string> = {
-  '/student/home':             'Home',
-  '/student/discover':         'Discover',
-  '/student/explore-careers':  'Explore Careers',
-  '/student/workshops':        'Workshops',
-  '/student/sessions':         'Sessions',
-  '/student/get-mentor':       'Get a Mentor',
+  '/student/home':              'Home',
+  '/student/discover':          'Discover',
+  '/student/explore-careers':   'Explore Careers',
+  '/student/workshops':         'Workshops',
+  '/student/sessions':          'Sessions',
+  '/student/get-mentor':        'Get a Mentor',
+  '/professional/home':         'Home',
+  '/professional/sessions':     'Sessions',
+  '/professional/mentees':      'Mentees',
+  '/professional/earnings':     'Earnings',
 }
 
 function getNavItems(role: Role, level?: Level): NavItem[] {
   if (role === 'STUDENT') {
     return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
   }
+  if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
   return []
 }
 
@@ -122,7 +134,15 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
         <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 flex-shrink-0">
           <span className="text-sm font-semibold text-primary">{pageTitle}</span>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted hidden sm:block">{getDisplayName(user)}</span>
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-sm text-muted">{getDisplayName(user)}</span>
+              {role === 'PROFESSIONAL' && (
+                <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+                  <CheckCircle size={10} />
+                  Verified Mentor
+                </span>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
               {getInitials(user)}
             </div>
