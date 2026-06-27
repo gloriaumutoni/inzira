@@ -1,20 +1,25 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import DashboardLayout from '@/components/layout/DashboardLayout'
-import StudentHome from '@/pages/student/StudentHome'
-import StudentDiscover from '@/pages/student/StudentDiscover'
-import StudentSessions from '@/pages/student/StudentSessions'
-import StudentGetMentor from '@/pages/student/StudentGetMentor'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+import OLevelDashboard from '@/pages/student/OLevelDashboard'
+import ALevelDashboard from '@/pages/student/ALevelDashboard'
+import Spinner from '@/components/ui/Spinner'
 
-const StudentDashboard = () => (
-  <DashboardLayout role="STUDENT">
-    <Routes>
-      <Route index element={<Navigate to="home" replace />} />
-      <Route path="home" element={<StudentHome />} />
-      <Route path="discover" element={<StudentDiscover />} />
-      <Route path="sessions" element={<StudentSessions />} />
-      <Route path="get-mentor" element={<StudentGetMentor />} />
-    </Routes>
-  </DashboardLayout>
-)
+const StudentDashboard = () => {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Spinner />
+      </div>
+    )
+  }
+
+  const level = user?.student?.level
+
+  if (level === 'O_LEVEL') return <OLevelDashboard />
+  if (level === 'A_LEVEL') return <ALevelDashboard />
+  return <Navigate to="/login" replace />
+}
 
 export default StudentDashboard

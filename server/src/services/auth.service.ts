@@ -9,6 +9,7 @@ import { Role } from "../types";
 
 export const COMMISSION_RATE = 0.15;
 
+
 interface SignupData {
   email: string;
   password: string;
@@ -100,7 +101,7 @@ export const signup = async (data: SignupData) => {
           firstName: data.firstName,
           lastName: data.lastName,
           jobTitle: data.roleAtSchool ?? "",
-          schoolId: data.schoolId ?? null,
+          schoolId: data.schoolId ?? '',
         },
       });
     }

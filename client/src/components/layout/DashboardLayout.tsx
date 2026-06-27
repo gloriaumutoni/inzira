@@ -1,8 +1,9 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, BookOpen } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
+type Level = 'O_LEVEL' | 'A_LEVEL'
 
 interface NavItem {
   label: string
@@ -10,26 +11,35 @@ interface NavItem {
   path: string
 }
 
-const STUDENT_NAV: NavItem[] = [
-  { label: 'Home',       icon: Home,    path: '/student/home' },
-  { label: 'Discover',   icon: Compass, path: '/student/discover' },
-  { label: 'Sessions',   icon: Calendar,path: '/student/sessions' },
-  { label: 'Get Mentor', icon: Users,   path: '/student/get-mentor' },
+const STUDENT_O_LEVEL_NAV: NavItem[] = [
+  { label: 'Home',       icon: Home,     path: '/student/home' },
+  { label: 'Discover',   icon: Compass,  path: '/student/discover' },
+  { label: 'Sessions',   icon: Calendar, path: '/student/sessions' },
+  { label: 'Get Mentor', icon: Users,    path: '/student/get-mentor' },
 ]
 
-const NAV_MAP: Record<Role, NavItem[]> = {
-  STUDENT:      STUDENT_NAV,
-  PROFESSIONAL: [],
-  COMPANY:      [],
-  CAREER_GUIDE: [],
-  ADMIN:        [],
-}
+const STUDENT_A_LEVEL_NAV: NavItem[] = [
+  { label: 'Home',            icon: Home,     path: '/student/home' },
+  { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
+  { label: 'Workshops',       icon: BookOpen, path: '/student/workshops' },
+  { label: 'Sessions',        icon: Calendar, path: '/student/sessions' },
+  { label: 'Get Mentor',      icon: Users,    path: '/student/get-mentor' },
+]
 
 const PAGE_TITLES: Record<string, string> = {
-  '/student/home':        'Home',
-  '/student/discover':    'Discover',
-  '/student/sessions':    'Sessions',
-  '/student/get-mentor':  'Get a Mentor',
+  '/student/home':             'Home',
+  '/student/discover':         'Discover',
+  '/student/explore-careers':  'Explore Careers',
+  '/student/workshops':        'Workshops',
+  '/student/sessions':         'Sessions',
+  '/student/get-mentor':       'Get a Mentor',
+}
+
+function getNavItems(role: Role, level?: Level): NavItem[] {
+  if (role === 'STUDENT') {
+    return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
+  }
+  return []
 }
 
 function getInitials(user: ReturnType<typeof useAuth>['user']): string {
@@ -45,21 +55,22 @@ function getInitials(user: ReturnType<typeof useAuth>['user']): string {
 function getDisplayName(user: ReturnType<typeof useAuth>['user']): string {
   if (!user) return ''
   const p = user.student ?? user.professional ?? user.careerGuide ?? null
-  if (p && 'firstName' in p) return `${p.firstName} ${('lastName' in p ? p.lastName : '')}`.trim()
+  if (p && 'firstName' in p) return `${p.firstName} ${'lastName' in p ? p.lastName : ''}`.trim()
   if (user.company) return user.company.companyName
   return user.email
 }
 
 interface DashboardLayoutProps {
   role: Role
+  level?: Level
   children: React.ReactNode
 }
 
-const DashboardLayout = ({ role, children }: DashboardLayoutProps) => {
+const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const navItems = NAV_MAP[role]
+  const navItems = getNavItems(role, level)
   const pageTitle = PAGE_TITLES[location.pathname] ?? ''
 
   const handleLogout = () => {
