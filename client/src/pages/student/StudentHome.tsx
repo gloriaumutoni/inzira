@@ -3,27 +3,36 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
 import useProfessionals from '@/hooks/useProfessionals'
-import { getSectorStyle } from '@/utils/sectorColors'
+import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
 import { api } from '@/api/axios'
 
-interface GroupSession {
-  id: string
-  title: string
-  scheduledAt: string
-  duration: number
-  sector: string
-  professional: { firstName: string; lastName: string }
-  _count?: { enrolments: number }
-}
-
 const useUpcomingGroupSessions = (limit: number) => {
-  const [sessions, setSessions] = useState<GroupSession[]>([])
+  const [sessions, setSessions] = useState<GroupSessionData[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     api
       .get(`/group-sessions?limit=${limit}`)
-      .then(({ data }) => setSessions(data.data.groupSessions ?? data.data))
+      .then(({ data }) => {
+        const raw = data.data.sessions ?? data.data
+        // Map backend shape (_count.enrolments) to GroupSessionData
+        setSessions(
+          raw.map((s: {
+            id: string
+            title: string
+            sector: string
+            scheduledAt: string
+            duration?: number
+            maxStudents: number
+            _count?: { enrolments: number }
+            professional?: { firstName: string; lastName: string; sector: string }
+          }) => ({
+            ...s,
+            currentEnrollment: s._count?.enrolments ?? 0,
+            isRegistered: false,
+          })),
+        )
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [limit])
@@ -157,39 +166,16 @@ const StudentHome = () => {
 
         {gsLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="animate-pulse bg-border rounded-xl h-40" />
-            <div className="animate-pulse bg-border rounded-xl h-40" />
+            <div className="animate-pulse bg-border rounded-xl h-44" />
+            <div className="animate-pulse bg-border rounded-xl h-44" />
           </div>
         ) : groupSessions.length === 0 ? (
           <p className="text-sm text-muted">No upcoming group sessions right now.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {groupSessions.map((gs) => {
-              const style = getSectorStyle(gs.sector)
-              const date = new Date(gs.scheduledAt).toLocaleDateString('en-US', {
-                weekday: 'short', month: 'short', day: 'numeric',
-              })
-              const time = new Date(gs.scheduledAt).toLocaleTimeString('en-US', {
-                hour: '2-digit', minute: '2-digit',
-              })
-              return (
-                <div
-                  key={gs.id}
-                  className="rounded-xl p-5 text-white"
-                  style={{ backgroundColor: style.bg }}
-                >
-                  <p className="text-sm font-bold">{gs.title}</p>
-                  <p className="text-xs text-white/80 mt-1">
-                    {gs.professional.firstName} {gs.professional.lastName}
-                  </p>
-                  <p className="text-xs text-white/70 mt-2">{date} · {time}</p>
-                  <p className="text-xs text-white/70">{gs.duration} min</p>
-                  <button className="mt-3 bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
-                    Join Session
-                  </button>
-                </div>
-              )
-            })}
+            {groupSessions.map((gs) => (
+              <GroupSessionCard key={gs.id} session={gs} />
+            ))}
           </div>
         )}
       </section>
