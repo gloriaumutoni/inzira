@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2 } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2, LayoutDashboard, ShieldCheck, Building2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
@@ -37,6 +37,12 @@ const CAREER_GUIDE_NAV: NavItem[] = [
   { label: 'Sessions',  icon: Calendar,  path: '/career-guide/sessions' },
 ]
 
+const ADMIN_NAV: NavItem[] = [
+  { label: 'Overview',     icon: LayoutDashboard, path: '/admin/overview' },
+  { label: 'Verification', icon: ShieldCheck,     path: '/admin/verification' },
+  { label: 'Schools',      icon: Building2,       path: '/admin/schools' },
+]
+
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',            icon: Home,     path: '/student/home' },
   { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
@@ -62,6 +68,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/career-guide/home':         'Home',
   '/career-guide/workshops':    'Workshops',
   '/career-guide/sessions':     'Career Discovery',
+  '/admin/overview':            'Overview',
+  '/admin/verification':        'Verification',
+  '/admin/schools':             'Partner Schools',
 }
 
 function getNavItems(role: Role, level?: Level): NavItem[] {
@@ -71,6 +80,7 @@ function getNavItems(role: Role, level?: Level): NavItem[] {
   if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
   if (role === 'COMPANY') return COMPANY_NAV
   if (role === 'CAREER_GUIDE') return CAREER_GUIDE_NAV
+  if (role === 'ADMIN') return ADMIN_NAV
   return []
 }
 
@@ -170,6 +180,11 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
               )}
               {role === 'CAREER_GUIDE' && (
                 <span className="text-xs text-muted mt-0.5">Career Discovery</span>
+              )}
+              {role === 'ADMIN' && (
+                <span className="bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5">
+                  Administrator
+                </span>
               )}
             </div>
             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
