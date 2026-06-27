@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
@@ -25,6 +25,12 @@ const PROFESSIONAL_NAV: NavItem[] = [
   { label: 'Earnings', icon: DollarSign,  path: '/professional/earnings' },
 ]
 
+const COMPANY_NAV: NavItem[] = [
+  { label: 'Home',      icon: Home,      path: '/company/home' },
+  { label: 'Workshops', icon: Calendar,  path: '/company/workshops' },
+  { label: 'Insights',  icon: BarChart2, path: '/company/insights' },
+]
+
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',            icon: Home,     path: '/student/home' },
   { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
@@ -44,6 +50,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/professional/sessions':     'Sessions',
   '/professional/mentees':      'Mentees',
   '/professional/earnings':     'Earnings',
+  '/company/home':              'Home',
+  '/company/workshops':         'Workshops',
+  '/company/insights':          'Insights',
 }
 
 function getNavItems(role: Role, level?: Level): NavItem[] {
@@ -51,6 +60,7 @@ function getNavItems(role: Role, level?: Level): NavItem[] {
     return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
   }
   if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
+  if (role === 'COMPANY') return COMPANY_NAV
   return []
 }
 
@@ -140,6 +150,12 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
                 <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
                   <CheckCircle size={10} />
                   Verified Mentor
+                </span>
+              )}
+              {role === 'COMPANY' && user?.company?.isVerified && (
+                <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+                  <CheckCircle size={10} />
+                  Verified Partner
                 </span>
               )}
             </div>

@@ -3,7 +3,7 @@ interface SectorStyle {
   badge: string
 }
 
-const SECTOR_COLORS: Record<string, SectorStyle> = {
+export const SECTOR_COLORS: Record<string, SectorStyle> = {
   Healthcare:     { bg: '#0E7490', badge: '#164E63' },
   Technology:     { bg: '#6D28D9', badge: '#4C1D95' },
   Finance:        { bg: '#0F766E', badge: '#134E4A' },
