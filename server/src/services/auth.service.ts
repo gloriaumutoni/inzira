@@ -9,6 +9,16 @@ import { Role } from "../types";
 
 export const COMMISSION_RATE = 0.15;
 
+const generateUsername = async (base: string): Promise<string> => {
+  const slug = base.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user'
+  for (let i = 0; i < 10; i++) {
+    const candidate = i === 0 ? slug : `${slug}${i}`
+    const exists = await prisma.user.findUnique({ where: { username: candidate } })
+    if (!exists) return candidate
+  }
+  return `${slug}${Date.now().toString().slice(-6)}`
+}
+
 interface SignupData {
   email: string;
   password: string;
@@ -42,12 +52,19 @@ export const signup = async (data: SignupData) => {
     throw new Error("Email already in use");
   }
 
+  const usernameBase =
+    data.role === 'COMPANY'
+      ? (data.companyName ?? data.email.split('@')[0])
+      : `${data.firstName ?? ''}${data.lastName ?? ''}`.trim() || data.email.split('@')[0]
+
+  const username = await generateUsername(usernameBase)
   const passwordHash = await bcrypt.hash(data.password, 12);
 
   const user = await prisma.$transaction(async (tx) => {
     const newUser = await tx.user.create({
       data: {
         email: data.email,
+        username,
         passwordHash,
         role: data.role,
       },
@@ -100,7 +117,7 @@ export const signup = async (data: SignupData) => {
           firstName: data.firstName,
           lastName: data.lastName,
           jobTitle: data.roleAtSchool ?? "",
-          schoolId: data.schoolId ?? null,
+          schoolId: data.schoolId ?? '',
         },
       });
     }
