@@ -1,0 +1,207 @@
+import { Link } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import useCareerGuideDashboard from '@/hooks/useCareerGuideDashboard'
+import useWorkshops from '@/hooks/useWorkshops'
+import useGroupSessions from '@/hooks/useGroupSessions'
+import { getSectorStyle } from '@/utils/sectorColors'
+
+function confidenceLabel(score: number): { text: string; className: string } {
+  if (score >= 71) return { text: 'High', className: 'text-success' }
+  if (score >= 41) return { text: 'Medium', className: 'text-warning' }
+  if (score > 0) return { text: 'Low', className: 'text-error' }
+  return { text: '—', className: 'text-muted' }
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+const FALLBACK_SECTORS = ['Technology', 'Healthcare', 'Education', 'Agriculture']
+
+const CareerGuideHome = () => {
+  const { user } = useAuth()
+  const { dashboard, loading: dashLoading, error: dashError } = useCareerGuideDashboard()
+  const { workshops, loading: wsLoading } = useWorkshops({ limit: 3 })
+  const { sessions: groupSessions, loading: gsLoading } = useGroupSessions(2)
+
+  const firstName = user?.careerGuide?.firstName ?? 'Guide'
+  const schoolName = dashboard?.school?.name
+
+  const confidence = dashLoading || dashError
+    ? null
+    : confidenceLabel(dashboard?.avgConfidence ?? 0)
+
+  const sectorCounts = workshops.reduce<Record<string, number>>((acc, w) => {
+    acc[w.sector] = (acc[w.sector] ?? 0) + 1
+    return acc
+  }, {})
+  const topSectors: string[] =
+    Object.keys(sectorCounts).length > 0
+      ? Object.entries(sectorCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([s]) => s)
+      : FALLBACK_SECTORS
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
+          {schoolName && (
+            <p className="text-sm text-muted mt-0.5">Career Discovery · {schoolName}</p>
+          )}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="flex items-center gap-1 text-sm text-accent hover:underline"
+        >
+          <RefreshCw size={14} />
+          Get all latest stats →
+        </button>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-4">
+        {dashLoading ? (
+          <>
+            <div className="animate-pulse bg-border rounded-xl h-24" />
+            <div className="animate-pulse bg-border rounded-xl h-24" />
+            <div className="animate-pulse bg-border rounded-xl h-24" />
+          </>
+        ) : (
+          <>
+            <div className="bg-surface rounded-xl border border-border p-4 text-center">
+              <p className="text-2xl font-bold text-primary">
+                {dashError ? '—' : (dashboard?.totalStudents ?? '—')}
+              </p>
+              <p className="text-xs text-muted uppercase tracking-wide mt-1">Students Registered</p>
+            </div>
+            <div className="bg-surface rounded-xl border border-border p-4 text-center">
+              <p className="text-2xl font-bold text-primary">
+                {dashError ? '—' : (dashboard?.totalSessions ?? '—')}
+              </p>
+              <p className="text-xs text-muted uppercase tracking-wide mt-1">Sessions Completed</p>
+            </div>
+            <div className="bg-surface rounded-xl border border-border p-4 text-center">
+              <p className={`text-2xl font-bold ${confidence?.className ?? 'text-primary'}`}>
+                {dashError ? '—' : (confidence?.text ?? '—')}
+              </p>
+              <p className="text-xs text-muted uppercase tracking-wide mt-1">Average Confidence</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Workshops coming up */}
+        <div className="lg:col-span-2">
+          <div className="flex justify-between items-center">
+            <h2 className="text-base font-semibold text-primary">Workshops coming up</h2>
+            <Link to="/career-guide/workshops" className="text-sm text-accent hover:underline">
+              View All
+            </Link>
+          </div>
+
+          <div className="space-y-3 mt-4">
+            {wsLoading ? (
+              <>
+                <div className="animate-pulse bg-border rounded-xl h-20" />
+                <div className="animate-pulse bg-border rounded-xl h-20" />
+                <div className="animate-pulse bg-border rounded-xl h-20" />
+              </>
+            ) : workshops.length === 0 ? (
+              <p className="text-sm text-muted">No upcoming workshops at the moment.</p>
+            ) : (
+              workshops.map((w) => (
+                <div key={w.id} className="bg-surface rounded-xl border border-border p-4 flex items-start">
+                  <div
+                    className="w-1 rounded-full self-stretch mr-3 flex-shrink-0"
+                    style={{ backgroundColor: getSectorStyle(w.sector).bg }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-accent">{w.company.companyName}</p>
+                    <p className="text-sm font-semibold text-primary mt-0.5">{w.title}</p>
+                    <p className="text-xs text-muted line-clamp-1 mt-0.5">{w.description}</p>
+                    <p className="text-xs text-muted mt-1">
+                      {w._count.registrations} registered · {formatShortDate(w.scheduledAt)}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Candidate areas and trends */}
+        <div className="bg-surface rounded-xl border border-border p-5">
+          <h2 className="text-sm font-semibold text-primary">Candidate areas and trends</h2>
+          <p className="text-xs text-muted mt-1">Popular career sectors among your school's students</p>
+
+          <div className="space-y-3 mt-4">
+            {topSectors.map((sector) => (
+              <div key={sector} className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: getSectorStyle(sector).bg }}
+                />
+                <span className="text-sm text-primary flex-1">{sector}</span>
+                <span className="text-xs text-muted ml-auto">
+                  {sectorCounts[sector] ? `${sectorCounts[sector]} workshop${sectorCounts[sector] !== 1 ? 's' : ''}` : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <hr className="border-border my-4" />
+
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Coming up</p>
+          {gsLoading ? (
+            <div className="animate-pulse bg-border rounded h-10" />
+          ) : groupSessions.length === 0 ? (
+            <p className="text-xs text-muted">No upcoming group sessions.</p>
+          ) : (
+            <div className="space-y-2">
+              {groupSessions.map((gs) => (
+                <div key={gs.id}>
+                  <p className="text-xs font-semibold text-accent">
+                    {new Date(gs.scheduledAt).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </p>
+                  <p className="text-xs text-primary">{gs.title}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recent activity */}
+      <div>
+        <h2 className="text-base font-semibold text-primary">Recent activity at your school</h2>
+        {dashLoading ? (
+          <div className="mt-4 space-y-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="animate-pulse bg-border rounded h-10" />
+            ))}
+          </div>
+        ) : dashError ? (
+          <p className="text-sm text-muted mt-4">Unable to load activity data.</p>
+        ) : (
+          <p className="text-sm text-muted mt-4">No recent activity to show.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default CareerGuideHome
