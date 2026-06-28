@@ -11,10 +11,17 @@ export interface CompanyWorkshop {
   endTime?: string
   format: 'IN_PERSON' | 'ONLINE'
   location?: string
+  meetingLink?: string
   capacity: number
   registrationCount: number
   isPublished: boolean
+  status?: string
   createdAt: string
+}
+
+interface RawWorkshop extends Omit<CompanyWorkshop, 'isPublished'> {
+  status?: string
+  isPublished?: boolean
 }
 
 interface UseCompanyWorkshopsResult {
@@ -35,7 +42,13 @@ const useCompanyWorkshops = (): UseCompanyWorkshopsResult => {
       setLoading(true)
       try {
         const { data } = await api.get('/workshops/me')
-        setWorkshops(data.data.workshops ?? data.data)
+        const raw: RawWorkshop[] = data.data.workshops ?? data.data
+        setWorkshops(
+          raw.map((w) => ({
+            ...w,
+            isPublished: w.status === 'ACTIVE' || w.isPublished === true,
+          })),
+        )
       } catch {
         setError(true)
       } finally {

@@ -15,7 +15,6 @@ const useUpcomingGroupSessions = (limit: number) => {
       .get(`/group-sessions?limit=${limit}`)
       .then(({ data }) => {
         const raw = data.data.sessions ?? data.data
-        // Map backend shape (_count.enrolments) to GroupSessionData
         setSessions(
           raw.map((s: {
             id: string
@@ -63,7 +62,7 @@ const StudentHome = () => {
   const confidenceScore = dashboard?.latestConfidence?.score ?? null
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-4 md:p-6 space-y-8">
       {/* Greeting */}
       <div>
         <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
@@ -71,7 +70,7 @@ const StudentHome = () => {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {dashLoading ? (
           <>
             <SkeletonCard />
@@ -94,7 +93,7 @@ const StudentHome = () => {
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">
-                {dashError || confidenceScore === null ? '—' : `${confidenceScore}/5`}
+                {dashError || confidenceScore === null ? '— / 5' : `${confidenceScore} / 5`}
               </p>
               <p className="text-xs text-muted mt-1 uppercase tracking-wide">Career Confidence</p>
             </div>
@@ -124,7 +123,7 @@ const StudentHome = () => {
               return (
                 <div
                   key={pro.id}
-                  className="bg-surface rounded-xl border border-border p-4 flex items-center justify-between"
+                  className="bg-surface rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-semibold flex items-center justify-center text-sm flex-shrink-0">

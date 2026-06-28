@@ -28,6 +28,10 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!joinLink.trim()) {
+      setError('A Google Meet or Zoom join link is required.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -38,7 +42,7 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
         scheduledAt: new Date(scheduledAt).toISOString(),
         duration: Number(duration),
         maxStudents: Number(maxStudents),
-        joinLink: joinLink || undefined,
+        joinLink: joinLink.trim(),
       })
       onSuccess()
       onClose()
@@ -137,12 +141,13 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Join Link <span className="text-subtle">(optional)</span></label>
+            <label className="block text-xs font-medium text-muted mb-1">Join Link</label>
             <input
-              type="text"
+              type="url"
+              required
               value={joinLink}
               onChange={(e) => setJoinLink(e.target.value)}
-              placeholder="Google Meet or Zoom link"
+              placeholder="https://meet.google.com/... (required)"
               className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
           </div>

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { MapPin, Monitor, Users, Calendar } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 import useCompanyWorkshops from '@/hooks/useCompanyWorkshops'
 import CreateWorkshopModal from '@/components/company/CreateWorkshopModal'
 import { getSectorStyle } from '@/utils/sectorColors'
@@ -16,14 +18,19 @@ interface RegistrationData {
 }
 
 const CompanyWorkshops = () => {
+  const { user } = useAuth()
   const { workshops, loading, refetch } = useCompanyWorkshops()
   const [tab, setTab] = useState<Tab>('Active')
   const [showModal, setShowModal] = useState(false)
   const [editWorkshop, setEditWorkshop] = useState<CompanyWorkshop | null>(null)
-  const [selectedWorkshopId, setSelectedWorkshopId] = useState<string | null>(null)
-  const [regData, setRegData] = useState<RegistrationData | null>(null)
-  const [regLoading, setRegLoading] = useState(false)
-  const [regError, setRegError] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [regData, setRegData] = useState<Record<string, RegistrationData>>({})
+  const [regLoading, setRegLoading] = useState<Record<string, boolean>>({})
+  const [regError, setRegError] = useState<Record<string, boolean>>({})
+
+  if (user?.company?.isVerified === false) {
+    return <Navigate to="/company/home" replace />
+  }
 
   const now = new Date()
 
@@ -33,23 +40,23 @@ const CompanyWorkshops = () => {
     return w.isPublished && new Date(w.date) <= now
   })
 
-  useEffect(() => {
-    if (!selectedWorkshopId) return
-    const fetch = async () => {
-      setRegLoading(true)
-      setRegError(false)
-      setRegData(null)
-      try {
-        const { data } = await api.get(`/workshops/${selectedWorkshopId}/registrations`)
-        setRegData(data.data)
-      } catch {
-        setRegError(true)
-      } finally {
-        setRegLoading(false)
-      }
+  const handleExpand = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null)
+      return
     }
-    fetch()
-  }, [selectedWorkshopId])
+    setExpandedId(id)
+    if (regData[id] || regLoading[id]) return
+    setRegLoading((s) => ({ ...s, [id]: true }))
+    try {
+      const { data } = await api.get(`/workshops/${id}/registrations`)
+      setRegData((s) => ({ ...s, [id]: data.data }))
+    } catch {
+      setRegError((s) => ({ ...s, [id]: true }))
+    } finally {
+      setRegLoading((s) => ({ ...s, [id]: false }))
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this workshop?')) return
@@ -75,21 +82,10 @@ const CompanyWorkshops = () => {
     setShowModal(true)
   }
 
-  const selectedWorkshop = workshops.find((w) => w.id === selectedWorkshopId)
-
-  const topCombinations = regData
-    ? Object.entries(regData.byCombination).sort((a, b) => b[1] - a[1])
-    : []
-  const maxComboCount = topCombinations[0]?.[1] ?? 1
-
-  const topSchools = regData
-    ? Object.entries(regData.bySchool).sort((a, b) => b[1] - a[1]).slice(0, 5)
-    : []
-
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
         <div>
           <h1 className="text-xl font-bold text-primary">Workshop Dashboard</h1>
           <p className="text-sm text-muted mt-1">
@@ -98,7 +94,7 @@ const CompanyWorkshops = () => {
         </div>
         <button
           onClick={() => { setEditWorkshop(null); setShowModal(true) }}
-          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors self-start"
         >
           Create Workshop
         </button>
@@ -122,26 +118,29 @@ const CompanyWorkshops = () => {
         ))}
       </div>
 
-      {/* Two-column */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Workshop list */}
-        <div className="lg:col-span-2 space-y-4">
-          {loading ? (
-            <>
-              <div className="animate-pulse bg-border rounded-xl h-36" />
-              <div className="animate-pulse bg-border rounded-xl h-36" />
-            </>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted py-8 text-center">No {tab.toLowerCase()} workshops.</p>
-          ) : (
-            filtered.map((w) => {
-              const style = getSectorStyle(w.sector)
-              const isArchived = tab === 'Archived'
-              return (
-                <div
-                  key={w.id}
-                  className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow"
-                >
+      {/* Workshop list */}
+      <div className="space-y-4 mt-6">
+        {loading ? (
+          <>
+            <div className="animate-pulse bg-border rounded-xl h-36" />
+            <div className="animate-pulse bg-border rounded-xl h-36" />
+          </>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted py-8 text-center">No {tab.toLowerCase()} workshops.</p>
+        ) : (
+          filtered.map((w) => {
+            const style = getSectorStyle(w.sector)
+            const isArchived = tab === 'Archived'
+            const isExpanded = expandedId === w.id
+            const rd = regData[w.id]
+            const topCombinations = rd
+              ? Object.entries(rd.byCombination).sort((a, b) => b[1] - a[1])
+              : []
+            const maxComboCount = topCombinations[0]?.[1] ?? 1
+
+            return (
+              <div key={w.id}>
+                <div className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className="text-xs px-2 py-0.5 rounded-full text-white"
@@ -155,8 +154,8 @@ const CompanyWorkshops = () => {
                         w.isPublished && !isArchived
                           ? 'bg-success/10 text-success'
                           : isArchived
-                          ? 'bg-muted/10 text-muted'
-                          : 'bg-warning/10 text-warning',
+                          ? 'bg-border text-muted'
+                          : 'bg-border text-muted',
                       ].join(' ')}
                     >
                       {isArchived ? 'Archived' : w.isPublished ? 'Published' : 'Draft'}
@@ -210,127 +209,130 @@ const CompanyWorkshops = () => {
                       </>
                     )}
                     {(tab === 'Active' || tab === 'Archived') && (
-                      <button
-                        onClick={() => setSelectedWorkshopId(w.id)}
-                        className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-background"
-                      >
-                        View Registrations
-                      </button>
-                    )}
-                    {tab === 'Active' && (
                       <>
                         <button
-                          onClick={() => openEdit(w)}
-                          className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors"
+                          onClick={() => handleExpand(w.id)}
+                          className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-background"
                         >
-                          Edit
+                          {isExpanded ? 'Close' : 'View'}
                         </button>
-                        <button
-                          className="border border-border text-muted text-xs px-3 py-1.5 rounded-lg transition-colors cursor-not-allowed opacity-60"
-                          disabled
-                        >
-                          Unpublish
-                        </button>
+                        {tab === 'Active' && (
+                          <button
+                            onClick={() => openEdit(w)}
+                            className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors"
+                          >
+                            Edit
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
                 </div>
-              )
-            })
-          )}
-        </div>
 
-        {/* Registration panel */}
-        <div className="bg-surface rounded-xl border border-border p-5 sticky top-24 self-start">
-          <h2 className="text-sm font-semibold text-primary">Recent Registrations</h2>
-
-          {!selectedWorkshopId && (
-            <p className="text-xs text-muted mt-2">
-              Select a workshop to view registrations.
-            </p>
-          )}
-
-          {selectedWorkshopId && (
-            <>
-              {selectedWorkshop && (
-                <p className="text-xs font-semibold text-accent mb-3 mt-2 truncate">
-                  {selectedWorkshop.title}
-                </p>
-              )}
-
-              {regLoading && (
-                <div className="space-y-2 mt-2">
-                  <div className="animate-pulse bg-border rounded-lg h-16" />
-                  <div className="animate-pulse bg-border rounded-lg h-8" />
-                  <div className="animate-pulse bg-border rounded-lg h-8" />
-                </div>
-              )}
-
-              {regError && (
-                <p className="text-xs text-muted mt-2">Could not load registrations.</p>
-              )}
-
-              {regData && !regLoading && (
-                <div className="mt-2 space-y-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-primary">{regData.total}</p>
-                    <p className="text-xs text-muted">Total Registrations</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'O-Level', value: regData.byLevel['O_LEVEL'] ?? 0 },
-                      { label: 'A-Level', value: regData.byLevel['A_LEVEL'] ?? 0 },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="bg-background rounded-xl p-3 text-center">
-                        <p className="text-lg font-bold text-primary">{value}</p>
-                        <p className="text-xs text-muted">{label}</p>
+                {/* Expandable detail panel */}
+                {isExpanded && (
+                  <div className="bg-background border border-border rounded-xl p-5 mt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
+                      <div>
+                        <p className="text-xs text-muted uppercase tracking-wide">Description</p>
+                        <p className="text-primary mt-1">{w.description}</p>
                       </div>
-                    ))}
-                  </div>
-
-                  {topCombinations.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
-                        Top Combinations
-                      </p>
                       <div className="space-y-2">
-                        {topCombinations.map(([combo, count]) => (
-                          <div key={combo} className="flex items-center justify-between">
-                            <span className="text-xs text-primary">{combo}</span>
-                            <div className="bg-border rounded-full h-1 flex-1 mx-2">
-                              <div
-                                className="bg-accent rounded-full h-1"
-                                style={{ width: `${(count / maxComboCount) * 100}%` }}
-                              />
+                        <div>
+                          <p className="text-xs text-muted uppercase tracking-wide">Date</p>
+                          <p className="text-primary">
+                            {w.date ? new Date(w.date).toLocaleDateString('en-US', {
+                              weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                            }) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted uppercase tracking-wide">Format</p>
+                          <p className="text-primary">{w.format === 'IN_PERSON' ? 'In Person' : 'Online'}</p>
+                        </div>
+                        {w.format === 'IN_PERSON' && w.location && (
+                          <div>
+                            <p className="text-xs text-muted uppercase tracking-wide">Location</p>
+                            <p className="text-primary">{w.location}</p>
+                          </div>
+                        )}
+                        {w.format === 'ONLINE' && w.meetingLink && (
+                          <div>
+                            <p className="text-xs text-muted uppercase tracking-wide">Join Link</p>
+                            <a href={w.meetingLink} target="_blank" rel="noreferrer" className="text-accent hover:underline text-xs">
+                              {w.meetingLink}
+                            </a>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-muted uppercase tracking-wide">Capacity</p>
+                          <p className="text-primary">{w.capacity} students</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {regLoading[w.id] && (
+                      <div className="space-y-2">
+                        <div className="animate-pulse bg-border rounded h-8" />
+                        <div className="animate-pulse bg-border rounded h-8" />
+                      </div>
+                    )}
+
+                    {regError[w.id] && (
+                      <p className="text-xs text-muted">Could not load registration breakdown.</p>
+                    )}
+
+                    {rd && !regLoading[w.id] && (
+                      <div className="border-t border-border pt-4 space-y-3">
+                        <div className="flex gap-4">
+                          <div className="bg-surface rounded-xl px-4 py-2 text-center">
+                            <p className="text-lg font-bold text-primary">{rd.total}</p>
+                            <p className="text-xs text-muted">Total</p>
+                          </div>
+                          <div className="bg-surface rounded-xl px-4 py-2 text-center">
+                            <p className="text-lg font-bold text-primary">{rd.byLevel['O_LEVEL'] ?? 0}</p>
+                            <p className="text-xs text-muted">O-Level</p>
+                          </div>
+                          <div className="bg-surface rounded-xl px-4 py-2 text-center">
+                            <p className="text-lg font-bold text-primary">{rd.byLevel['A_LEVEL'] ?? 0}</p>
+                            <p className="text-xs text-muted">A-Level</p>
+                          </div>
+                        </div>
+
+                        {topCombinations.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Top Combinations</p>
+                            <div className="space-y-1.5">
+                              {topCombinations.slice(0, 4).map(([combo, count]) => (
+                                <div key={combo} className="flex items-center gap-2">
+                                  <span className="text-xs text-primary w-32 truncate">{combo}</span>
+                                  <div className="bg-border rounded-full h-1 flex-1">
+                                    <div
+                                      className="bg-accent rounded-full h-1"
+                                      style={{ width: `${(count / maxComboCount) * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted">{count}</span>
+                                </div>
+                              ))}
                             </div>
-                            <span className="text-xs text-muted">{count}</span>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {topSchools.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
-                        Top Schools
-                      </p>
-                      <div className="space-y-2">
-                        {topSchools.map(([school, count]) => (
-                          <div key={school} className="flex items-center justify-between">
-                            <span className="text-xs text-primary truncate mr-2">{school}</span>
-                            <span className="text-xs text-muted flex-shrink-0">{count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                    <button
+                      onClick={() => setExpandedId(null)}
+                      className="text-xs text-muted hover:text-primary mt-4 block"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
 
       {showModal && (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Pencil, Eye, EyeOff, Trash2 } from 'lucide-react'
+import { Pencil, Eye, EyeOff, Trash2, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import useCompanyDashboard from '@/hooks/useCompanyDashboard'
 import useCompanyWorkshops from '@/hooks/useCompanyWorkshops'
@@ -17,6 +17,7 @@ const CompanyHome = () => {
   const [editWorkshop, setEditWorkshop] = useState<CompanyWorkshop | null>(null)
 
   const companyName = user?.company?.companyName ?? 'Company'
+  const isVerified = user?.company?.isVerified ?? false
 
   const recentWorkshops = [...workshops]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -62,10 +63,30 @@ const CompanyHome = () => {
     setShowModal(true)
   }
 
+  if (!isVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="bg-surface rounded-2xl border border-border p-10 max-w-lg w-full text-center shadow-sm">
+          <Clock className="text-warning w-12 h-12 mx-auto" />
+          <h2 className="text-xl font-bold text-primary mt-4">Your account is under review</h2>
+          <p className="text-sm text-muted mt-3 leading-relaxed">
+            Our team is verifying your company details. This usually takes 1–2 business days.
+            You'll receive an email at{' '}
+            <span className="font-medium text-primary">{user?.email}</span> once your account
+            is approved.
+          </p>
+          <p className="text-xs text-subtle mt-6">
+            Once approved, you'll be able to create workshops and connect with students across Kigali.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
         <div>
           <h1 className="text-xl font-bold text-primary">Welcome, {companyName}</h1>
           <p className="text-sm text-muted mt-1">
@@ -74,14 +95,14 @@ const CompanyHome = () => {
         </div>
         <button
           onClick={openCreate}
-          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors self-start"
         >
           Create Workshop
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {statsLoading ? (
           <>
             <div className="animate-pulse bg-border rounded-xl h-24" />
@@ -141,8 +162,8 @@ const CompanyHome = () => {
                         className={[
                           'inline-block text-xs px-2 py-0.5 rounded-full',
                           w.isPublished
-                            ? 'bg-success/80 text-white'
-                            : 'bg-white/20 text-white',
+                            ? 'bg-success/10 text-success'
+                            : 'bg-border text-muted',
                         ].join(' ')}
                       >
                         {w.isPublished ? 'Published' : 'Draft'}

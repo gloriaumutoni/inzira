@@ -3,7 +3,7 @@ import { Globe, Share2, Mail } from 'lucide-react'
 
 const Footer = () => (
   <footer className="bg-primary">
-    <div className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-2 md:grid-cols-4 gap-10">
+    <div className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-2 md:grid-cols-3 gap-10">
       {/* Brand */}
       <div>
         <p className="text-lg font-bold text-white">Inzira</p>
@@ -12,25 +12,12 @@ const Footer = () => (
         </p>
       </div>
 
-      {/* Platform */}
+      {/* Quick links */}
       <div>
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">Platform</p>
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">Get Started</p>
         <div className="flex flex-col gap-3">
-          <Link to="/explore" className="text-sm text-white/70 hover:text-white transition-colors">Explore Careers</Link>
-          <Link to="/workshops" className="text-sm text-white/70 hover:text-white transition-colors">Upcoming Workshops</Link>
-          <Link to="/sessions" className="text-sm text-white/70 hover:text-white transition-colors">Mentorship Sessions</Link>
-          <Link to="/schools" className="text-sm text-white/70 hover:text-white transition-colors">For Schools</Link>
-        </div>
-      </div>
-
-      {/* Company */}
-      <div>
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">Company</p>
-        <div className="flex flex-col gap-3">
-          <Link to="/about" className="text-sm text-white/70 hover:text-white transition-colors">About Us</Link>
-          <Link to="/mission" className="text-sm text-white/70 hover:text-white transition-colors">Our Mission</Link>
-          <Link to="/contact" className="text-sm text-white/70 hover:text-white transition-colors">Contact</Link>
-          <Link to="/privacy" className="text-sm text-white/70 hover:text-white transition-colors">Privacy Policy</Link>
+          <Link to="/signup" className="text-sm text-white/70 hover:text-white transition-colors">Get Started</Link>
+          <Link to="/login" className="text-sm text-white/70 hover:text-white transition-colors">Sign In</Link>
         </div>
       </div>
 
@@ -51,7 +38,7 @@ const Footer = () => (
       </div>
     </div>
 
-    <div className="border-t border-white/10 mt-0 pt-6 pb-6 text-center text-xs text-white/40">
+    <div className="border-t border-white/10 pt-6 pb-6 text-center text-xs text-white/40">
       © 2024 Inzira. All rights reserved. Made for the students of Rwanda.
     </div>
   </footer>

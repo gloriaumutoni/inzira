@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle, ExternalLink } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
 import useProfessionalDashboard from '@/hooks/useProfessionalDashboard'
@@ -106,23 +106,17 @@ const ProfessionalHome = () => {
   void isActive // suppress unused warning
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
-          <p className="text-sm text-muted mt-1">
-            You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
-          </p>
-        </div>
-        <span className="bg-success/10 text-success text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
-          <CheckCircle size={12} />
-          Verified Mentor
-        </span>
+      <div>
+        <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
+        <p className="text-sm text-muted mt-1">
+          You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
+        </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {statsLoading ? (
           <>
             <div className="animate-pulse bg-border rounded-xl h-24" />

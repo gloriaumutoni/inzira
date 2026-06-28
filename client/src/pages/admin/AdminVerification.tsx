@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UserCheck, Building2, Globe, ChevronLeft, ChevronRight } from 'lucide-react'
+import { UserCheck, Building2, Globe, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '@/api/axios'
 import useVerification from '@/hooks/useVerification'
 
@@ -30,6 +30,7 @@ const AdminVerification = () => {
   const [page, setPage] = useState(1)
   const [processing, setProcessing] = useState<string | null>(null)
   const [rowError, setRowError] = useState<string | null>(null)
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null)
 
   const handleApprove = async (id: string, isProfessional: boolean) => {
     setProcessing(id)
@@ -93,7 +94,7 @@ const AdminVerification = () => {
   const sectorOptions = activeTab === 'professionals' ? proSectors : compSectors
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-bold text-primary">Verification</h1>
@@ -106,7 +107,7 @@ const AdminVerification = () => {
       <p className="text-sm text-muted mt-1">Review and approve new professional and company accounts.</p>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
         {[
           {
             Icon: UserCheck,
@@ -160,7 +161,7 @@ const AdminVerification = () => {
       </div>
 
       {/* Filter row */}
-      <div className="flex gap-3 mt-4 items-center">
+      <div className="flex flex-col sm:flex-row gap-3 mt-4 items-start sm:items-center">
         <select
           value={sectorFilter}
           onChange={(e) => { setSectorFilter(e.target.value); setPage(1) }}
@@ -176,9 +177,9 @@ const AdminVerification = () => {
           placeholder="Search by name or email..."
           value={nameFilter}
           onChange={(e) => { setNameFilter(e.target.value); setPage(1) }}
-          className="border border-border rounded-lg px-3 py-2 text-sm w-64 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
+          className="border border-border rounded-lg px-3 py-2 text-sm w-full sm:w-64 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
         />
-        <span className="text-sm text-muted ml-auto">
+        <span className="text-sm text-muted sm:ml-auto">
           Showing {list.length} {activeTab === 'professionals' ? 'professional' : 'company'}{list.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -202,14 +203,14 @@ const AdminVerification = () => {
             <table className="w-full">
               <thead>
                 <tr className="bg-background border-b border-border">
-                  {['Name', 'Sector', 'Submitted', 'Status', 'Actions'].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left text-xs font-semibold text-muted uppercase px-5 py-3"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {activeTab === 'professionals'
+                    ? ['Name', 'Sector', 'Submitted', 'Status', 'Actions'].map((h) => (
+                        <th key={h} className="text-left text-xs font-semibold text-muted uppercase px-5 py-3">{h}</th>
+                      ))
+                    : ['Company', 'Contact', 'Sector', 'Submitted', ''].map((h) => (
+                        <th key={h} className="text-left text-xs font-semibold text-muted uppercase px-5 py-3">{h}</th>
+                      ))
+                  }
                 </tr>
               </thead>
               <tbody>
@@ -260,53 +261,94 @@ const AdminVerification = () => {
                       </tr>
                     ))
                   : (paginated as typeof filteredComps).map((c) => (
-                      <tr key={c.id} className="border-b border-border hover:bg-background transition-colors">
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold flex-shrink-0">
-                              {initials(c.companyName)}
+                      <>
+                        <tr
+                          key={c.id}
+                          className="border-b border-border hover:bg-background transition-colors cursor-pointer"
+                          onClick={() => setExpandedCompanyId(expandedCompanyId === c.id ? null : c.id)}
+                        >
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                {initials(c.companyName)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-primary">{c.companyName}</p>
+                                <p className="text-xs text-muted">{c.email}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold text-primary">{c.companyName}</p>
-                              <p className="text-xs text-muted">{c.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-sm text-muted">{c.sector}</td>
-                        <td className="px-5 py-3 text-xs text-muted">{formatDate(c.submittedAt)}</td>
-                        <td className="px-5 py-3">
-                          <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold">
-                            PENDING
-                          </span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <div className="flex gap-2 items-center">
-                            <button
-                              onClick={() => handleReject(c.id, false)}
-                              disabled={processing === c.id}
-                              className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
-                            >
-                              Decline
+                          </td>
+                          <td className="px-5 py-3">
+                            <p className="text-xs font-medium text-primary">{(c as { contactPerson?: string }).contactPerson ?? '—'}</p>
+                            <p className="text-xs text-muted">{(c as { contactPhone?: string }).contactPhone ?? ''}</p>
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className="bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full">
+                              {c.sector}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-xs text-muted">{formatDate(c.submittedAt)}</td>
+                          <td className="px-5 py-3">
+                            <button className="text-muted hover:text-primary transition-colors">
+                              {expandedCompanyId === c.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             </button>
-                            <button
-                              onClick={() => handleApprove(c.id, false)}
-                              disabled={processing === c.id}
-                              className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
-                            >
-                              {processing === c.id ? '…' : 'Accept'}
-                            </button>
-                            {rowError === c.id && (
-                              <span className="text-error text-xs">Failed</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
+                        {expandedCompanyId === c.id && (
+                          <tr key={`${c.id}-expanded`} className="border-b border-border">
+                            <td colSpan={5} className="bg-background border-t border-border px-5 py-4">
+                              {(c as { description?: string }).description && (
+                                <p className="text-sm text-muted mb-3">{(c as { description?: string }).description}</p>
+                              )}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-xs">
+                                <div>
+                                  <p className="text-subtle uppercase tracking-wide">Contact Person</p>
+                                  <p className="text-primary font-medium mt-0.5">{(c as { contactPerson?: string }).contactPerson ?? '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-subtle uppercase tracking-wide">Phone</p>
+                                  <p className="text-primary font-medium mt-0.5">{(c as { contactPhone?: string }).contactPhone ?? '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-subtle uppercase tracking-wide">Email</p>
+                                  <p className="text-primary font-medium mt-0.5">{c.email}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleReject(c.id, false)}
+                                  disabled={processing === c.id}
+                                  className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
+                                >
+                                  Decline
+                                </button>
+                                <button
+                                  onClick={() => handleApprove(c.id, false)}
+                                  disabled={processing === c.id}
+                                  className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                                >
+                                  {processing === c.id ? '…' : 'Approve'}
+                                </button>
+                                {rowError === c.id && (
+                                  <span className="text-error text-xs self-center">Failed</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ))}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {activeTab === 'companies' && (
+        <p className="text-xs text-muted italic mt-3">
+          Tip: Search the company name online before approving. Verify their sector matches their website.
+        </p>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

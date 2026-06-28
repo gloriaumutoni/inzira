@@ -1,10 +1,10 @@
 import useStats from '@/hooks/useStats'
 
 const STAT_LABELS = [
-  { key: 'careers' as const,        label: 'CAREERS',         suffix: '+' },
-  { key: 'professionals' as const,  label: 'PROFESSIONALS',   suffix: '+' },
-  { key: 'partnerSchools' as const, label: 'PARTNER SCHOOLS', suffix: ''  },
-  { key: 'students' as const,       label: 'STUDENTS',        suffix: '+' },
+  { key: 'companies' as const,       label: 'COMPANIES',       suffix: '+' },
+  { key: 'professionals' as const,   label: 'PROFESSIONALS',   suffix: '+' },
+  { key: 'partnerSchools' as const,  label: 'PARTNER SCHOOLS', suffix: ''  },
+  { key: 'students' as const,        label: 'STUDENTS',        suffix: '+' },
 ]
 
 const StatsBar = () => {

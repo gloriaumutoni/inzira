@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { api } from "@/api/axios";
 import { SECTOR_COLORS } from "@/utils/sectorColors";
@@ -40,6 +40,12 @@ const CreateWorkshopModal = ({
   const [contactEmail, setContactEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const handleSubmit = async (publishAfter: boolean) => {
     setLoading(true);

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   AreaChart,
   Area,
@@ -59,7 +61,12 @@ const DonutChart = ({
 }
 
 const CompanyInsights = () => {
+  const { user } = useAuth()
   const { workshops, loading: wsLoading } = useCompanyWorkshops()
+
+  if (user?.company?.isVerified === false) {
+    return <Navigate to="/company/home" replace />
+  }
 
   const [allRegData, setAllRegData] = useState<RegistrationData[]>([])
   const [regLoading, setRegLoading] = useState(false)
@@ -166,7 +173,7 @@ const CompanyInsights = () => {
       </div>
 
       {/* Top stats */}
-      <div className="grid grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
         <div className="bg-surface rounded-xl border border-border p-5">
           <p className="text-3xl font-bold text-primary">{totalStudents}</p>
           <p className="text-xs text-muted uppercase tracking-wide mt-1">Total Students Reached</p>

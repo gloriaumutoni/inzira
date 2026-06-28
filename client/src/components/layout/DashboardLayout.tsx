@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2, LayoutDashboard, ShieldCheck, Building2 } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2, LayoutDashboard, ShieldCheck, Building2, Menu, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
@@ -109,10 +110,59 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+const SidebarContent = ({
+  navItems,
+  pathname,
+  onNavClick,
+  onLogout,
+}: {
+  navItems: NavItem[]
+  pathname: string
+  onNavClick?: () => void
+  onLogout: () => void
+}) => (
+  <>
+    <div className="px-6 py-5">
+      <span className="text-white font-bold text-lg">Inzira</span>
+    </div>
+
+    <nav className="flex-1 mt-2">
+      {navItems.map(({ label, icon: Icon, path }) => {
+        const active = pathname === path
+        return (
+          <Link
+            key={path}
+            to={path}
+            onClick={onNavClick}
+            className={[
+              'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
+              active
+                ? 'bg-accent/20 text-white border-r-2 border-accent'
+                : 'text-white/60 hover:text-white hover:bg-white/5',
+            ].join(' ')}
+          >
+            <Icon size={16} />
+            {label}
+          </Link>
+        )
+      })}
+    </nav>
+
+    <button
+      onClick={onLogout}
+      className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
+    >
+      <LogOut size={16} />
+      Logout
+    </button>
+  </>
+)
+
 const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const [mobileOpen, setMobileOpen] = useState(false)
   const navItems = getNavItems(role, level)
   const pageTitle = PAGE_TITLES[location.pathname] ?? ''
 
@@ -124,47 +174,78 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-56 bg-primary flex-shrink-0">
-        <div className="px-6 py-5">
-          <span className="text-white font-bold text-lg">Inzira</span>
-        </div>
-
-        <nav className="flex-1 mt-2">
-          {navItems.map(({ label, icon: Icon, path }) => {
-            const active = location.pathname === path
-            return (
-              <Link
-                key={path}
-                to={path}
-                className={[
-                  'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-accent/20 text-white border-r-2 border-accent'
-                    : 'text-white/60 hover:text-white hover:bg-white/5',
-                ].join(' ')}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
+        <SidebarContent
+          navItems={navItems}
+          pathname={location.pathname}
+          onLogout={handleLogout}
+        />
       </aside>
 
+      {/* Mobile overlay sidebar */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="flex flex-col w-56 bg-primary flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-5">
+              <span className="text-white font-bold text-lg">Inzira</span>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex-1 mt-2">
+              {navItems.map(({ label, icon: Icon, path }) => {
+                const active = location.pathname === path
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    onClick={() => setMobileOpen(false)}
+                    className={[
+                      'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-accent/20 text-white border-r-2 border-accent'
+                        : 'text-white/60 hover:text-white hover:bg-white/5',
+                    ].join(' ')}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                )
+              })}
+            </nav>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+          {/* Backdrop */}
+          <div
+            className="flex-1 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+          />
+        </div>
+      )}
+
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
-        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 flex-shrink-0">
-          <span className="text-sm font-semibold text-primary">{pageTitle}</span>
+        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden text-muted hover:text-primary transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="text-sm font-semibold text-primary">{pageTitle}</span>
+          </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm text-muted">{getDisplayName(user)}</span>
