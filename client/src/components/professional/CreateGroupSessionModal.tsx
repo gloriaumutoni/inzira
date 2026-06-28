@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { api } from '@/api/axios'
 
+const SECTORS = [
+  'ICT', 'Engineering', 'Healthcare', 'Finance',
+  'Education', 'Agriculture', 'Law', 'Architecture',
+  'Arts & Media', 'Business', 'Manufacturing', 'Logistics', 'Other',
+]
+
 interface CreateGroupSessionModalProps {
   onClose: () => void
   onSuccess: () => void
@@ -9,8 +15,10 @@ interface CreateGroupSessionModalProps {
 
 const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModalProps) => {
   const [title, setTitle] = useState('')
-  const [topic, setTopic] = useState('')
+  const [description, setDescription] = useState('')
+  const [sector, setSector] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [duration, setDuration] = useState(60)
   const [maxStudents, setMaxStudents] = useState(30)
   const [joinLink, setJoinLink] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,8 +33,10 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
     try {
       await api.post('/group-sessions', {
         title,
-        topic,
+        description,
+        sector,
         scheduledAt: new Date(scheduledAt).toISOString(),
+        duration: Number(duration),
         maxStudents: Number(maxStudents),
         joinLink: joinLink || undefined,
       })
@@ -41,13 +51,10 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-primary">Create Group Session</h2>
-          <button
-            onClick={onClose}
-            className="text-muted hover:text-primary transition-colors"
-          >
+          <button onClick={onClose} className="text-muted hover:text-primary transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -66,14 +73,28 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Topic / Description</label>
+            <label className="block text-xs font-medium text-muted mb-1">Description</label>
             <textarea
+              required
               rows={3}
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="What will students learn or discuss?"
               className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1">Sector</label>
+            <select
+              required
+              value={sector}
+              onChange={(e) => setSector(e.target.value)}
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              <option value="">Select a sector</option>
+              {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
           <div>
@@ -84,6 +105,19 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
               min={today}
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1">Duration (minutes)</label>
+            <input
+              type="number"
+              required
+              min={15}
+              max={180}
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
               className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
           </div>
@@ -108,7 +142,7 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
               type="text"
               value={joinLink}
               onChange={(e) => setJoinLink(e.target.value)}
-              placeholder="Google Meet or Zoom link (optional)"
+              placeholder="Google Meet or Zoom link"
               className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
           </div>

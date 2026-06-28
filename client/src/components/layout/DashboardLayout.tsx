@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2, LayoutDashboard, ShieldCheck, Building2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { logoutUser } from '@/api/auth.api'
 
 type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
 type Level = 'O_LEVEL' | 'A_LEVEL'
@@ -115,7 +116,8 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const navItems = getNavItems(role, level)
   const pageTitle = PAGE_TITLES[location.pathname] ?? ''
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await logoutUser() } catch { /* ignore network errors */ }
     logout()
     navigate('/')
   }

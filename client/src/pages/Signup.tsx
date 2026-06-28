@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { signupUser, getMe, SignupPayload } from '@/api/auth.api'
+import { setAccessToken } from '@/utils/token'
 import { getPublicSchools } from '@/api/schools.api'
 import { School } from '@/types'
 
@@ -142,6 +143,7 @@ const Signup = () => {
         return
       }
 
+      setAccessToken(accessToken)
       const me = await getMe()
       setAuth(accessToken, me)
       navigate(ROLE_HOME[role!] ?? '/')
