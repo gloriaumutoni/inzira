@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
-import useStudentSessions from '@/hooks/useStudentSessions'
 import useGroupSessions from '@/hooks/useGroupSessions'
 import useWorkshops from '@/hooks/useWorkshops'
 import GroupSessionCard from '@/components/sessions/GroupSessionCard'
@@ -13,12 +15,23 @@ const STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-error/10 text-error text-xs px-2 py-1 rounded-full font-medium',
 }
 
+interface UnifiedSession {
+  id: string
+  isGroup: boolean
+  scheduledAt: string
+  status?: string
+  title?: string
+  professional?: { firstName: string; lastName: string; jobTitle?: string }
+  joinLink?: string | null
+}
+
 const ALevelHome = () => {
   const { user } = useAuth()
   const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
-  const { sessions: allSessions, loading: sessionsLoading } = useStudentSessions()
-  const { sessions: groupSessions, loading: gsLoading } = useGroupSessions(2)
+  const { sessions: publicGroupSessions, loading: gsLoading } = useGroupSessions(2)
   const { workshops, loading: wsLoading } = useWorkshops({ limit: 2 })
+  const [registeringId, setRegisteringId] = useState<string | null>(null)
+  const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set())
 
   const firstName = user?.student?.firstName ?? 'there'
   const combination = user?.student?.combination ?? 'A-Level'
@@ -30,20 +43,51 @@ const ALevelHome = () => {
   })
 
   const now = new Date()
-  const upcomingSessions = allSessions
-    .filter(
-      (s) =>
-        (s.status === 'CONFIRMED' || s.status === 'PENDING') &&
-        new Date(s.scheduledAt) > now,
-    )
-    .slice(0, 2)
 
-  const upcomingCount = dashboard?.upcomingSessions.length ?? 0
+  const allUpcoming: UnifiedSession[] = [
+    ...(dashboard?.upcomingSessions ?? []).map((s) => ({
+      id: s.id,
+      isGroup: false,
+      scheduledAt: s.scheduledAt,
+      status: s.status,
+      professional: s.professional,
+    })),
+    ...(dashboard?.groupSessions ?? []).map((e) => ({
+      id: e.groupSession.id,
+      isGroup: true,
+      scheduledAt: e.groupSession.scheduledAt,
+      status: 'CONFIRMED',
+      title: e.groupSession.title,
+      professional: e.groupSession.professional,
+      joinLink: e.groupSession.joinLink,
+    })),
+  ].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    .slice(0, 3)
+
+  const upcomingCount = allUpcoming.filter((s) => new Date(s.scheduledAt) > now).length
   const workshopsCount = dashboard?.registeredWorkshops.length ?? 0
-  const confidenceScore = dashboard?.latestConfidence?.score ?? null
+  const confidenceScore = dashboard?.latestConfidence ?? null
+
+  const handleRegisterWorkshop = async (workshopId: string) => {
+    setRegisteringId(workshopId)
+    try {
+      await api.post(`/workshops/${workshopId}/register`)
+      setRegisteredIds((prev) => new Set([...prev, workshopId]))
+      toast.success('You are registered for this workshop!')
+    } catch (err: unknown) {
+      const status = (err as { response?: { status: number } })?.response?.status
+      if (status === 409) {
+        toast.error('You are already registered for this workshop.')
+      } else {
+        toast.error('Could not register. Please try again.')
+      }
+    } finally {
+      setRegisteringId(null)
+    }
+  }
 
   const showWorkshopsFirst =
-    upcomingSessions.length === 0 && workshops.length > 0
+    allUpcoming.length === 0 && workshops.length > 0
 
   const sessionsSection = (
     <div className="lg:col-span-2">
@@ -54,12 +98,12 @@ const ALevelHome = () => {
         </Link>
       </div>
 
-      {sessionsLoading ? (
+      {dashLoading ? (
         <div className="space-y-3">
           <div className="animate-pulse bg-border rounded-xl h-20" />
           <div className="animate-pulse bg-border rounded-xl h-20" />
         </div>
-      ) : upcomingSessions.length === 0 ? (
+      ) : allUpcoming.length === 0 ? (
         <div className="text-sm text-muted text-center py-6">
           No upcoming sessions.{' '}
           <Link to="/student/explore-careers" className="text-accent hover:underline">
@@ -68,11 +112,11 @@ const ALevelHome = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {upcomingSessions.map((session) => {
+          {allUpcoming.map((session) => {
             const pro = session.professional
             const initials = pro
               ? `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
-              : '??'
+              : 'GS'
             const date = new Date(session.scheduledAt).toLocaleDateString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric',
             })
@@ -81,25 +125,29 @@ const ALevelHome = () => {
             })
             return (
               <div
-                key={session.id}
+                key={`${session.isGroup ? 'g' : 's'}-${session.id}`}
                 className="bg-surface rounded-xl border border-border p-4 flex items-start gap-3"
               >
                 <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-semibold text-sm flex items-center justify-center flex-shrink-0">
                   {initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-primary">
-                    {pro ? `${pro.firstName} ${pro.lastName}` : 'Session'}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-primary">
+                      {session.isGroup
+                        ? (session.title ?? 'Group Session')
+                        : pro ? `${pro.firstName} ${pro.lastName}` : 'Session'}
+                    </p>
+                    {session.isGroup && (
+                      <span className="bg-success/10 text-success text-xs px-2 py-0.5 rounded-full">GROUP</span>
+                    )}
+                  </div>
                   {pro && <p className="text-xs text-muted">{pro.jobTitle}</p>}
                   <p className="text-xs text-muted mt-1">{date} · {time}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                  <span className={STATUS_STYLES[session.status] ?? STATUS_STYLES['PENDING']}>
-                    {session.status.charAt(0) + session.status.slice(1).toLowerCase()}
-                  </span>
-                  <button className="text-xs text-accent hover:underline">Reschedule</button>
-                </div>
+                <span className={STATUS_STYLES[session.status ?? 'CONFIRMED'] ?? STATUS_STYLES['CONFIRMED']}>
+                  {(session.status ?? 'CONFIRMED').charAt(0) + (session.status ?? 'CONFIRMED').slice(1).toLowerCase()}
+                </span>
               </div>
             )
           })}
@@ -135,8 +183,16 @@ const ALevelHome = () => {
                 <p className="text-xs text-muted">
                   {ws.format === 'ONLINE' ? 'Online' : ws.location ?? 'Location TBD'}
                 </p>
-                <button className="mt-3 bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
-                  Register
+                <button
+                  onClick={() => handleRegisterWorkshop(ws.id)}
+                  disabled={registeringId === ws.id || registeredIds.has(ws.id)}
+                  className={`mt-3 text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold disabled:opacity-60 ${
+                    registeredIds.has(ws.id)
+                      ? 'bg-success/10 text-success cursor-default'
+                      : 'bg-primary text-white hover:bg-primary/90'
+                  }`}
+                >
+                  {registeredIds.has(ws.id) ? 'Registered ✓' : registeringId === ws.id ? 'Registering...' : 'Register'}
                 </button>
               </div>
             )
@@ -220,11 +276,11 @@ const ALevelHome = () => {
             <div className="animate-pulse bg-border rounded-xl h-44" />
             <div className="animate-pulse bg-border rounded-xl h-44" />
           </div>
-        ) : groupSessions.length === 0 ? (
+        ) : publicGroupSessions.length === 0 ? (
           <p className="text-sm text-muted">No upcoming group sessions right now.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {groupSessions.map((gs) => (
+            {publicGroupSessions.map((gs) => (
               <GroupSessionCard key={gs.id} session={gs} />
             ))}
           </div>

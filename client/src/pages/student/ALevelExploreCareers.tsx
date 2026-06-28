@@ -53,10 +53,6 @@ const ALevelExploreCareers = () => {
           <span className="text-xs font-semibold text-primary">{stats?.professionals ?? '—'}</span>
           <span className="text-xs text-muted">Professionals</span>
         </div>
-        <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
-          <span className="text-xs font-semibold text-primary">{stats?.partnerSchools ?? '—'}</span>
-          <span className="text-xs text-muted">Schools</span>
-        </div>
       </div>
 
       {/* Filters */}

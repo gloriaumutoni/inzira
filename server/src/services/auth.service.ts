@@ -19,6 +19,7 @@ interface SignupData {
   level?: string;
   schoolYear?: string;
   combination?: string;
+  confidence?: number;
   jobTitle?: string;
   employer?: string;
   sector?: string;
@@ -62,6 +63,8 @@ export const signup = async (data: SignupData) => {
           lastName: data.lastName,
           level: (data.level as "O_LEVEL" | "A_LEVEL") ?? "O_LEVEL",
           schoolYear: data.schoolYear ?? "S1",
+          combination: data.combination ?? null,
+          confidenceLevel: data.confidence ? Number(data.confidence) : null,
         },
       });
     }

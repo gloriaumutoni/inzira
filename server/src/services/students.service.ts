@@ -27,7 +27,7 @@ export const getDashboard = async (userId: string) => {
   const student = await prisma.student.findUnique({ where: { userId } })
   if (!student) throw new Error('Student not found')
 
-  const [upcomingSessions, registeredWorkshops, groupSessions, latestConfidence] =
+  const [upcomingSessions, registeredWorkshops, groupSessions] =
     await Promise.all([
       prisma.session.findMany({
         where: { studentId: student.id, status: 'CONFIRMED', scheduledAt: { gte: new Date() } },
@@ -47,16 +47,17 @@ export const getDashboard = async (userId: string) => {
           groupSession: { isCancelled: false, scheduledAt: { gte: new Date() } },
         },
         include: { groupSession: { include: { professional: true } } },
-        orderBy: { joinedAt: 'desc' },
+        orderBy: { joinedAt: 'asc' },
         take: 3,
-      }),
-      prisma.confidenceLog.findFirst({
-        where: { studentId: student.id },
-        orderBy: { createdAt: 'desc' },
       }),
     ])
 
-  return { upcomingSessions, registeredWorkshops, groupSessions, latestConfidence }
+  return {
+    upcomingSessions,
+    registeredWorkshops,
+    groupSessions,
+    latestConfidence: student.confidenceLevel ?? null,
+  }
 }
 
 export const logConfidence = async (userId: string, score: number, note?: string) => {

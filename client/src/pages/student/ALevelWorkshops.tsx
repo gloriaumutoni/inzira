@@ -1,11 +1,33 @@
 import { useState, useMemo } from 'react'
 import { MapPin, Calendar, Users } from 'lucide-react'
+import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useWorkshops from '@/hooks/useWorkshops'
 import { getSectorStyle } from '@/utils/sectorColors'
 
 const ALevelWorkshops = () => {
   const [activeSector, setActiveSector] = useState<string>('All')
+  const [registeringId, setRegisteringId] = useState<string | null>(null)
+  const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set())
   const { workshops, loading, error } = useWorkshops()
+
+  const handleRegister = async (workshopId: string) => {
+    setRegisteringId(workshopId)
+    try {
+      await api.post(`/workshops/${workshopId}/register`)
+      setRegisteredIds((prev) => new Set([...prev, workshopId]))
+      toast.success('You are registered for this workshop!')
+    } catch (err: unknown) {
+      const status = (err as { response?: { status: number } })?.response?.status
+      if (status === 409) {
+        toast.error('You are already registered for this workshop.')
+      } else {
+        toast.error('Could not register. Please try again.')
+      }
+    } finally {
+      setRegisteringId(null)
+    }
+  }
 
   const uniqueSectors = useMemo(
     () => Array.from(new Set(workshops.map((w) => w.sector))),
@@ -125,8 +147,20 @@ const ALevelWorkshops = () => {
                       </span>
                     )}
                   </div>
-                  <button className="bg-primary text-white text-xs px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors mt-3">
-                    Register
+                  <button
+                    onClick={() => handleRegister(ws.id)}
+                    disabled={registeringId === ws.id || registeredIds.has(ws.id)}
+                    className={`text-xs px-4 py-2 rounded-lg mt-3 font-semibold transition-colors disabled:opacity-60 ${
+                      registeredIds.has(ws.id)
+                        ? 'bg-success/10 text-success cursor-default'
+                        : 'bg-primary text-white hover:bg-primary/90'
+                    }`}
+                  >
+                    {registeredIds.has(ws.id)
+                      ? 'Registered ✓'
+                      : registeringId === ws.id
+                      ? 'Registering...'
+                      : 'Register'}
                   </button>
                 </div>
               )

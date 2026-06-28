@@ -57,9 +57,13 @@ const StudentHome = () => {
     year: 'numeric',
   })
 
-  const upcomingCount = dashboard?.upcomingSessions.length ?? 0
+  const now = new Date()
+  const upcomingGroupCount = (dashboard?.groupSessions ?? []).filter(
+    (e) => new Date(e.groupSession.scheduledAt) > now,
+  ).length
+  const upcomingCount = (dashboard?.upcomingSessions.length ?? 0) + upcomingGroupCount
   const workshopsCount = dashboard?.registeredWorkshops.length ?? 0
-  const confidenceScore = dashboard?.latestConfidence?.score ?? null
+  const confidenceScore = dashboard?.latestConfidence ?? null
 
   return (
     <div className="p-4 md:p-6 space-y-8">

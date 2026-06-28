@@ -7,6 +7,11 @@ const STAT_LABELS = [
   { key: 'companies' as const,      label: 'COMPANIES',       suffix: '+' },
 ]
 
+const formatStat = (value: number, suffix: string) => {
+  if (suffix === '+' && value > 30) return `${value.toLocaleString()}+`
+  return value.toLocaleString()
+}
+
 const StatsBar = () => {
   const { stats, loading, error } = useStats()
 
@@ -22,7 +27,7 @@ const StatsBar = () => {
                 <span className="text-3xl font-bold text-white">—</span>
               ) : (
                 <span className="text-3xl font-bold text-white">
-                  {stats[key].toLocaleString()}{suffix}
+                  {formatStat(stats[key], suffix)}
                 </span>
               )}
               <span className="text-xs text-subtle uppercase tracking-widest mt-2">{label}</span>

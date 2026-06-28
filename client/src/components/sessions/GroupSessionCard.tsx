@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 import { getSectorStyle } from '@/utils/sectorColors'
+import GroupSessionJoinModal from './GroupSessionJoinModal'
 
 export interface GroupSessionData {
   id: string
@@ -12,6 +13,7 @@ export interface GroupSessionData {
   maxStudents: number
   currentEnrollment: number
   isRegistered: boolean
+  joinLink?: string | null
   professional?: {
     firstName: string
     lastName: string
@@ -29,6 +31,7 @@ const GroupSessionCard = ({ session, onRegisterSuccess }: GroupSessionCardProps)
   const [isRegistered, setIsRegistered] = useState(session.isRegistered)
   const [enrollment, setEnrollment] = useState(session.currentEnrollment)
   const [loading, setLoading] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
   const slotsLeft = session.maxStudents - enrollment
   const isFull = slotsLeft <= 0
@@ -91,7 +94,7 @@ const GroupSessionCard = ({ session, onRegisterSuccess }: GroupSessionCardProps)
 
         {isFull && !isRegistered ? null : isRegistered ? (
           <button
-            onClick={() => alert('Session link coming soon')}
+            onClick={() => setShowModal(true)}
             className="bg-accent hover:bg-accent/90 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
           >
             Join Session
@@ -106,6 +109,28 @@ const GroupSessionCard = ({ session, onRegisterSuccess }: GroupSessionCardProps)
           </button>
         )}
       </div>
+
+      {showModal && (
+        <GroupSessionJoinModal
+          session={{
+            id: session.id,
+            title: session.title,
+            scheduledAt: session.scheduledAt,
+            maxStudents: session.maxStudents,
+            currentEnrollment: enrollment,
+            joinLink: session.joinLink ?? undefined,
+            professional: session.professional
+              ? {
+                  firstName: session.professional.firstName,
+                  lastName: session.professional.lastName,
+                  jobTitle: session.professional.jobTitle,
+                  sector: session.professional.sector,
+                }
+              : undefined,
+          }}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   )
 }

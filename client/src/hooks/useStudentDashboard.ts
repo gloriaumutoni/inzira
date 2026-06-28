@@ -33,22 +33,16 @@ interface GroupSessionEnrolment {
     title: string
     scheduledAt: string
     sector: string
-    professional: { firstName: string; lastName: string }
+    joinLink?: string | null
+    professional: { firstName: string; lastName: string; jobTitle: string }
   }
-}
-
-interface ConfidenceLog {
-  id: string
-  score: number
-  note: string | null
-  createdAt: string
 }
 
 interface StudentDashboardData {
   upcomingSessions: UpcomingSession[]
   registeredWorkshops: WorkshopRegistration[]
   groupSessions: GroupSessionEnrolment[]
-  latestConfidence: ConfidenceLog | null
+  latestConfidence: number | null
 }
 
 interface UseStudentDashboardResult {
