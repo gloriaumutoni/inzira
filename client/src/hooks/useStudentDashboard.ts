@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 
 interface UpcomingSession {
   id: string
@@ -68,6 +69,7 @@ const useStudentDashboard = (): UseStudentDashboardResult => {
         setDashboard(data.data)
       } catch {
         setError(true)
+        toast.error('Unable to load your dashboard data.')
       } finally {
         setLoading(false)
       }

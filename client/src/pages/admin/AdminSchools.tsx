@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Building2, Users, UserCheck, X } from 'lucide-react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useSchools, { School } from '@/hooks/useSchools'
 
 const DISTRICTS = ['Gasabo', 'Nyarugenge', 'Kicukiro', 'Other']
@@ -51,9 +52,11 @@ const AdminSchools = () => {
       refetch()
       setShowAddModal(false)
       setAddForm({ name: '', district: 'Gasabo' })
+      toast.success('School added successfully.')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to add school'
       setAddError(msg)
+      toast.error('Action failed. Please try again.')
     } finally {
       setAddLoading(false)
     }
@@ -71,10 +74,12 @@ const AdminSchools = () => {
         setSelected(null)
       }
       setShowAssignModal(false)
+      toast.success('Career guide assigned.')
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Failed to assign career guide'
       setAssignError(msg)
+      toast.error('Action failed. Please try again.')
     } finally {
       setAssignLoading(false)
     }
@@ -87,8 +92,9 @@ const AdminSchools = () => {
       await api.patch(`/schools/${school.id}`, { isActive: false })
       refetch()
       if (selected?.id === school.id) setSelected(null)
+      toast.success('School deactivated.')
     } catch {
-      // silent
+      toast.error('Action failed. Please try again.')
     } finally {
       setDeactivating(null)
     }

@@ -33,13 +33,6 @@ const SECTORS = [
   'Arts & Media', 'Business', 'Manufacturing', 'Logistics', 'Other',
 ]
 
-const CONFIDENCE_OPTIONS = [
-  { value: 1, label: 'I have no idea what I want to do yet' },
-  { value: 2, label: 'I have a general area in mind but nothing specific' },
-  { value: 3, label: 'I know a few careers I am interested in' },
-  { value: 4, label: 'I have one career in mind but I am not fully sure' },
-  { value: 5, label: 'I know exactly what I want to do' },
-]
 
 interface Step1Data {
   firstName: string
@@ -366,23 +359,28 @@ const Signup = () => {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-primary mb-2">
-                  How confident are you about your career path? <span className="text-muted font-normal">(optional)</span>
+                <label className="block text-sm font-medium text-primary mb-3">
+                  How confident are you about your career path?{' '}
+                  <span className="text-muted font-normal text-xs">(optional)</span>
                 </label>
-                <div className="space-y-2">
-                  {CONFIDENCE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setStep3({ ...step3, confidence: opt.value })}
-                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-all ${
-                        step3.confidence === opt.value
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border text-primary hover:border-accent'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
+                <div className="flex gap-3 justify-center mt-2">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <div key={value} className="flex flex-col items-center">
+                      <button
+                        type="button"
+                        onClick={() => setStep3({ ...step3, confidence: value })}
+                        className={
+                          step3.confidence === value
+                            ? 'w-10 h-10 rounded-full border-2 border-accent bg-accent flex items-center justify-center text-sm font-semibold text-white transition-all'
+                            : 'w-10 h-10 rounded-full border-2 border-border bg-surface flex items-center justify-center text-sm font-semibold text-muted cursor-pointer hover:border-accent hover:text-accent transition-all'
+                        }
+                      >
+                        {value}
+                      </button>
+                      <span className="text-xs text-muted text-center mt-1 h-4">
+                        {value === 1 ? 'Not sure' : value === 3 ? 'Some idea' : value === 5 ? 'Very sure' : ''}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>

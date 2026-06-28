@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 
 const SECTORS = [
   'ICT', 'Engineering', 'Healthcare', 'Finance',
@@ -44,10 +45,12 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
         maxStudents: Number(maxStudents),
         joinLink: joinLink.trim(),
       })
+      toast.success('Group session created successfully.')
       onSuccess()
       onClose()
     } catch {
       setError('Could not create session. Please try again.')
+      toast.error('Could not create session. Please try again.')
     } finally {
       setLoading(false)
     }

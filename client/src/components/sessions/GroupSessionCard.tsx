@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import { getSectorStyle } from '@/utils/sectorColors'
 
 export interface GroupSessionData {
@@ -50,8 +51,9 @@ const GroupSessionCard = ({ session, onRegisterSuccess }: GroupSessionCardProps)
       setIsRegistered(true)
       setEnrollment((prev) => prev + 1)
       onRegisterSuccess?.(session.id)
+      toast.success('You are registered! The session will appear in your sessions.')
     } catch {
-      alert('Could not register. Please try again.')
+      toast.error('Could not register for this session. Please try again.')
     } finally {
       setLoading(false)
     }

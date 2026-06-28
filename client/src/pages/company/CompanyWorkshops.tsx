@@ -6,6 +6,7 @@ import useCompanyWorkshops from '@/hooks/useCompanyWorkshops'
 import CreateWorkshopModal from '@/components/company/CreateWorkshopModal'
 import { getSectorStyle } from '@/utils/sectorColors'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import type { CompanyWorkshop } from '@/hooks/useCompanyWorkshops'
 
 type Tab = 'Active' | 'Archived' | 'Drafts'
@@ -63,8 +64,9 @@ const CompanyWorkshops = () => {
     try {
       await api.delete(`/workshops/${id}`)
       refetch()
+      toast.success('Workshop deleted.')
     } catch {
-      // noop
+      toast.error('Could not delete workshop.')
     }
   }
 
@@ -72,8 +74,9 @@ const CompanyWorkshops = () => {
     try {
       await api.patch(`/workshops/${id}/publish`)
       refetch()
+      toast.success('Workshop published.')
     } catch {
-      // noop
+      toast.error('Could not save workshop. Please try again.')
     }
   }
 

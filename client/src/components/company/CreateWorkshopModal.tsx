@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { api } from "@/api/axios";
+import { toast } from "@/utils/toast";
 import { SECTOR_COLORS } from "@/utils/sectorColors";
 import type { CompanyWorkshop } from "@/hooks/useCompanyWorkshops";
 
@@ -137,10 +138,14 @@ const CreateWorkshopModal = ({
 
       if (editWorkshop) {
         await api.patch(`/workshops/${editWorkshop.id}`, payload);
+        toast.success('Workshop updated.');
       } else {
         const { data } = await api.post("/workshops", payload);
         if (publishAfter) {
           await api.patch(`/workshops/${data.data.id}/publish`);
+          toast.success('Workshop published and is now live.');
+        } else {
+          toast.success('Workshop created successfully.');
         }
       }
 
@@ -148,6 +153,7 @@ const CreateWorkshopModal = ({
       onClose();
     } catch {
       setError("Could not save workshop. Please try again.");
+      toast.error('Could not save workshop. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import { Career } from '@/types'
 
 interface UseCareerResult {
@@ -30,6 +31,7 @@ const useCareers = (params?: {
         setCareers(data.data.careers ?? data.data)
       } catch {
         setError(true)
+        toast.error('Unable to load careers.')
       } finally {
         setLoading(false)
       }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useEarnings from '@/hooks/useEarnings'
 
 const TYPE_BADGE: Record<string, string> = {
@@ -24,7 +25,9 @@ const ProfessionalEarnings = () => {
       await api.post('/payments/payout')
       setPayoutSuccess(true)
       refetch()
+      toast.success('Payout requested. You will receive it via MTN MoMo within 24 hours.')
     } catch {
+      toast.error('Could not process payout. Minimum balance is RWF 10,000.')
     } finally {
       setPayoutLoading(false)
     }

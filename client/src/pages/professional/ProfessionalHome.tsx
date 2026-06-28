@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useProfessionalDashboard from '@/hooks/useProfessionalDashboard'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
 
@@ -49,8 +50,10 @@ const ProfessionalHome = () => {
     try {
       await api.patch(`/sessions/${id}/confirm`)
       refetch()
+      toast.success('Session confirmed successfully.')
     } catch {
       setCardErrors((e) => ({ ...e, [id]: 'Could not accept. Try again.' }))
+      toast.error('Could not confirm session. Please try again.')
     } finally {
       setActionState((s) => ({ ...s, [id]: null }))
     }
@@ -62,8 +65,10 @@ const ProfessionalHome = () => {
     try {
       await api.patch(`/sessions/${id}/decline`)
       refetch()
+      toast.success('Session declined.')
     } catch {
       setCardErrors((e) => ({ ...e, [id]: 'Could not decline. Try again.' }))
+      toast.error('Could not decline session. Please try again.')
     } finally {
       setActionState((s) => ({ ...s, [id]: null }))
     }
@@ -76,8 +81,10 @@ const ProfessionalHome = () => {
     setOutOfOffice(next)
     try {
       await api.patch('/professionals/me', { isActive: !next })
+      toast.success(next ? 'Profile hidden from new bookings.' : 'Profile is now visible to students.')
     } catch {
       setOutOfOffice(!next)
+      toast.error('Could not update profile status.')
     } finally {
       setToggling(false)
     }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { UserCheck, Building2, Globe, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useVerification from '@/hooks/useVerification'
 
 const PAGE_SIZE = 10
@@ -41,8 +42,14 @@ const AdminVerification = () => {
         : `/admin/verification/companies/${id}/approve`
       await api.patch(path)
       refetch()
+      toast.success(
+        isProfessional
+          ? 'Professional approved. They will receive an email notification.'
+          : 'Company approved. They will receive an email notification.',
+      )
     } catch {
       setRowError(id)
+      toast.error('Action failed. Please try again.')
     } finally {
       setProcessing(null)
     }
@@ -59,8 +66,10 @@ const AdminVerification = () => {
         : `/admin/verification/companies/${id}/reject`
       await api.patch(path, { reason: reason || 'Does not meet current requirements' })
       refetch()
+      toast.success(isProfessional ? 'Professional declined.' : 'Company declined.')
     } catch {
       setRowError(id)
+      toast.error('Action failed. Please try again.')
     } finally {
       setProcessing(null)
     }

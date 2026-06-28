@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import { GroupSessionData } from '@/components/sessions/GroupSessionCard'
 
 interface BackendGroupSession {
@@ -59,6 +60,7 @@ const useGroupSessions = (limit?: number): UseGroupSessionsResult => {
         )
       } catch {
         setError(true)
+        toast.error('Unable to load group sessions.')
       } finally {
         setLoading(false)
       }
