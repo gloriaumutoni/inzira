@@ -123,6 +123,7 @@ model Student {
   confidenceLogs  ConfidenceLog[]
   mentorship      Mentorship?
   reviewsGiven    Review[]
+  sessionFeedback SessionFeedback[]
 }
 
 model Professional {
@@ -251,6 +252,7 @@ model Session {
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   payment      Payment?
   review       Review?
+  feedback     SessionFeedback?
 }
 
 model GroupSession {
@@ -414,5 +416,19 @@ model ConfidenceLog {
   note      String?
   createdAt DateTime @default(now())
 
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model SessionFeedback {
+  id                   String   @id @default(cuid())
+  sessionId            String   @unique
+  studentId            String
+  confidenceBefore     Int
+  confidenceAfter      Int
+  wasHelpful           Boolean
+  professionalFeedback String?
+  createdAt            DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }

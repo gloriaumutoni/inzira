@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
 import useProfessionals from '@/hooks/useProfessionals'
 import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
+import BookSessionModal from '@/components/sessions/BookSessionModal'
 import { api } from '@/api/axios'
 
 const useUpcomingGroupSessions = (limit: number) => {
@@ -45,9 +46,15 @@ const SkeletonCard = () => (
 
 const StudentHome = () => {
   const { user } = useAuth()
-  const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
+  const navigate = useNavigate()
+  const { dashboard, loading: dashLoading, error: dashError, refetch: refetchDashboard } = useStudentDashboard()
   const { professionals, loading: prosLoading } = useProfessionals({ limit: 3 })
   const { sessions: groupSessions, loading: gsLoading } = useUpcomingGroupSessions(2)
+
+  const [bookingPro, setBookingPro] = useState<{
+    id: string; firstName: string; lastName: string; jobTitle: string;
+    profilePhoto?: string | null; offersFreeIntro: boolean; offersProTier: boolean; proRate: number
+  } | null>(null)
 
   const firstName = user?.student?.firstName ?? 'there'
 
@@ -141,10 +148,25 @@ const StudentHome = () => {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors">
+                    <button
+                      onClick={() => navigate(`/student/professional/${pro.id}`)}
+                      className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors"
+                    >
                       View Profile
                     </button>
-                    <button className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
+                    <button
+                      onClick={() => setBookingPro({
+                        id: pro.id,
+                        firstName: pro.firstName,
+                        lastName: pro.lastName,
+                        jobTitle: pro.jobTitle,
+                        profilePhoto: pro.profilePhoto ?? null,
+                        offersFreeIntro: pro.offersFreeIntro ?? true,
+                        offersProTier: pro.offersProTier ?? true,
+                        proRate: pro.proRate ?? 5000,
+                      })}
+                      className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+                    >
                       Book Session
                     </button>
                   </div>
@@ -177,11 +199,19 @@ const StudentHome = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groupSessions.map((gs) => (
-              <GroupSessionCard key={gs.id} session={gs} />
+              <GroupSessionCard key={gs.id} session={gs} onRegisterSuccess={() => refetchDashboard()} />
             ))}
           </div>
         )}
       </section>
+
+      {bookingPro && (
+        <BookSessionModal
+          professional={bookingPro}
+          defaultType={bookingPro.offersFreeIntro ? 'FREE_INTRO' : 'PRO'}
+          onClose={() => setBookingPro(null)}
+        />
+      )}
     </div>
   )
 }

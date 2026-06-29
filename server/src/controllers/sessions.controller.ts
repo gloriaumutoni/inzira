@@ -84,3 +84,16 @@ export const submitReview = async (req: Request, res: Response): Promise<void> =
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
+
+export const submitFeedback = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { confidenceBefore, confidenceAfter, wasHelpful, professionalFeedback } = req.body
+    created(res, await sessionsService.submitFeedback(
+      req.params.id,
+      req.auth!.userId,
+      { confidenceBefore, confidenceAfter, wasHelpful, professionalFeedback }
+    ))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}

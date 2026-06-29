@@ -67,4 +67,11 @@ router.post(
   sessionsController.submitReview
 )
 
+router.post(
+  '/:id/feedback',
+  authMiddleware,
+  roleGuard('STUDENT'),
+  sessionsController.submitFeedback
+)
+
 export default router

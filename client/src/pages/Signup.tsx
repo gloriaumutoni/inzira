@@ -7,7 +7,7 @@ import { setAccessToken } from '@/utils/token'
 import { getPublicSchools } from '@/api/schools.api'
 import { School } from '@/types'
 
-type SignupRole = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE'
+type SignupRole = 'STUDENT' | 'PROFESSIONAL' | 'CAREER_GUIDE'
 
 const COMBINATIONS = [
   'MPC — Mathematics, Physics, Computer Science',
@@ -65,7 +65,6 @@ interface Step3Data {
 const ROLE_HOME: Record<string, string> = {
   STUDENT: '/student/home',
   PROFESSIONAL: '/professional/home',
-  COMPANY: '/company/home',
   ADMIN: '/admin/overview',
 }
 
@@ -285,7 +284,6 @@ const Signup = () => {
               {[
                 { role: 'STUDENT' as SignupRole, label: 'Student', desc: "I'm a secondary school student exploring career paths" },
                 { role: 'PROFESSIONAL' as SignupRole, label: 'Professional', desc: "I'm a working professional who wants to mentor students" },
-                { role: 'COMPANY' as SignupRole, label: 'Company', desc: "We're an organisation that wants to host career workshops" },
                 { role: 'CAREER_GUIDE' as SignupRole, label: 'Career Guide', desc: "I provide career guidance at a secondary school" },
               ].map(({ role: r, label, desc }) => (
                 <button
@@ -463,101 +461,6 @@ const Signup = () => {
                 className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60"
               >
                 {isLoading ? 'Creating account...' : 'Create my account →'}
-              </button>
-              <button type="button" onClick={() => setStep(2)} className="flex items-center gap-1 text-muted text-sm hover:text-primary mx-auto">
-                <ChevronLeft className="h-4 w-4" /> Back
-              </button>
-            </form>
-          </>
-        )}
-
-        {/* Step 3 — Company */}
-        {step === 3 && role === 'COMPANY' && (
-          <>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-primary">Tell us about your organisation</h2>
-              <p className="text-muted text-sm mt-1">This will appear on your company profile</p>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Company Name</label>
-                <input
-                  type="text"
-                  value={step3.companyName ?? ''}
-                  onChange={(e) => setStep3({ ...step3, companyName: e.target.value })}
-                  placeholder="Legal name of your company"
-                  required
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Location</label>
-                <input
-                  type="text"
-                  value={step3.bio ?? ''}
-                  onChange={(e) => setStep3({ ...step3, bio: e.target.value })}
-                  placeholder="e.g. Kigali, Rwanda"
-                  required
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">Industry Fields</label>
-                <div className="flex flex-wrap gap-2">
-                  {SECTORS.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        const current = step3.selectedSectors ?? []
-                        setStep3({
-                          ...step3,
-                          selectedSectors: current.includes(s)
-                            ? current.filter((x) => x !== s)
-                            : [...current, s],
-                        })
-                      }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                        (step3.selectedSectors ?? []).includes(s)
-                          ? 'bg-accent text-white border-accent'
-                          : 'border-border text-primary hover:border-accent'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Contact Person</label>
-                <input
-                  type="text"
-                  value={step3.contactPerson ?? ''}
-                  onChange={(e) => setStep3({ ...step3, contactPerson: e.target.value })}
-                  placeholder="Full name"
-                  required
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Contact Phone</label>
-                <input
-                  type="text"
-                  value={step3.contactPhone ?? ''}
-                  onChange={(e) => setStep3({ ...step3, contactPhone: e.target.value })}
-                  placeholder="+250 7XX XXX XXX"
-                  required
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-              </div>
-              {error && <p className="text-error text-sm">{error}</p>}
-              <p className="text-xs text-muted">Your account will be reviewed before going live. This usually takes 1–2 business days.</p>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60"
-              >
-                {isLoading ? 'Creating account...' : 'Go to my dashboard →'}
               </button>
               <button type="button" onClick={() => setStep(2)} className="flex items-center gap-1 text-muted text-sm hover:text-primary mx-auto">
                 <ChevronLeft className="h-4 w-4" /> Back

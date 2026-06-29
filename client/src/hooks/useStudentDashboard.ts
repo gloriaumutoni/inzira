@@ -49,12 +49,14 @@ interface UseStudentDashboardResult {
   dashboard: StudentDashboardData | null
   loading: boolean
   error: boolean
+  refetch: () => void
 }
 
 const useStudentDashboard = (): UseStudentDashboardResult => {
   const [dashboard, setDashboard] = useState<StudentDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     const fetch = async () => {
@@ -69,9 +71,11 @@ const useStudentDashboard = (): UseStudentDashboardResult => {
       }
     }
     fetch()
-  }, [])
+  }, [tick])
 
-  return { dashboard, loading, error }
+  const refetch = () => setTick((t) => t + 1)
+
+  return { dashboard, loading, error, refetch }
 }
 
 export default useStudentDashboard

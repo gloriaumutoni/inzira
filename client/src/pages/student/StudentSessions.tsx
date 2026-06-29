@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import useStudentSessions from '@/hooks/useStudentSessions'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
+import PostSessionFeedbackModal from '@/components/sessions/PostSessionFeedbackModal'
 
 const STATUS_STYLES: Record<string, string> = {
   CONFIRMED: 'bg-success/10 text-success text-xs px-2 py-1 rounded-full font-medium',
@@ -43,7 +45,8 @@ const SessionSkeleton = () => (
 
 const StudentSessions = () => {
   const { sessions, loading: sessionsLoading, error } = useStudentSessions()
-  const { dashboard, loading: dashLoading } = useStudentDashboard()
+  const { dashboard, loading: dashLoading, refetch: refetchDashboard } = useStudentDashboard()
+  const [feedbackSession, setFeedbackSession] = useState<{ id: string; proName: string } | null>(null)
 
   const loading = sessionsLoading || dashLoading
   const now = new Date()
@@ -174,9 +177,24 @@ const StudentSessions = () => {
                     <p className="text-xs text-muted mt-1">{date} · {time}</p>
                     <p className="text-xs text-muted">{session.duration} min{typeLabel ? ` · ${typeLabel}` : ''}</p>
                   </div>
-                  <span className={STATUS_STYLES[session.status] ?? STATUS_STYLES['PENDING']}>
-                    {session.status.charAt(0) + session.status.slice(1).toLowerCase()}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={STATUS_STYLES[session.status] ?? STATUS_STYLES['PENDING']}>
+                      {session.status.charAt(0) + session.status.slice(1).toLowerCase()}
+                    </span>
+                    {session.status === 'COMPLETED' && session.kind === 'session' && (
+                      <button
+                        onClick={() =>
+                          setFeedbackSession({
+                            id: session.id,
+                            proName: pro ? `${pro.firstName} ${pro.lastName}` : 'Professional',
+                          })
+                        }
+                        className="text-xs text-accent hover:underline"
+                      >
+                        Leave feedback
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })
@@ -198,6 +216,18 @@ const StudentSessions = () => {
           </div>
         </aside>
       </div>
+
+      {feedbackSession && (
+        <PostSessionFeedbackModal
+          sessionId={feedbackSession.id}
+          professionalName={feedbackSession.proName}
+          onClose={() => setFeedbackSession(null)}
+          onSuccess={() => {
+            setFeedbackSession(null)
+            refetchDashboard()
+          }}
+        />
+      )}
     </div>
   )
 }

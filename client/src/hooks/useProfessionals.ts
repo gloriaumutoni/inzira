@@ -10,10 +10,12 @@ export interface Professional {
   employer: string
   sector: string
   bio: string
+  profilePhoto?: string | null
   isVerified: boolean
   offersFreeIntro: boolean
   offersProTier: boolean
   offersPremiumTier: boolean
+  proRate: number
   averageRating: number | null
   reviewCount: number
 }

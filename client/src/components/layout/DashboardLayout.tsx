@@ -40,9 +40,7 @@ const CAREER_GUIDE_NAV: NavItem[] = [
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Overview',     icon: LayoutDashboard, path: '/admin/overview' },
-  { label: 'Verification', icon: ShieldCheck,     path: '/admin/verification' },
-  { label: 'Schools',      icon: Building2,       path: '/admin/schools' },
+  { label: 'Verification', icon: ShieldCheck, path: '/admin/verification' },
 ]
 
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
