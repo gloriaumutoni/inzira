@@ -368,8 +368,6 @@ The original Figma prototype used during design and planning is available here:
 
 **[View Figma Prototype](https://www.figma.com/your-prototype-link-here)**
 
-> Replace the link above with the actual Figma share URL.
-
 ---
 
 ## Technical Walkthrough
@@ -377,8 +375,6 @@ The original Figma prototype used during design and planning is available here:
 A full technical walkthrough video covering the architecture, key implementation decisions, and a live demonstration of all six user flows is available here:
 
 **[Demo of project](https://drive.google.com/drive/folders/1d1e1IUXN6L-Y7lwfnKcf8_p5PUPNpAfH?usp=drive_link)**
-
-> Replace the link above with the actual video URL before submission.
 
 ---
 
