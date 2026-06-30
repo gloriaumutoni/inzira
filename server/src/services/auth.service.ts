@@ -6,7 +6,7 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 import { Role } from "../types";
-import { sendNewProfessionalNotificationToAdmin } from "./email.service";
+import { sendAdminVerificationAlert } from './email.service'
 
 export const COMMISSION_RATE = 0.15;
 
@@ -86,30 +86,41 @@ export const signup = async (data: SignupData) => {
       });
     }
 
-    if (data.role === "CAREER_GUIDE") {
+    if (data.role === 'CAREER_GUIDE') {
       await tx.careerGuide.create({
         data: {
           userId: newUser.id,
           firstName: data.firstName,
           lastName: data.lastName,
-          jobTitle: data.roleAtSchool ?? "",
-          schoolId: data.schoolId ?? '',
+          schoolId: data.schoolId ?? null,
+          linkedinUrl: data.linkedinUrl ?? null,
+          isVerified: false,
+          verificationStatus: 'PENDING',
         },
-      });
+      })
     }
 
     return newUser;
   });
 
   if (data.role === 'PROFESSIONAL') {
-    try {
-      await sendNewProfessionalNotificationToAdmin({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        linkedinUrl: data.linkedinUrl ?? null,
-      })
-    } catch {}
+    await sendAdminVerificationAlert({
+      roleLabel: 'Professional',
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      linkedinUrl: data.linkedinUrl ?? null,
+    })
+  }
+
+  if (data.role === 'CAREER_GUIDE') {
+    await sendAdminVerificationAlert({
+      roleLabel: 'Career Guide',
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      linkedinUrl: data.linkedinUrl ?? null,
+    })
   }
 
   const payload = { userId: user.id, role: user.role };

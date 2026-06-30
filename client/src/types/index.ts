@@ -46,7 +46,7 @@ export interface CareerGuideProfile {
   id: string
   firstName: string
   lastName: string
-  jobTitle: string
+  isVerified: boolean
   schoolId?: string | null
 }
 

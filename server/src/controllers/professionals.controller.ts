@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import * as professionalsService from '../services/professionals.service'
 import { ok, badRequest } from '../utils/response'
 import { prisma } from '../prisma/client'
-import { sendAdminNewMentorApplicationAlert } from '../services/email.service'
+import { sendAdminVerificationAlert } from '../services/email.service'
 
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -119,16 +119,13 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
       },
     })
 
-    try {
-      await sendAdminNewMentorApplicationAlert({
-        firstName: professional.firstName,
-        lastName: professional.lastName,
-        email: professional.user.email,
-        linkedinUrl: professional.linkedinUrl,
-      })
-    } catch (err) {
-      console.error('Failed to send mentor application alert:', err)
-    }
+    await sendAdminVerificationAlert({
+      roleLabel: 'Mentor Application',
+      firstName: professional.firstName,
+      lastName: professional.lastName,
+      email: professional.user.email,
+      linkedinUrl: professional.linkedinUrl,
+    })
 
     res.json({ success: true, data: { mentorApplicationStatus: 'PENDING' } })
   } catch (err) {

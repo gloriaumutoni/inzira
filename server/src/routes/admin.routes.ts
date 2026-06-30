@@ -16,5 +16,8 @@ router.patch('/professionals/:id/quota', adminController.updateQuota)
 router.get('/verification/mentors', adminController.getPendingMentorApplications)
 router.patch('/verification/mentors/:id/approve', adminController.approveMentorApplication)
 router.patch('/verification/mentors/:id/reject', adminController.rejectMentorApplication)
+router.get('/verification/career-guides', adminController.getPendingCareerGuides)
+router.patch('/verification/career-guides/:id/approve', adminController.approveCareerGuide)
+router.patch('/verification/career-guides/:id/reject', adminController.rejectCareerGuide)
 
 export default router

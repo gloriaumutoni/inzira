@@ -58,10 +58,6 @@ interface Step3Data {
   contactPerson?: string
   contactPhone?: string
   schoolId?: string
-  roleAtSchool?: string
-  district?: string
-  yearsOfExperience?: string
-  additionalNote?: string
   selectedSectors?: string[]
   linkedinUrl?: string
 }
@@ -644,58 +640,20 @@ const Signup = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">Your Role at the School</label>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  LinkedIn Profile URL
+                </label>
                 <input
-                  type="text"
-                  value={step3.roleAtSchool ?? ''}
-                  onChange={(e) => setStep3({ ...step3, roleAtSchool: e.target.value })}
-                  placeholder="e.g. Career Guidance Counsellor"
+                  type="url"
+                  value={step3.linkedinUrl ?? ''}
+                  onChange={(e) => setStep3({ ...step3, linkedinUrl: e.target.value })}
+                  placeholder="https://linkedin.com/in/yourname"
                   required
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">District</label>
-                  <select
-                    value={step3.district ?? ''}
-                    onChange={(e) => setStep3({ ...step3, district: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                  >
-                    <option value="">Select district</option>
-                    <option>Gasabo</option>
-                    <option>Nyarugenge</option>
-                    <option>Kicukiro</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">Experience</label>
-                  <select
-                    value={step3.yearsOfExperience ?? ''}
-                    onChange={(e) => setStep3({ ...step3, yearsOfExperience: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                  >
-                    <option value="">Years of exp.</option>
-                    <option>Less than 1 year</option>
-                    <option>1–3 years</option>
-                    <option>3–5 years</option>
-                    <option>5–10 years</option>
-                    <option>10+ years</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Additional note <span className="text-muted font-normal">(optional)</span>
-                </label>
-                <textarea
-                  value={step3.additionalNote ?? ''}
-                  onChange={(e) => setStep3({ ...step3, additionalNote: e.target.value })}
-                  placeholder="Anything else we should know?"
-                  rows={2}
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-                />
+                <p className="text-xs text-muted mt-1">
+                  Our team uses this to verify your role and background.
+                </p>
               </div>
               {error && (
                 <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2">

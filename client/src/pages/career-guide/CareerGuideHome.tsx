@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react'
+import { Clock, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import useCareerGuideDashboard from '@/hooks/useCareerGuideDashboard'
 import useGroupSessions from '@/hooks/useGroupSessions'
@@ -20,6 +20,25 @@ const CareerGuideHome = () => {
 
   const firstName = user?.careerGuide?.firstName ?? 'Guide'
   const schoolName = dashboard?.school?.name
+
+  if (user?.careerGuide?.isVerified === false) {
+    return (
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="bg-surface rounded-2xl border border-border p-10 max-w-lg text-center shadow-sm">
+          <Clock className="text-warning w-12 h-12 mx-auto" />
+          <h2 className="text-xl font-bold text-primary mt-4">
+            Your account is under review
+          </h2>
+          <p className="text-sm text-muted mt-3 leading-relaxed">
+            Our team is verifying your role using the LinkedIn profile you provided. This usually takes 1–2 business days. You’ll receive an email at {user?.email} once your account is approved.
+          </p>
+          <p className="text-xs text-subtle mt-6">
+            Once approved, you’ll be able to see how your school’s students are engaging with Inzira.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const confidence = dashLoading || dashError
     ? null
