@@ -1,4 +1,4 @@
-export type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
+export type Role = 'STUDENT' | 'PROFESSIONAL' | 'CAREER_GUIDE' | 'ADMIN'
 
 export interface User {
   id: string
@@ -6,7 +6,6 @@ export interface User {
   role: Role
   student?: StudentProfile | null
   professional?: ProfessionalProfile | null
-  company?: CompanyProfile | null
   careerGuide?: CareerGuideProfile | null
 }
 
@@ -39,22 +38,15 @@ export interface ProfessionalProfile {
   offersFreeIntro: boolean
   offersProTier: boolean
   offersPremiumTier: boolean
-}
-
-export interface CompanyProfile {
-  id: string
-  companyName: string
-  sector: string
-  description: string
-  isVerified: boolean
-  isActive: boolean
+  isMentor: boolean
+  mentorApplicationStatus?: string | null
 }
 
 export interface CareerGuideProfile {
   id: string
   firstName: string
   lastName: string
-  jobTitle: string
+  isVerified: boolean
   schoolId?: string | null
 }
 

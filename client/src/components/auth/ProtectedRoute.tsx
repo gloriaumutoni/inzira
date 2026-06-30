@@ -6,7 +6,6 @@ import Spinner from '@/components/ui/Spinner'
 const ROLE_HOME: Record<Role, string> = {
   STUDENT: '/student/home',
   PROFESSIONAL: '/professional/home',
-  COMPANY: '/company/home',
   CAREER_GUIDE: '/career-guide/home',
   ADMIN: '/admin/overview',
 }

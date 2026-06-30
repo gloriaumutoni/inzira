@@ -6,6 +6,7 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 import { Role } from "../types";
+import { sendAdminVerificationAlert } from './email.service'
 
 export const COMMISSION_RATE = 0.15;
 
@@ -19,6 +20,7 @@ interface SignupData {
   level?: string;
   schoolYear?: string;
   combination?: string;
+  confidence?: number;
   jobTitle?: string;
   employer?: string;
   sector?: string;
@@ -32,6 +34,7 @@ interface SignupData {
   district?: string;
   yearsOfExperience?: string;
   additionalNote?: string;
+  linkedinUrl?: string;
 }
 
 export const signup = async (data: SignupData) => {
@@ -40,7 +43,7 @@ export const signup = async (data: SignupData) => {
   });
 
   if (existing) {
-    throw new Error("Email already in use");
+    throw new Error('An account with this email already exists. Please sign in instead.');
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
@@ -62,6 +65,8 @@ export const signup = async (data: SignupData) => {
           lastName: data.lastName,
           level: (data.level as "O_LEVEL" | "A_LEVEL") ?? "O_LEVEL",
           schoolYear: data.schoolYear ?? "S1",
+          combination: data.combination ?? null,
+          confidenceLevel: data.confidence ? Number(data.confidence) : null,
         },
       });
     }
@@ -75,39 +80,48 @@ export const signup = async (data: SignupData) => {
           jobTitle: data.jobTitle ?? "",
           employer: data.employer ?? "",
           sector: data.sector ?? "",
+          linkedinUrl: data.linkedinUrl ?? null,
           bio: data.bio ?? "",
         },
       });
     }
 
-    if (data.role === "COMPANY") {
-      await tx.company.create({
-        data: {
-          userId: newUser.id,
-          companyName: data.companyName ?? "",
-          sector: data.sector ?? "",
-          description: data.bio ?? "",
-          companySize: data.companySize ?? "",
-          contactPerson: data.contactPerson ?? "",
-          contactPhone: data.contactPhone ?? "",
-        },
-      });
-    }
-
-    if (data.role === "CAREER_GUIDE") {
+    if (data.role === 'CAREER_GUIDE') {
       await tx.careerGuide.create({
         data: {
           userId: newUser.id,
           firstName: data.firstName,
           lastName: data.lastName,
-          jobTitle: data.roleAtSchool ?? "",
-          schoolId: data.schoolId ?? '',
+          schoolId: data.schoolId ?? null,
+          linkedinUrl: data.linkedinUrl ?? null,
+          isVerified: false,
+          verificationStatus: 'PENDING',
         },
-      });
+      })
     }
 
     return newUser;
   });
+
+  if (data.role === 'PROFESSIONAL') {
+    await sendAdminVerificationAlert({
+      roleLabel: 'Professional',
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      linkedinUrl: data.linkedinUrl ?? null,
+    })
+  }
+
+  if (data.role === 'CAREER_GUIDE') {
+    await sendAdminVerificationAlert({
+      roleLabel: 'Career Guide',
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      linkedinUrl: data.linkedinUrl ?? null,
+    })
+  }
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);
@@ -135,10 +149,10 @@ export const signup = async (data: SignupData) => {
 export const login = async (email: string, password: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user) throw new Error("Invalid email or password");
+  if (!user) throw new Error('No account found with this email. Please check your email or sign up.');
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new Error("Invalid email or password");
+  if (!valid) throw new Error('Incorrect password. Please try again.');
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);
@@ -189,7 +203,6 @@ export const getMe = async (userId: string) => {
     include: {
       student: true,
       professional: true,
-      company: true,
       careerGuide: true,
     },
   });
@@ -198,4 +211,9 @@ export const getMe = async (userId: string) => {
 
   const { passwordHash, ...safeUser } = user;
   return safeUser;
+};
+
+export const checkEmail = async (email: string): Promise<boolean> => {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  return existing === null;
 };

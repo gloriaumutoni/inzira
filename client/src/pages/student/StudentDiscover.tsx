@@ -29,7 +29,7 @@ const StudentDiscover = () => {
     sector: selectedSector || undefined,
     combination: selectedCombination || undefined,
   })
-  const { professionals, loading: prosLoading } = useProfessionals({
+  const { professionals, loading: prosLoading, error: prosError } = useProfessionals({
     sector: selectedSector || undefined,
   })
 
@@ -52,16 +52,12 @@ const StudentDiscover = () => {
       {/* Stats pills */}
       <div className="flex gap-4 mt-4 flex-wrap">
         <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
-          <span className="text-xs font-semibold text-primary">{stats?.careers ?? '—'}</span>
-          <span className="text-xs text-muted">Careers</span>
-        </div>
-        <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
           <span className="text-xs font-semibold text-primary">{stats?.professionals ?? '—'}</span>
-          <span className="text-xs text-muted">Professionals</span>
+          <span className="text-xs text-muted">professionals</span>
         </div>
         <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
-          <span className="text-xs font-semibold text-primary">{stats?.partnerSchools ?? '—'}</span>
-          <span className="text-xs text-muted">Schools</span>
+          <span className="text-sm font-semibold text-primary">{stats?.mentors ?? '—'}</span>
+          <span className="text-xs text-muted">mentors</span>
         </div>
       </div>
 
@@ -116,6 +112,12 @@ const StudentDiscover = () => {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+
+        {selectedSector && (
+          <button onClick={() => setSelectedSector('')} className="text-xs text-accent hover:underline">
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Careers tab */}
@@ -133,33 +135,34 @@ const StudentDiscover = () => {
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {sortedCareers.map((career) => {
-                const style = getSectorStyle(career.sector)
-                return (
-                  <div
-                    key={career.id}
-                    className="rounded-xl p-5 text-white cursor-pointer hover:shadow-md transition-shadow"
-                    style={{ backgroundColor: style.bg }}
-                  >
+              {sortedCareers.map((career) => (
+                <div key={career.id} className="bg-surface border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow p-5 cursor-pointer">
+                  <div className="flex items-center gap-2">
                     <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full uppercase text-white"
-                      style={{ backgroundColor: style.badge }}
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getSectorStyle(career.sector).bg }}
+                    />
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded-full uppercase"
+                      style={{
+                        backgroundColor: `${getSectorStyle(career.sector).bg}1A`,
+                        color: getSectorStyle(career.sector).bg,
+                      }}
                     >
                       {career.sector}
                     </span>
-                    <h3 className="text-base font-bold text-white mt-3">{career.title}</h3>
-                    <p className="text-xs text-white/80 mt-2 leading-relaxed line-clamp-3">
-                      {career.description}
-                    </p>
-                    <div className="flex justify-between items-center mt-4">
-                      <span className="text-xs text-white/60">
-                        {career.combinations.length} combination{career.combinations.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className="text-xs text-white underline cursor-pointer">Learn more</span>
-                    </div>
                   </div>
-                )
-              })}
+                  <h3 className="text-base font-bold text-primary mt-3">{career.title}</h3>
+                  <p className="text-xs text-muted mt-2 leading-relaxed line-clamp-3">{career.description}</p>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {career.combinations.map((combo) => (
+                      <span key={combo} className="text-xs px-2 py-0.5 rounded-full border border-border text-muted">
+                        {combo}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </>
@@ -174,9 +177,11 @@ const StudentDiscover = () => {
                 <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
               ))}
             </div>
+          ) : prosError ? (
+            <p className="text-sm text-muted text-center mt-12">Unable to load professionals. Please try again.</p>
           ) : sortedProfessionals.length === 0 ? (
             <p className="text-sm text-muted text-center mt-12">
-              No results found. Try adjusting your filters.
+              No professionals found{selectedSector ? ` for ${selectedSector}` : ''}. {selectedSector ? 'Try a different filter or ' : ''}<button onClick={() => setSelectedSector('')} className="text-accent hover:underline">clear filters to see everyone</button>.
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">

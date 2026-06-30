@@ -1,8 +1,6 @@
-import { Link } from 'react-router-dom'
-import { RefreshCw } from 'lucide-react'
+import { Clock, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import useCareerGuideDashboard from '@/hooks/useCareerGuideDashboard'
-import useWorkshops from '@/hooks/useWorkshops'
 import useGroupSessions from '@/hooks/useGroupSessions'
 import { getSectorStyle } from '@/utils/sectorColors'
 
@@ -13,40 +11,38 @@ function confidenceLabel(score: number): { text: string; className: string } {
   return { text: '—', className: 'text-muted' }
 }
 
-function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
 const FALLBACK_SECTORS = ['Technology', 'Healthcare', 'Education', 'Agriculture']
 
 const CareerGuideHome = () => {
   const { user } = useAuth()
   const { dashboard, loading: dashLoading, error: dashError } = useCareerGuideDashboard()
-  const { workshops, loading: wsLoading } = useWorkshops({ limit: 3 })
   const { sessions: groupSessions, loading: gsLoading } = useGroupSessions(2)
 
   const firstName = user?.careerGuide?.firstName ?? 'Guide'
   const schoolName = dashboard?.school?.name
 
+  if (user?.careerGuide?.isVerified === false) {
+    return (
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="bg-surface rounded-2xl border border-border p-10 max-w-lg text-center shadow-sm">
+          <Clock className="text-warning w-12 h-12 mx-auto" />
+          <h2 className="text-xl font-bold text-primary mt-4">
+            Your account is under review
+          </h2>
+          <p className="text-sm text-muted mt-3 leading-relaxed">
+            Our team is verifying your role using the LinkedIn profile you provided. This usually takes 1–2 business days. You’ll receive an email at {user?.email} once your account is approved.
+          </p>
+          <p className="text-xs text-subtle mt-6">
+            Once approved, you’ll be able to see how your school’s students are engaging with Inzira.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   const confidence = dashLoading || dashError
     ? null
     : confidenceLabel(dashboard?.avgConfidence ?? 0)
-
-  const sectorCounts = workshops.reduce<Record<string, number>>((acc, w) => {
-    acc[w.sector] = (acc[w.sector] ?? 0) + 1
-    return acc
-  }, {})
-  const topSectors: string[] =
-    Object.keys(sectorCounts).length > 0
-      ? Object.entries(sectorCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4)
-          .map(([s]) => s)
-      : FALLBACK_SECTORS
 
   return (
     <div className="p-6 space-y-6">
@@ -101,67 +97,26 @@ const CareerGuideHome = () => {
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Workshops coming up */}
-        <div className="lg:col-span-2">
-          <div className="flex justify-between items-center">
-            <h2 className="text-base font-semibold text-primary">Workshops coming up</h2>
-            <Link to="/career-guide/workshops" className="text-sm text-accent hover:underline">
-              View All
-            </Link>
-          </div>
-
-          <div className="space-y-3 mt-4">
-            {wsLoading ? (
-              <>
-                <div className="animate-pulse bg-border rounded-xl h-20" />
-                <div className="animate-pulse bg-border rounded-xl h-20" />
-                <div className="animate-pulse bg-border rounded-xl h-20" />
-              </>
-            ) : workshops.length === 0 ? (
-              <p className="text-sm text-muted">No upcoming workshops at the moment.</p>
-            ) : (
-              workshops.map((w) => (
-                <div key={w.id} className="bg-surface rounded-xl border border-border p-4 flex items-start">
-                  <div
-                    className="w-1 rounded-full self-stretch mr-3 flex-shrink-0"
-                    style={{ backgroundColor: getSectorStyle(w.sector).bg }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-accent">{w.company.companyName}</p>
-                    <p className="text-sm font-semibold text-primary mt-0.5">{w.title}</p>
-                    <p className="text-xs text-muted line-clamp-1 mt-0.5">{w.description}</p>
-                    <p className="text-xs text-muted mt-1">
-                      {w._count.registrations} registered · {formatShortDate(w.scheduledAt)}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
         {/* Candidate areas and trends */}
-        <div className="bg-surface rounded-xl border border-border p-5">
+        <div className="lg:col-span-2 bg-surface rounded-xl border border-border p-5">
           <h2 className="text-sm font-semibold text-primary">Candidate areas and trends</h2>
           <p className="text-xs text-muted mt-1">Popular career sectors among your school's students</p>
 
           <div className="space-y-3 mt-4">
-            {topSectors.map((sector) => (
+            {FALLBACK_SECTORS.map((sector) => (
               <div key={sector} className="flex items-center gap-2">
                 <div
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: getSectorStyle(sector).bg }}
                 />
                 <span className="text-sm text-primary flex-1">{sector}</span>
-                <span className="text-xs text-muted ml-auto">
-                  {sectorCounts[sector] ? `${sectorCounts[sector]} workshop${sectorCounts[sector] !== 1 ? 's' : ''}` : '—'}
-                </span>
               </div>
             ))}
           </div>
+        </div>
 
-          <hr className="border-border my-4" />
-
+        {/* Coming up */}
+        <div className="bg-surface rounded-xl border border-border p-5">
           <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Coming up</p>
           {gsLoading ? (
             <div className="animate-pulse bg-border rounded h-10" />

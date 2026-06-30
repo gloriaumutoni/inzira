@@ -1,4 +1,6 @@
 import { RefreshCw } from 'lucide-react'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import useCareerGuideDashboard from '@/hooks/useCareerGuideDashboard'
 import useGroupSessions from '@/hooks/useGroupSessions'
 import useCareers from '@/hooks/useCareers'
@@ -32,10 +34,15 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 const CareerGuideSessions = () => {
+  const { user } = useAuth()
   const { dashboard, loading: dashLoading } = useCareerGuideDashboard()
   // TODO: endpoint missing or access denied — GET /sessions is not accessible to CAREER_GUIDE role
   const { sessions: groupSessions, loading: gsLoading } = useGroupSessions()
   const { careers, loading: careersLoading } = useCareers({ limit: 6 })
+
+  if (user?.careerGuide?.isVerified === false) {
+    return <Navigate to="/career-guide/home" replace />
+  }
 
   const confidence = confidenceLabel(dashboard?.avgConfidence ?? 0)
   const weekDays = getWeekDays()

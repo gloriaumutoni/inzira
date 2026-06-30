@@ -15,41 +15,29 @@ export const getStats = async () => {
   const [
     totalStudents,
     activeProfessionals,
-    partnerCompanies,
     totalSessions,
     totalGroupSessions,
-    totalWorkshops,
-    allTimeRevenue,
     newStudentsThisWeek,
     newProfessionalsThisWeek,
     pendingProfessionalsCount,
-    pendingCompaniesCount,
     sessionsThisWeek,
     sessionsLastWeek,
-    paymentsThisWeek,
-    paymentsLastWeek,
     registrationsThisWeek,
     registrationsLastWeek,
     recentSessionsRaw,
     sessionsForGrowth,
     studentsForGrowth,
-    paymentsForGrowth,
+    activeMentors,
   ] = await Promise.all([
     prisma.student.count(),
     prisma.professional.count({ where: { isVerified: true, isActive: true } }),
-    prisma.company.count({ where: { isVerified: true } }),
     prisma.session.count({ where: { status: 'COMPLETED' } }),
     prisma.groupSession.count({ where: { isCancelled: false } }),
-    prisma.workshop.count({ where: { status: 'ACTIVE' } }),
-    prisma.payment.aggregate({ where: { status: 'SUCCESSFUL' }, _sum: { amount: true } }),
     prisma.student.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.professional.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.professional.count({ where: { isVerified: false } }),
-    prisma.company.count({ where: { isVerified: false } }),
     prisma.session.count({ where: { status: 'COMPLETED', updatedAt: { gte: sevenDaysAgo } } }),
     prisma.session.count({ where: { status: 'COMPLETED', updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-    prisma.payment.aggregate({ where: { status: 'SUCCESSFUL', createdAt: { gte: sevenDaysAgo } }, _sum: { amount: true } }),
-    prisma.payment.aggregate({ where: { status: 'SUCCESSFUL', createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } }, _sum: { amount: true } }),
     prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
     prisma.session.findMany({
@@ -65,23 +53,15 @@ export const getStats = async () => {
       where: { createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
     }),
-    prisma.payment.findMany({
-      where: { status: 'SUCCESSFUL', createdAt: { gte: sixMonthsAgo } },
-      select: { createdAt: true, amount: true },
-    }),
+    prisma.professional.count({ where: { isVerified: true, isActive: true } }),
   ])
 
-  const grossRevenue = allTimeRevenue._sum.amount ?? 0
-  const grossCommission = Math.round(grossRevenue * 0.15)
-  const totalCommission = Math.round((paymentsThisWeek._sum.amount ?? 0) * 0.15)
-  const totalCommissionLastWeek = Math.round((paymentsLastWeek._sum.amount ?? 0) * 0.15)
-
-  const monthMap: Record<string, { month: string; sessions: number; students: number; revenue: number }> = {}
+  const monthMap: Record<string, { month: string; sessions: number; students: number }> = {}
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now)
     d.setMonth(now.getMonth() - i)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    monthMap[key] = { month: MONTH_NAMES[d.getMonth()], sessions: 0, students: 0, revenue: 0 }
+    monthMap[key] = { month: MONTH_NAMES[d.getMonth()], sessions: 0, students: 0 }
   }
   for (const s of sessionsForGrowth) {
     const d = new Date(s.scheduledAt)
@@ -93,14 +73,9 @@ export const getStats = async () => {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (monthMap[key]) monthMap[key].students += 1
   }
-  for (const p of paymentsForGrowth) {
-    const d = new Date(p.createdAt)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    if (monthMap[key]) monthMap[key].revenue += Math.round(p.amount / 1000)
-  }
   const platformGrowth = Object.values(monthMap)
 
-  const recentSessions = recentSessionsRaw.map((s) => ({
+  const recentSessions = recentSessionsRaw.map((s: typeof recentSessionsRaw[0]) => ({
     id: s.id,
     studentCode: `S${s.student.id.slice(0, 6).toUpperCase()}`,
     type: s.type,
@@ -112,18 +87,13 @@ export const getStats = async () => {
   return {
     totalStudents,
     activeProfessionals,
-    partnerCompanies,
+    activeMentors,
     totalSessions,
     totalGroupSessions,
-    totalWorkshops,
-    grossRevenue,
-    grossCommission,
     newStudentsThisWeek,
     newProfessionalsThisWeek,
     mentorshipSessions: sessionsThisWeek,
     mentorshipSessionsLastWeek: sessionsLastWeek,
-    totalCommission,
-    totalCommissionLastWeek,
     userRegistrations: registrationsThisWeek,
     userRegistrationsLastWeek: registrationsLastWeek,
     supportTickets: 0,
@@ -131,8 +101,8 @@ export const getStats = async () => {
     platformGrowth,
     recentSessions,
     platformHealth: {
-      verificationQueueClear: pendingProfessionalsCount === 0 && pendingCompaniesCount === 0,
-      commissionRate: 15,
+      verificationQueueClear: pendingProfessionalsCount === 0,
+      commissionRate: 0,
       sessionsPerWeek: sessionsThisWeek,
       activeAmbassadors: 0,
     },
@@ -140,17 +110,30 @@ export const getStats = async () => {
 }
 
 export const getPendingProfessionals = async () => {
-  return prisma.professional.findMany({
-    where: { isVerified: false },
+  const professionals = await prisma.professional.findMany({
+    where: { verificationStatus: 'PENDING' },
     include: { user: { select: { email: true } } },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   })
+
+  return professionals.map((p) => ({
+    id: p.id,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    email: p.user.email,
+    jobTitle: p.jobTitle,
+    employer: p.employer,
+    sector: p.sector,
+    bio: p.bio,
+    linkedinUrl: p.linkedinUrl,
+    submittedAt: p.createdAt,
+  }))
 }
 
 export const approveProfessional = async (id: string) => {
   const professional = await prisma.professional.update({
     where: { id },
-    data: { isVerified: true },
+    data: { isVerified: true, verificationStatus: 'APPROVED' },
     include: { user: true },
   })
 
@@ -172,6 +155,11 @@ export const rejectProfessional = async (id: string, reason: string) => {
   })
   if (!professional) throw new Error('Professional not found')
 
+  await prisma.professional.update({
+    where: { id },
+    data: { verificationStatus: 'REJECTED' },
+  })
+
   await createNotification(
     professional.userId,
     'ACCOUNT_REJECTED',
@@ -180,51 +168,7 @@ export const rejectProfessional = async (id: string, reason: string) => {
     '/professional/profile',
   )
 
-  return { rejected: true, id }
-}
-
-export const getPendingCompanies = async () => {
-  return prisma.company.findMany({
-    where: { isVerified: false },
-    include: { user: { select: { email: true } } },
-    orderBy: { createdAt: 'asc' },
-  })
-}
-
-export const approveCompany = async (id: string) => {
-  const company = await prisma.company.update({
-    where: { id },
-    data: { isVerified: true },
-    include: { user: true },
-  })
-
-  await createNotification(
-    company.userId,
-    'ACCOUNT_VERIFIED',
-    'Your company account is live',
-    'Your company account has been verified. You can now create workshops.',
-    '/company/profile',
-  )
-
-  return company
-}
-
-export const rejectCompany = async (id: string, reason: string) => {
-  const company = await prisma.company.findUnique({
-    where: { id },
-    include: { user: true },
-  })
-  if (!company) throw new Error('Company not found')
-
-  await createNotification(
-    company.userId,
-    'ACCOUNT_REJECTED',
-    'Account not approved',
-    `Your account was not approved. Reason: ${reason || 'Does not meet current requirements'}`,
-    '/company/profile',
-  )
-
-  return { rejected: true, id }
+  return { rejected: true, id, professional }
 }
 
 export const suspendProfessional = async (id: string) => {
@@ -233,14 +177,6 @@ export const suspendProfessional = async (id: string) => {
 
 export const reinstateProfessional = async (id: string) => {
   return prisma.professional.update({ where: { id }, data: { isActive: true } })
-}
-
-export const suspendCompany = async (id: string) => {
-  return prisma.company.update({ where: { id }, data: { isActive: false } })
-}
-
-export const reinstateCompany = async (id: string) => {
-  return prisma.company.update({ where: { id }, data: { isActive: true } })
 }
 
 export const updateQuota = async (professionalId: string, quota: number) => {

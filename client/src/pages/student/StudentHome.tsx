@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
 import useProfessionals from '@/hooks/useProfessionals'
 import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
+import BookSessionModal from '@/components/sessions/BookSessionModal'
 import { api } from '@/api/axios'
 
 const useUpcomingGroupSessions = (limit: number) => {
@@ -15,7 +16,6 @@ const useUpcomingGroupSessions = (limit: number) => {
       .get(`/group-sessions?limit=${limit}`)
       .then(({ data }) => {
         const raw = data.data.sessions ?? data.data
-        // Map backend shape (_count.enrolments) to GroupSessionData
         setSessions(
           raw.map((s: {
             id: string
@@ -46,9 +46,15 @@ const SkeletonCard = () => (
 
 const StudentHome = () => {
   const { user } = useAuth()
-  const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
+  const navigate = useNavigate()
+  const { dashboard, loading: dashLoading, error: dashError, refetch: refetchDashboard } = useStudentDashboard()
   const { professionals, loading: prosLoading } = useProfessionals({ limit: 3 })
   const { sessions: groupSessions, loading: gsLoading } = useUpcomingGroupSessions(2)
+
+  const [bookingPro, setBookingPro] = useState<{
+    id: string; firstName: string; lastName: string; jobTitle: string;
+    profilePhoto?: string | null; offersFreeIntro: boolean; offersProTier: boolean; proRate: number
+  } | null>(null)
 
   const firstName = user?.student?.firstName ?? 'there'
 
@@ -58,12 +64,15 @@ const StudentHome = () => {
     year: 'numeric',
   })
 
-  const upcomingCount = dashboard?.upcomingSessions.length ?? 0
-  const workshopsCount = dashboard?.registeredWorkshops.length ?? 0
-  const confidenceScore = dashboard?.latestConfidence?.score ?? null
+  const now = new Date()
+  const upcomingGroupCount = (dashboard?.groupSessions ?? []).filter(
+    (e) => new Date(e.groupSession.scheduledAt) > now,
+  ).length
+  const upcomingCount = (dashboard?.upcomingSessions.length ?? 0) + upcomingGroupCount
+  const confidenceScore = dashboard?.latestConfidence ?? null
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-4 md:p-6 space-y-8">
       {/* Greeting */}
       <div>
         <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
@@ -71,10 +80,9 @@ const StudentHome = () => {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {dashLoading ? (
           <>
-            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </>
@@ -88,13 +96,7 @@ const StudentHome = () => {
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">
-                {dashError ? '—' : workshopsCount}
-              </p>
-              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Workshops Registered</p>
-            </div>
-            <div className="bg-surface rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">
-                {dashError || confidenceScore === null ? '—' : `${confidenceScore}/5`}
+                {dashError || confidenceScore === null ? '— / 5' : `${confidenceScore} / 5`}
               </p>
               <p className="text-xs text-muted mt-1 uppercase tracking-wide">Career Confidence</p>
             </div>
@@ -124,7 +126,7 @@ const StudentHome = () => {
               return (
                 <div
                   key={pro.id}
-                  className="bg-surface rounded-xl border border-border p-4 flex items-center justify-between"
+                  className="bg-surface rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-semibold flex items-center justify-center text-sm flex-shrink-0">
@@ -138,10 +140,25 @@ const StudentHome = () => {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors">
+                    <button
+                      onClick={() => navigate(`/student/professional/${pro.id}`)}
+                      className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors"
+                    >
                       View Profile
                     </button>
-                    <button className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
+                    <button
+                      onClick={() => setBookingPro({
+                        id: pro.id,
+                        firstName: pro.firstName,
+                        lastName: pro.lastName,
+                        jobTitle: pro.jobTitle,
+                        profilePhoto: pro.profilePhoto ?? null,
+                        offersFreeIntro: pro.offersFreeIntro ?? true,
+                        offersProTier: pro.offersProTier ?? true,
+                        proRate: pro.proRate ?? 5000,
+                      })}
+                      className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+                    >
                       Book Session
                     </button>
                   </div>
@@ -174,11 +191,19 @@ const StudentHome = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groupSessions.map((gs) => (
-              <GroupSessionCard key={gs.id} session={gs} />
+              <GroupSessionCard key={gs.id} session={gs} onRegisterSuccess={() => refetchDashboard()} />
             ))}
           </div>
         )}
       </section>
+
+      {bookingPro && (
+        <BookSessionModal
+          professional={bookingPro}
+          defaultType={bookingPro.offersFreeIntro ? 'FREE_INTRO' : 'PRO'}
+          onClose={() => setBookingPro(null)}
+        />
+      )}
     </div>
   )
 }

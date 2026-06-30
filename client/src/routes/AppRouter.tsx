@@ -6,9 +6,9 @@ import Signup from '@/pages/Signup'
 import NotFound from '@/pages/NotFound'
 import StudentDashboard from '@/pages/dashboards/StudentDashboard'
 import ProfessionalDashboard from '@/pages/dashboards/ProfessionalDashboard'
-import CompanyDashboard from '@/pages/dashboards/CompanyDashboard'
 import CareerGuideDashboard from '@/pages/dashboards/CareerGuideDashboard'
 import AdminDashboard from '@/pages/dashboards/AdminDashboard'
+import { ProfessionalProfile } from '@/pages/student/ProfessionalProfile'
 
 const AppRouter = () => (
   <Routes>
@@ -25,18 +25,18 @@ const AppRouter = () => (
       }
     />
     <Route
-      path="/professional/*"
+      path="/student/professional/:id"
       element={
-        <ProtectedRoute allowedRole="PROFESSIONAL">
-          <ProfessionalDashboard />
+        <ProtectedRoute allowedRole="STUDENT">
+          <ProfessionalProfile />
         </ProtectedRoute>
       }
     />
     <Route
-      path="/company/*"
+      path="/professional/*"
       element={
-        <ProtectedRoute allowedRole="COMPANY">
-          <CompanyDashboard />
+        <ProtectedRoute allowedRole="PROFESSIONAL">
+          <ProfessionalDashboard />
         </ProtectedRoute>
       }
     />

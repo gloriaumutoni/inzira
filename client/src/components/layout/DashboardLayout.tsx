@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2, LayoutDashboard, ShieldCheck, Building2 } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, CheckCircle, ShieldCheck, Menu, X, CalendarPlus } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
-type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
+type Role = 'STUDENT' | 'PROFESSIONAL' | 'CAREER_GUIDE' | 'ADMIN'
 type Level = 'O_LEVEL' | 'A_LEVEL'
 
 interface NavItem {
@@ -20,34 +21,29 @@ const STUDENT_O_LEVEL_NAV: NavItem[] = [
 ]
 
 const PROFESSIONAL_NAV: NavItem[] = [
-  { label: 'Home',     icon: Home,        path: '/professional/home' },
-  { label: 'Sessions', icon: Calendar,    path: '/professional/sessions' },
-  { label: 'Mentees',  icon: Users,       path: '/professional/mentees' },
-  { label: 'Earnings', icon: DollarSign,  path: '/professional/earnings' },
+  { label: 'Home',     icon: Home,     path: '/professional/home' },
+  { label: 'Sessions', icon: Calendar, path: '/professional/sessions' },
 ]
 
-const COMPANY_NAV: NavItem[] = [
-  { label: 'Home',      icon: Home,      path: '/company/home' },
-  { label: 'Workshops', icon: Calendar,  path: '/company/workshops' },
-  { label: 'Insights',  icon: BarChart2, path: '/company/insights' },
+const MENTOR_NAV: NavItem[] = [
+  { label: 'Home',         icon: Home,         path: '/professional/home' },
+  { label: 'Sessions',     icon: Calendar,     path: '/professional/sessions' },
+  { label: 'Mentees',      icon: Users,        path: '/professional/mentees' },
+  { label: 'Create Slots', icon: CalendarPlus, path: '/professional/create-slots' },
 ]
 
 const CAREER_GUIDE_NAV: NavItem[] = [
-  { label: 'Home',      icon: Home,      path: '/career-guide/home' },
-  { label: 'Workshops', icon: BookOpen,  path: '/career-guide/workshops' },
-  { label: 'Sessions',  icon: Calendar,  path: '/career-guide/sessions' },
+  { label: 'Home',     icon: Home,     path: '/career-guide/home' },
+  { label: 'Sessions', icon: Calendar, path: '/career-guide/sessions' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Overview',     icon: LayoutDashboard, path: '/admin/overview' },
-  { label: 'Verification', icon: ShieldCheck,     path: '/admin/verification' },
-  { label: 'Schools',      icon: Building2,       path: '/admin/schools' },
+  { label: 'Verification', icon: ShieldCheck, path: '/admin/verification' },
 ]
 
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',            icon: Home,     path: '/student/home' },
   { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
-  { label: 'Workshops',       icon: BookOpen, path: '/student/workshops' },
   { label: 'Sessions',        icon: Calendar, path: '/student/sessions' },
   { label: 'Get Mentor',      icon: Users,    path: '/student/get-mentor' },
 ]
@@ -62,10 +58,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/professional/home':         'Home',
   '/professional/sessions':     'Sessions',
   '/professional/mentees':      'Mentees',
-  '/professional/earnings':     'Earnings',
-  '/company/home':              'Home',
-  '/company/workshops':         'Workshops',
-  '/company/insights':          'Insights',
+  '/professional/create-slots': 'Create Slots',
   '/career-guide/home':         'Home',
   '/career-guide/workshops':    'Workshops',
   '/career-guide/sessions':     'Career Discovery',
@@ -74,12 +67,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/schools':             'Partner Schools',
 }
 
-function getNavItems(role: Role, level?: Level): NavItem[] {
+function getNavItems(role: Role, level?: Level, isMentor?: boolean): NavItem[] {
   if (role === 'STUDENT') {
     return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
   }
-  if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
-  if (role === 'COMPANY') return COMPANY_NAV
+  if (role === 'PROFESSIONAL') return isMentor ? MENTOR_NAV : PROFESSIONAL_NAV
   if (role === 'CAREER_GUIDE') return CAREER_GUIDE_NAV
   if (role === 'ADMIN') return ADMIN_NAV
   return []
@@ -91,7 +83,6 @@ function getInitials(user: ReturnType<typeof useAuth>['user']): string {
   if (p && 'firstName' in p && 'lastName' in p) {
     return `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase()
   }
-  if (user.company) return user.company.companyName[0]?.toUpperCase() ?? 'C'
   return user.email[0]?.toUpperCase() ?? '?'
 }
 
@@ -99,7 +90,6 @@ function getDisplayName(user: ReturnType<typeof useAuth>['user']): string {
   if (!user) return ''
   const p = user.student ?? user.professional ?? user.careerGuide ?? null
   if (p && 'firstName' in p) return `${p.firstName} ${'lastName' in p ? p.lastName : ''}`.trim()
-  if (user.company) return user.company.companyName
   return user.email
 }
 
@@ -109,11 +99,60 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+const SidebarContent = ({
+  navItems,
+  pathname,
+  onNavClick,
+  onLogout,
+}: {
+  navItems: NavItem[]
+  pathname: string
+  onNavClick?: () => void
+  onLogout: () => void
+}) => (
+  <>
+    <div className="px-6 py-5">
+      <span className="text-white font-bold text-lg">Inzira</span>
+    </div>
+
+    <nav className="flex-1 mt-2">
+      {navItems.map(({ label, icon: Icon, path }) => {
+        const active = pathname === path
+        return (
+          <Link
+            key={path}
+            to={path}
+            onClick={onNavClick}
+            className={[
+              'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
+              active
+                ? 'bg-accent/20 text-white border-r-2 border-accent'
+                : 'text-white/60 hover:text-white hover:bg-white/5',
+            ].join(' ')}
+          >
+            <Icon size={16} />
+            {label}
+          </Link>
+        )
+      })}
+    </nav>
+
+    <button
+      onClick={onLogout}
+      className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
+    >
+      <LogOut size={16} />
+      Logout
+    </button>
+  </>
+)
+
 const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const navItems = getNavItems(role, level)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const navItems = getNavItems(role, level, user?.professional?.isMentor === true)
   const pageTitle = PAGE_TITLES[location.pathname] ?? ''
 
   const handleLogout = async () => {
@@ -124,61 +163,93 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-56 bg-primary flex-shrink-0">
-        <div className="px-6 py-5">
-          <span className="text-white font-bold text-lg">Inzira</span>
-        </div>
-
-        <nav className="flex-1 mt-2">
-          {navItems.map(({ label, icon: Icon, path }) => {
-            const active = location.pathname === path
-            return (
-              <Link
-                key={path}
-                to={path}
-                className={[
-                  'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-accent/20 text-white border-r-2 border-accent'
-                    : 'text-white/60 hover:text-white hover:bg-white/5',
-                ].join(' ')}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
+        <SidebarContent
+          navItems={navItems}
+          pathname={location.pathname}
+          onLogout={handleLogout}
+        />
       </aside>
 
+      {/* Mobile overlay sidebar */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="flex flex-col w-56 bg-primary flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-5">
+              <span className="text-white font-bold text-lg">Inzira</span>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex-1 mt-2">
+              {navItems.map(({ label, icon: Icon, path }) => {
+                const active = location.pathname === path
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    onClick={() => setMobileOpen(false)}
+                    className={[
+                      'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-accent/20 text-white border-r-2 border-accent'
+                        : 'text-white/60 hover:text-white hover:bg-white/5',
+                    ].join(' ')}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                )
+              })}
+            </nav>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+          {/* Backdrop */}
+          <div
+            className="flex-1 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+          />
+        </div>
+      )}
+
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
-        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 flex-shrink-0">
-          <span className="text-sm font-semibold text-primary">{pageTitle}</span>
+        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden text-muted hover:text-primary transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="text-sm font-semibold text-primary">{pageTitle}</span>
+          </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm text-muted">{getDisplayName(user)}</span>
-              {role === 'PROFESSIONAL' && (
-                <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
-                  <CheckCircle size={10} />
-                  Verified Mentor
-                </span>
-              )}
-              {role === 'COMPANY' && user?.company?.isVerified && (
-                <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
-                  <CheckCircle size={10} />
-                  Verified Partner
-                </span>
+              {role === 'PROFESSIONAL' && user?.professional?.isVerified && (
+                user?.professional?.isMentor ? (
+                  <span className="bg-accent/10 text-accent text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+                    <CheckCircle size={10} />
+                    Verified Mentor
+                  </span>
+                ) : (
+                  <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+                    <CheckCircle size={10} />
+                    Verified Professional
+                  </span>
+                )
               )}
               {role === 'CAREER_GUIDE' && (
                 <span className="text-xs text-muted mt-0.5">Career Discovery</span>

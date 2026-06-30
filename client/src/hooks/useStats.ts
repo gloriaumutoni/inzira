@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
 
 interface PlatformStats {
-  careers: number
-  professionals: number
-  partnerSchools: number
   students: number
+  professionals: number
+  mentors: number
+  partnerSchools: number
 }
 
 interface UseStatsResult {
@@ -23,7 +23,13 @@ const useStats = (): UseStatsResult => {
     const fetchStats = async () => {
       try {
         const { data } = await api.get('/stats')
-        setStats(data.data)
+        const raw = data.data
+        setStats({
+          students: raw.students ?? 0,
+          professionals: raw.professionals ?? 0,
+          mentors: raw.mentors ?? 0,
+          partnerSchools: raw.partnerSchools ?? 0,
+        })
       } catch {
         setError(true)
       } finally {

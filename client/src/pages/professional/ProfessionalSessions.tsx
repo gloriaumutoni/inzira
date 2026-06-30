@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
+import { Users } from 'lucide-react'
 import { api } from '@/api/axios'
+import { useAuth } from '@/contexts/AuthContext'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
+import useMentorSlots from '@/hooks/useMentorSlots'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
 import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
 
@@ -19,10 +23,14 @@ interface Quota {
 }
 
 const ProfessionalSessions = () => {
-  const [tab, setTab] = useState<'upcoming' | 'past' | 'group'>('upcoming')
+  const { user } = useAuth()
+  if (user?.professional?.isVerified === false) {
+    return <Navigate to="/professional/home" replace />
+  }
+
+  const [tab, setTab] = useState<'past' | 'group' | '1on1'>('group')
   const [showModal, setShowModal] = useState(false)
 
-  const { sessions: confirmed, loading: upcomingLoading } = useProfessionalSessions({ status: 'CONFIRMED' })
   const { sessions: completed, loading: pastLoading } = useProfessionalSessions({ status: 'COMPLETED' })
   const { sessions: allSessions } = useProfessionalSessions()
 
@@ -52,19 +60,14 @@ const ProfessionalSessions = () => {
     } catch {}
   }
 
+  const uniqueGroupSessions = Array.from(
+    new Map(groupSessions.map((s) => [s.id, s])).values()
+  )
+
   const now = new Date()
 
-  const upcomingSessions = confirmed.filter((s) => new Date(s.scheduledAt) > now)
   const uniqueStudents = new Set(allSessions.map((s) => s.student.id)).size
   const activeGroupCount = groupSessions.filter((gs) => new Date(gs.scheduledAt) > now).length
-
-  // Derive which weekdays have confirmed sessions
-  const sessionDays = new Set(
-    upcomingSessions.map((s) => {
-      const d = new Date(s.scheduledAt).getDay()
-      return d === 0 ? 6 : d - 1 // convert Sun=0 to Mon=0 index
-    })
-  )
 
   return (
     <div className="p-6">
@@ -81,9 +84,6 @@ const ProfessionalSessions = () => {
       {/* Stats pills */}
       <div className="flex gap-3 mt-4 flex-wrap">
         <span className="bg-surface border border-border text-primary text-xs font-semibold px-3 py-1.5 rounded-full">
-          {upcomingSessions.length} Upcoming
-        </span>
-        <span className="bg-surface border border-border text-primary text-xs font-semibold px-3 py-1.5 rounded-full">
           {uniqueStudents} Students
         </span>
         <span className="bg-surface border border-border text-primary text-xs font-semibold px-3 py-1.5 rounded-full">
@@ -93,7 +93,7 @@ const ProfessionalSessions = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 mt-6 bg-surface border border-border rounded-xl p-1 w-fit">
-        {(['upcoming', 'past', 'group'] as const).map((t) => (
+        {(['past', 'group'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -102,73 +102,25 @@ const ProfessionalSessions = () => {
               : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
             }
           >
-            {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past' : 'Group Sessions'}
+            {t === 'past' ? 'Past' : 'Group Sessions'}
           </button>
         ))}
+        {user?.professional?.isMentor && (
+          <button
+            onClick={() => setTab('1on1')}
+            className={tab === '1on1'
+              ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
+              : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
+            }
+          >
+            1-on-1 Sessions
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         {/* Session list */}
         <div className="lg:col-span-2">
-          {tab === 'upcoming' && (
-            <>
-              {upcomingLoading ? (
-                <div className="space-y-3">
-                  <div className="animate-pulse bg-border rounded-xl h-24" />
-                  <div className="animate-pulse bg-border rounded-xl h-24" />
-                </div>
-              ) : upcomingSessions.length === 0 ? (
-                <p className="text-sm text-muted">No upcoming sessions.</p>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingSessions.map((session) => {
-                    const initials =
-                      `${session.student.firstName[0] ?? ''}${session.student.lastName[0] ?? ''}`.toUpperCase()
-                    const date = new Date(session.scheduledAt).toLocaleDateString('en-US', {
-                      weekday: 'short', month: 'short', day: 'numeric',
-                    })
-                    const time = new Date(session.scheduledAt).toLocaleTimeString('en-US', {
-                      hour: '2-digit', minute: '2-digit',
-                    })
-                    return (
-                      <div key={session.id} className="bg-surface rounded-xl border border-border p-4 flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-semibold text-sm flex items-center justify-center flex-shrink-0">
-                          {initials}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-primary">
-                            {session.student.firstName} {session.student.lastName}
-                          </p>
-                          <p className="text-xs text-muted">
-                            {session.student.level.replace('_', '-')}
-                            {session.student.combination ? ` · ${session.student.combination}` : ''}
-                          </p>
-                          <p className="text-xs text-muted mt-1">{date} · {time}</p>
-                          {session.meetLink && (
-                            <a href={session.meetLink} target="_blank" rel="noreferrer" className="text-xs text-accent hover:underline">
-                              Join Call
-                            </a>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_BADGE[session.type] ?? ''}`}>
-                            {session.type.replace('_', ' ')}
-                          </span>
-                          <button className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg">
-                            Start Session
-                          </button>
-                          <button className="border border-border text-muted text-xs px-3 py-1.5 rounded-lg">
-                            Reschedule
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </>
-          )}
-
           {tab === 'past' && (
             <>
               {pastLoading ? (
@@ -220,6 +172,10 @@ const ProfessionalSessions = () => {
             </>
           )}
 
+          {tab === '1on1' && (
+            <MentorSlotsTab />
+          )}
+
           {tab === 'group' && (
             <>
               <div className="flex justify-end mb-4">
@@ -239,9 +195,23 @@ const ProfessionalSessions = () => {
                 <p className="text-sm text-muted">You have not created any group sessions yet.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {groupSessions.map((gs) => (
-                    <GroupSessionCard key={gs.id} session={gs} />
-                  ))}
+                  {uniqueGroupSessions.map((gs) => {
+                    const slotsLeft = gs.maxStudents - (gs.currentEnrollment ?? 0)
+                    return (
+                      <div key={gs.id}>
+                        <GroupSessionCard session={gs} />
+                        <div className="flex items-center gap-4 mt-2 px-1 text-xs text-muted">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5" />
+                            {(gs.currentEnrollment ?? 0)} / {gs.maxStudents} students
+                          </span>
+                          <span className={slotsLeft === 0 ? 'text-error' : 'text-success'}>
+                            {slotsLeft === 0 ? 'Full' : `${slotsLeft} slots left`}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
@@ -275,22 +245,6 @@ const ProfessionalSessions = () => {
               Edit Availability →
             </button>
           </div>
-
-          <div className="bg-surface rounded-xl border border-border p-5">
-            <p className="text-sm font-semibold text-primary mb-3">Your schedule this week</p>
-            <div className="flex gap-1">
-              {DAYS.map((day, i) => (
-                <div
-                  key={day}
-                  className={`flex-1 rounded text-center py-1.5 text-xs font-medium ${
-                    sessionDays.has(i) ? 'bg-accent text-white' : 'bg-border text-muted'
-                  }`}
-                >
-                  {day[0]}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -300,6 +254,84 @@ const ProfessionalSessions = () => {
           onSuccess={() => setGsTick((t) => t + 1)}
         />
       )}
+    </div>
+  )
+}
+
+const MentorSlotsTab = () => {
+  const { slots, loading } = useMentorSlots()
+
+  const upcoming = slots.filter((s) => new Date(s.scheduledAt) >= new Date())
+
+  const slotsByDate = upcoming.reduce<Record<string, typeof upcoming>>((acc, slot) => {
+    const dateKey = new Date(slot.scheduledAt).toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric',
+    })
+    acc[dateKey] = acc[dateKey] ?? []
+    acc[dateKey].push(slot)
+    return acc
+  }, {})
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <div className="animate-pulse bg-border rounded-xl h-24" />
+        <div className="animate-pulse bg-border rounded-xl h-24" />
+      </div>
+    )
+  }
+
+  if (upcoming.length === 0) {
+    return <p className="text-sm text-muted">No 1-on-1 sessions booked yet.</p>
+  }
+
+  return (
+    <div className="space-y-5">
+      {Object.entries(slotsByDate).map(([dateLabel, dateSlots]) => (
+        <div key={dateLabel}>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{dateLabel}</p>
+          <div className="bg-surface rounded-xl border border-border divide-y divide-border">
+            {dateSlots.map((slot) => {
+              const start = new Date(slot.scheduledAt)
+              const end = new Date(start.getTime() + slot.durationMins * 60000)
+              const formatTime = (d: Date) =>
+                d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+              return (
+                <div key={slot.id} className="flex items-center justify-between py-3 px-4">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-primary">
+                        {formatTime(start)} — {formatTime(end)}
+                      </p>
+                      {slot.student && (
+                        <p className="text-xs text-muted">
+                          {slot.student.firstName} {slot.student.lastName[0]}.
+                        </p>
+                      )}
+                    </div>
+                    <span className={slot.isBooked
+                      ? 'bg-success/10 text-success text-xs px-2 py-0.5 rounded-full'
+                      : 'bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full'
+                    }>
+                      {slot.isBooked ? 'Booked' : 'Open'}
+                    </span>
+                  </div>
+                  {slot.isBooked && slot.meetLink && (
+                    <a
+                      href={slot.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Join Session →
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

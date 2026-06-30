@@ -10,7 +10,6 @@ export const getMine = async (studentUserId: string) => {
       professional: {
         select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true },
       },
-      payments: { orderBy: { createdAt: 'desc' }, take: 3 },
     },
   })
 }
@@ -97,7 +96,6 @@ export const getStudents = async (professionalUserId: string) => {
     where: { professionalId: professional.id, status: 'ACTIVE' },
     include: {
       student: { select: { id: true, level: true, combination: true, school: true } },
-      payments: { orderBy: { createdAt: 'desc' }, take: 1 },
     },
   })
 }
@@ -112,16 +110,14 @@ export const getBilling = async (professionalUserId: string) => {
     where: { professionalId: professional.id, status: 'ACTIVE' },
     include: {
       student: true,
-      payments: { orderBy: { createdAt: 'desc' }, take: 1 },
     },
   })
 
   return mentorships.map((m) => ({
-    studentCode: `S${m.student.id.slice(0, 6).toUpperCase()}`,
+    studentCode: `S${m.studentId.slice(0, 6).toUpperCase()}`,
     since: m.startDate,
     sessionsUsed: m.sessionsUsed,
     nextBillingDate: m.nextBillingDate,
-    lastPaymentStatus: m.payments[0]?.status ?? 'NONE',
     netAmount: professional.premiumRate,
   }))
 }

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { seedCareers } from "./seed-careers";
 
 const prisma = new PrismaClient();
 
@@ -23,6 +24,8 @@ async function main() {
   }
 
   console.log("Seeded partner schools successfully");
+
+  await seedCareers();
 }
 
 main()

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 
 interface SessionStudent {
   id: string
@@ -48,6 +49,7 @@ const useProfessionalSessions = (params?: {
         setSessions(data.data.sessions ?? data.data)
       } catch {
         setError(true)
+        toast.error('Unable to load sessions. Please try again.')
       } finally {
         setLoading(false)
       }

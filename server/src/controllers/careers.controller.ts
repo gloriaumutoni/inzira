@@ -4,12 +4,14 @@ import { ok, created, badRequest } from '../utils/response'
 
 export const list = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sector, combination, page, limit } = req.query
+    const { sector, combination, page, limit, includeUnmatched } = req.query
+    const isAdmin = (req as { auth?: { role?: string } }).auth?.role === 'ADMIN'
     ok(res, await careersService.list({
       sector: sector as string,
       combination: combination as string,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
+      includeUnmatched: isAdmin && includeUnmatched === 'true',
     }))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')

@@ -19,7 +19,6 @@ export const getDashboard = async (userId: string) => {
     include: {
       confidenceLogs: { orderBy: { createdAt: 'desc' }, take: 1 },
       sessions: { where: { status: 'COMPLETED' } },
-      workshopRegs: true,
       groupEnrolments: true,
     },
   })
@@ -31,14 +30,12 @@ export const getDashboard = async (userId: string) => {
       : 0
 
   const totalSessions = students.reduce((sum, s) => sum + s.sessions.length, 0)
-  const totalWorkshops = students.reduce((sum, s) => sum + s.workshopRegs.length, 0)
 
   const cohort = students.map((s) => ({
     code: `S${s.id.slice(0, 6).toUpperCase()}`,
     level: s.level,
     combination: s.combination,
     sessionsCompleted: s.sessions.length,
-    workshopsAttended: s.workshopRegs.length,
     groupSessionsJoined: s.groupEnrolments.length,
     confidence: s.confidenceLevel,
   }))
@@ -48,7 +45,6 @@ export const getDashboard = async (userId: string) => {
     totalStudents,
     avgConfidence,
     totalSessions,
-    totalWorkshops,
     cohort,
   }
 }

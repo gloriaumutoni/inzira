@@ -67,3 +67,17 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     badRequest(res, err instanceof Error ? err.message : 'Failed to get user')
   }
 }
+
+export const checkEmailAvailability = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const email = String(req.query.email ?? '')
+    if (!email) {
+      res.status(400).json({ success: false, error: 'Email required' })
+      return
+    }
+    const available = await authService.checkEmail(email)
+    res.json({ success: true, data: { available } })
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' })
+  }
+}

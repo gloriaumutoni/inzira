@@ -16,15 +16,10 @@ const ROLE_LINKS: Record<Role, NavLink[]> = {
   STUDENT: [
     { label: "Careers", to: "/student/careers" },
     { label: "My Sessions", to: "/student/sessions" },
-    { label: "Workshops", to: "/student/workshops" },
   ],
   PROFESSIONAL: [
     { label: "My Profile", to: "/professional/profile" },
     { label: "Sessions", to: "/professional/sessions" },
-  ],
-  COMPANY: [
-    { label: "Workshops", to: "/company/workshops" },
-    { label: "Analytics", to: "/company/analytics" },
   ],
   CAREER_GUIDE: [{ label: "Dashboard", to: "/career-guide/home" }],
   ADMIN: [

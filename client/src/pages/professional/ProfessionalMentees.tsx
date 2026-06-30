@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import useMentees from '@/hooks/useMentees'
 
 const PLAN_BADGE: Record<string, string> = {
@@ -7,6 +8,14 @@ const PLAN_BADGE: Record<string, string> = {
 }
 
 const ProfessionalMentees = () => {
+  const { user } = useAuth()
+  if (user?.professional?.isVerified === false) {
+    return <Navigate to="/professional/home" replace />
+  }
+  if (!user?.professional?.isMentor) {
+    return <Navigate to="/professional/home" replace />
+  }
+
   const { mentees, loading, error } = useMentees()
   const navigate = useNavigate()
 

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle, ExternalLink } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import useProfessionalDashboard from '@/hooks/useProfessionalDashboard'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
+import ApplyMentorModal from '@/components/professional/ApplyMentorModal'
 
 const TYPE_BADGE: Record<string, string> = {
   FREE_INTRO: 'bg-accent/10 text-accent',
@@ -28,6 +30,8 @@ const ProfessionalHome = () => {
   const [outOfOffice, setOutOfOffice] = useState(!(user?.professional?.isActive ?? true))
   const [toggling, setToggling] = useState(false)
 
+  const [showMentorApplyModal, setShowMentorApplyModal] = useState(false)
+
   const { stats, loading: statsLoading } = useProfessionalDashboard()
   const { sessions: pending, loading: pendingLoading, refetch } = useProfessionalSessions({ status: 'PENDING' })
 
@@ -49,8 +53,10 @@ const ProfessionalHome = () => {
     try {
       await api.patch(`/sessions/${id}/confirm`)
       refetch()
+      toast.success('Session confirmed successfully.')
     } catch {
       setCardErrors((e) => ({ ...e, [id]: 'Could not accept. Try again.' }))
+      toast.error('Could not confirm session. Please try again.')
     } finally {
       setActionState((s) => ({ ...s, [id]: null }))
     }
@@ -62,8 +68,10 @@ const ProfessionalHome = () => {
     try {
       await api.patch(`/sessions/${id}/decline`)
       refetch()
+      toast.success('Session declined.')
     } catch {
       setCardErrors((e) => ({ ...e, [id]: 'Could not decline. Try again.' }))
+      toast.error('Could not decline session. Please try again.')
     } finally {
       setActionState((s) => ({ ...s, [id]: null }))
     }
@@ -76,18 +84,13 @@ const ProfessionalHome = () => {
     setOutOfOffice(next)
     try {
       await api.patch('/professionals/me', { isActive: !next })
+      toast.success(next ? 'Profile hidden from new bookings.' : 'Profile is now visible to students.')
     } catch {
       setOutOfOffice(!next)
+      toast.error('Could not update profile status.')
     } finally {
       setToggling(false)
     }
-  }
-
-  const handleConnectCalendar = async () => {
-    try {
-      const { data } = await api.get('/google-calendar/auth')
-      window.open(data.data.url, '_blank')
-    } catch {}
   }
 
   // Build week columns Mon–Fri for the current week
@@ -105,24 +108,89 @@ const ProfessionalHome = () => {
 
   void isActive // suppress unused warning
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
-          <p className="text-sm text-muted mt-1">
-            You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
+  if (user?.professional?.isVerified === false) {
+    return (
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="bg-surface rounded-2xl border border-border p-10 max-w-lg text-center shadow-sm">
+          <Clock className="text-warning w-12 h-12 mx-auto" />
+          <h2 className="text-xl font-bold text-primary mt-4">
+            Your account is under review
+          </h2>
+          <p className="text-sm text-muted mt-3 leading-relaxed">
+            Our team is verifying your professional background using the LinkedIn profile you provided. This usually takes 1–2 business days. You'll receive an email at {user?.email} once your account is approved.
+          </p>
+          <p className="text-xs text-subtle mt-6">
+            Once approved, you'll be able to host group sessions and accept mentorship requests from students.
           </p>
         </div>
-        <span className="bg-success/10 text-success text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
-          <CheckCircle size={12} />
-          Verified Mentor
-        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
+        <p className="text-sm text-muted mt-1">
+          You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
+        </p>
+      </div>
+
+      {user?.professional?.isVerified && !user?.professional?.isMentor && (
+        <>
+          {user?.professional?.mentorApplicationStatus === 'INTERVIEWED' ? (
+            <div className="bg-accent/10 border border-accent/20 rounded-xl p-4">
+              <p className="text-sm font-semibold text-primary">Interview complete — awaiting decision</p>
+              <p className="text-xs text-muted mt-1">
+                Your interview has been completed. We'll email you once the admin has made a decision.
+              </p>
+            </div>
+          ) : user?.professional?.mentorApplicationStatus === 'REJECTED' ? (
+            <div className="bg-error/10 border border-error/20 rounded-xl p-4">
+              <p className="text-sm font-semibold text-primary">Application not approved</p>
+              <p className="text-xs text-muted mt-1">
+                Your mentor application was not approved this time. You can still create group sessions as a verified professional.
+              </p>
+            </div>
+          ) : user?.professional?.mentorApplicationStatus === 'PENDING' ? (
+            <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-center gap-3">
+              <Clock className="text-warning w-5 h-5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary">Interview scheduled</p>
+                <p className="text-xs text-muted mt-0.5">
+                  Your interview is scheduled. Join at the agreed time using the link provided. We'll email you once a decision is made.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm font-semibold text-primary">Ready to mentor students?</p>
+                <p className="text-xs text-muted mt-0.5">
+                  Apply to become a mentor. You'll pick an interview slot with our team.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMentorApplyModal(true)}
+                className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors"
+              >
+                Apply to be a Mentor
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+        <p className="text-sm font-semibold text-primary">How mentorship works on Inzira</p>
+        <p className="text-xs text-muted mt-1 leading-relaxed">
+          You mentor students through two formats: free group sessions (up to 30 students, where you share your career story and answer questions), and 1-on-1 free intro calls (20 minutes, one per student). There is no in-person contact required — all sessions happen over video call using the link you provide. You set your own availability and choose which session requests to accept.
+        </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {statsLoading ? (
           <>
             <div className="animate-pulse bg-border rounded-xl h-24" />
@@ -219,12 +287,6 @@ const ProfessionalHome = () => {
         <div>
           <div className="flex items-center justify-between">
             <p className="text-base font-semibold text-primary">Weekly Availability</p>
-            <button
-              onClick={handleConnectCalendar}
-              className="text-xs text-accent hover:underline"
-            >
-              Settings
-            </button>
           </div>
 
           {availLoading ? (
@@ -254,13 +316,6 @@ const ProfessionalHome = () => {
             </div>
           )}
 
-          <button
-            onClick={handleConnectCalendar}
-            className="text-xs text-accent hover:underline flex items-center gap-1 mt-4"
-          >
-            <ExternalLink size={12} />
-            Connect Google Calendar
-          </button>
         </div>
       </div>
 
@@ -286,6 +341,13 @@ const ProfessionalHome = () => {
           />
         </button>
       </div>
+
+      {showMentorApplyModal && (
+        <ApplyMentorModal
+          onClose={() => setShowMentorApplyModal(false)}
+          onSuccess={() => window.location.reload()}
+        />
+      )}
     </div>
   )
 }

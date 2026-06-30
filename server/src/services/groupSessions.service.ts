@@ -31,7 +31,12 @@ export const list = async (filters: {
   const available = sessions.filter((s) => s._count.enrolments < s.maxStudents)
   const total = available.length
 
-  return { sessions: available, total, page, limit }
+  return {
+    sessions: available.map((s) => ({ ...s, currentEnrollment: s._count?.enrolments ?? 0 })),
+    total,
+    page,
+    limit,
+  }
 }
 
 export const getOwn = async (professionalUserId: string) => {
@@ -40,11 +45,17 @@ export const getOwn = async (professionalUserId: string) => {
   })
   if (!professional) throw new Error('Professional not found')
 
-  return prisma.groupSession.findMany({
+  const sessions = await prisma.groupSession.findMany({
     where: { professionalId: professional.id },
     include: { _count: { select: { enrolments: true } } },
     orderBy: { scheduledAt: 'desc' },
   })
+
+  return sessions.map((s) => ({
+    ...s,
+    currentEnrollment: s._count.enrolments,
+    slotsLeft: s.maxStudents - s._count.enrolments,
+  }))
 }
 
 export const getOne = async (id: string) => {
@@ -79,6 +90,9 @@ export const create = async (
     where: { userId: professionalUserId },
   })
   if (!professional) throw new Error('Professional not found')
+  if (!professional.isVerified) {
+    throw new Error('Only verified professionals can create group sessions.')
+  }
 
   const session = await prisma.groupSession.create({
     data: {

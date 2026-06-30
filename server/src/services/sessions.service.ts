@@ -40,7 +40,6 @@ export const list = async (userId: string, role: string, filters: {
         student: { select: { id: true, firstName: true, lastName: true } },
         professional: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
         review: true,
-        payment: true,
       },
       orderBy: { scheduledAt: 'desc' },
     }),
@@ -63,8 +62,8 @@ export const create = async (studentUserId: string, data: {
     where: { id: data.professionalId },
   })
   if (!professional) throw new Error('Professional not found')
-  if (!professional.isVerified || !professional.isActive) {
-    throw new Error('Professional is not available')
+  if (!professional.isVerified || !professional.isActive || !professional.isMentor) {
+    throw new Error('Professional is not available for mentoring.')
   }
 
   if (data.type === 'FREE_INTRO') {
@@ -91,7 +90,7 @@ export const create = async (studentUserId: string, data: {
   const commissionAmount = Math.round(grossAmount * COMMISSION_RATE)
   const netAmount = grossAmount - commissionAmount
 
-  return prisma.session.create({
+  const session = await prisma.session.create({
     data: {
       studentId: student.id,
       professionalId: professional.id,
@@ -107,6 +106,8 @@ export const create = async (studentUserId: string, data: {
       professional: { select: { id: true, firstName: true, lastName: true } },
     },
   })
+
+  return session
 }
 
 export const getOne = async (id: string, userId: string, role: string) => {
@@ -116,7 +117,6 @@ export const getOne = async (id: string, userId: string, role: string) => {
       student: true,
       professional: true,
       review: true,
-      payment: true,
     },
   })
 
@@ -304,4 +304,70 @@ export const submitReview = async (
       comment,
     },
   })
+}
+
+export const submitFeedback = async (
+  sessionId: string,
+  studentUserId: string,
+  data: {
+    confidenceBefore: number
+    confidenceAfter: number
+    wasHelpful: boolean
+    professionalFeedback?: string
+  }
+) => {
+  const student = await prisma.student.findUnique({ where: { userId: studentUserId } })
+  if (!student) throw new Error('Student not found')
+
+  const session = await prisma.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error('Session not found')
+  if (session.studentId !== student.id) throw new Error('Access denied')
+  if (session.status !== 'COMPLETED') throw new Error('Can only submit feedback for completed sessions')
+
+  const existing = await prisma.sessionFeedback.findUnique({ where: { sessionId } })
+  if (existing) throw new Error('You have already submitted feedback for this session')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.sessionFeedback.create({
+      data: {
+        sessionId,
+        studentId: student.id,
+        confidenceBefore: data.confidenceBefore,
+        confidenceAfter: data.confidenceAfter,
+        wasHelpful: data.wasHelpful,
+        professionalFeedback: data.professionalFeedback ?? null,
+      },
+    })
+
+    await tx.confidenceLog.create({
+      data: {
+        studentId: student.id,
+        score: data.confidenceAfter,
+      },
+    })
+
+    await tx.student.update({
+      where: { id: student.id },
+      data: { confidenceLevel: data.confidenceAfter },
+    })
+
+    if (data.professionalFeedback?.trim()) {
+      const professionalUser = await tx.user.findFirst({
+        where: { professional: { id: session.professionalId } },
+      })
+      if (professionalUser) {
+        await tx.notification.create({
+          data: {
+            userId: professionalUser.id,
+            type: 'SESSION_FEEDBACK',
+            title: 'New session feedback',
+            body: data.professionalFeedback.trim(),
+            link: `/sessions/${sessionId}`,
+          },
+        })
+      }
+    }
+  })
+
+  return { message: 'Feedback submitted' }
 }

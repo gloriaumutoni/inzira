@@ -3,9 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Users,
   Briefcase,
-  Building2,
-  TrendingUp,
-  TrendingDown,
+  UserCheck,
   BookOpen,
   Video,
   CheckCircle,
@@ -22,6 +20,7 @@ import {
 } from 'recharts'
 import useAdminStats from '@/hooks/useAdminStats'
 import useVerification from '@/hooks/useVerification'
+import InterviewSlotsPanel from '@/components/admin/InterviewSlotsPanel'
 
 const BAR_RADIUS: [number, number, number, number] = [3, 3, 0, 0]
 
@@ -34,18 +33,6 @@ function timeAgo(iso: string): string {
   if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`
   const d = Math.floor(h / 24)
   return `${d} day${d === 1 ? '' : 's'} ago`
-}
-
-function growthPct(current: number, prev: number): string {
-  if (prev === 0) return current > 0 ? '+100%' : '0%'
-  const pct = ((current - prev) / prev) * 100
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
-}
-
-function formatRWF(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)}k`
-  return String(amount)
 }
 
 function sessionIcon(type: string) {
@@ -70,7 +57,7 @@ function statusBadge(status: string): string {
 
 const AdminOverview = () => {
   const { stats, loading } = useAdminStats()
-  const { professionals, companies } = useVerification()
+  const { professionals } = useVerification()
   const [search, setSearch] = useState('')
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '6M'>('6M')
 
@@ -133,11 +120,11 @@ const AdminOverview = () => {
               positive: true,
             },
             {
-              Icon: Building2,
+              Icon: UserCheck,
               bg: 'bg-warning/10',
               color: 'text-warning',
-              value: stats?.partnerCompanies ?? 0,
-              label: 'Partner Companies',
+              value: stats?.activeMentors ?? 0,
+              label: 'Active Mentors',
               growth: null,
               positive: true,
             },
@@ -218,12 +205,6 @@ const AdminOverview = () => {
                 count: professionals.length,
                 cls: 'bg-warning/10 text-warning',
                 label: 'Pending Professional Verifications',
-                to: '/admin/verification',
-              },
-              {
-                count: companies.length,
-                cls: 'bg-warning/10 text-warning',
-                label: 'New Company Partnerships',
                 to: '/admin/verification',
               },
               {
@@ -357,103 +338,8 @@ const AdminOverview = () => {
         )}
       </div>
 
-      {/* This week at a glance */}
-      <div className="bg-surface rounded-xl border border-border overflow-hidden">
-        <div className="p-5">
-          <h2 className="text-base font-semibold text-primary">This week at a glance</h2>
-          <p className="text-xs text-muted mt-0.5">Performance compared to previous 7-day period</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-background border-b border-border">
-                {['Metric', 'Current Week', 'Last Week', 'Growth', 'Status'].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left text-xs font-semibold text-muted uppercase px-5 py-3"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                {
-                  metric: 'Mentorship Sessions',
-                  current: stats?.mentorshipSessions ?? 0,
-                  last: stats?.mentorshipSessionsLastWeek ?? 0,
-                  lowerIsBetter: false,
-                },
-                {
-                  metric: 'User Registrations',
-                  current: stats?.userRegistrations ?? 0,
-                  last: stats?.userRegistrationsLastWeek ?? 0,
-                  lowerIsBetter: false,
-                },
-                {
-                  metric: 'Total Commission',
-                  current: stats?.totalCommission ?? 0,
-                  last: stats?.totalCommissionLastWeek ?? 0,
-                  lowerIsBetter: false,
-                  formatFn: (v: number) => `RWF ${v.toLocaleString()}`,
-                },
-                {
-                  metric: 'Support Tickets',
-                  current: stats?.supportTickets ?? 0,
-                  last: stats?.supportTicketsLastWeek ?? 0,
-                  lowerIsBetter: true,
-                },
-              ].map(({ metric, current, last, lowerIsBetter, formatFn }, idx) => {
-                const pct = growthPct(current, last)
-                const isUp = current >= last
-                const isGood = lowerIsBetter ? !isUp : isUp
-                return (
-                  <tr
-                    key={metric}
-                    className={`border-b border-border last:border-0 ${idx % 2 === 1 ? 'bg-background' : ''}`}
-                  >
-                    <td className="px-5 py-3 text-sm text-muted">{metric}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-primary">
-                      {formatFn ? formatFn(current) : current.toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3 text-sm text-muted">
-                      {formatFn ? formatFn(last) : last.toLocaleString()}
-                    </td>
-                    <td className={`px-5 py-3 text-sm font-semibold ${isGood ? 'text-success' : 'text-error'}`}>
-                      {pct}
-                    </td>
-                    <td className="px-5 py-3">
-                      {isUp ? (
-                        <TrendingUp size={16} className={isGood ? 'text-success' : 'text-error'} />
-                      ) : (
-                        <TrendingDown size={16} className={isGood ? 'text-success' : 'text-error'} />
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+      <InterviewSlotsPanel />
 
-        {/* New this week strip */}
-        <div className="bg-primary m-5 rounded-xl p-4 flex justify-between items-center">
-          <p className="text-xs text-white/60 uppercase tracking-wide">New this week</p>
-          <div className="flex gap-8">
-            <div className="text-right">
-              <p className="text-xl font-bold text-white">+{stats?.newStudentsThisWeek ?? 0}</p>
-              <p className="text-xs text-white/60 uppercase tracking-wide">NEW USERS</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-bold text-white">
-                +RWF {formatRWF(stats?.totalCommission ?? 0)}
-              </p>
-              <p className="text-xs text-white/60 uppercase tracking-wide">REVENUE</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

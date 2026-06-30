@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 
 export interface Professional {
   id: string
@@ -9,10 +10,12 @@ export interface Professional {
   employer: string
   sector: string
   bio: string
+  profilePhoto?: string | null
   isVerified: boolean
   offersFreeIntro: boolean
   offersProTier: boolean
   offersPremiumTier: boolean
+  proRate: number
   averageRating: number | null
   reviewCount: number
 }
@@ -42,8 +45,10 @@ const useProfessionals = (params?: {
         })
         const { data } = await api.get(`/professionals?${query}`)
         setProfessionals(data.data.professionals ?? data.data)
-      } catch {
+      } catch (err) {
+        console.error('useProfessionals error:', err)
         setError(true)
+        toast.error('Unable to load professionals.')
       } finally {
         setLoading(false)
       }

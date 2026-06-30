@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 
 const SECTORS = [
   'ICT', 'Engineering', 'Healthcare', 'Finance',
@@ -28,6 +29,11 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
+    if (!joinLink.trim()) {
+      setError('A Google Meet or Zoom join link is required.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -38,12 +44,14 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
         scheduledAt: new Date(scheduledAt).toISOString(),
         duration: Number(duration),
         maxStudents: Number(maxStudents),
-        joinLink: joinLink || undefined,
+        joinLink: joinLink.trim(),
       })
+      toast.success('Group session created successfully.')
       onSuccess()
       onClose()
     } catch {
       setError('Could not create session. Please try again.')
+      toast.error('Could not create session. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -137,12 +145,13 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Join Link <span className="text-subtle">(optional)</span></label>
+            <label className="block text-xs font-medium text-muted mb-1">Join Link</label>
             <input
-              type="text"
+              type="url"
+              required
               value={joinLink}
               onChange={(e) => setJoinLink(e.target.value)}
-              placeholder="Google Meet or Zoom link"
+              placeholder="https://meet.google.com/... (required)"
               className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
           </div>

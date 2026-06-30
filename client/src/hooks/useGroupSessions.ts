@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
 import { GroupSessionData } from '@/components/sessions/GroupSessionCard'
 
 interface BackendGroupSession {
@@ -9,11 +10,13 @@ interface BackendGroupSession {
   scheduledAt: string
   duration: number
   maxStudents: number
+  joinLink?: string | null
   _count: { enrolments: number }
   professional?: {
     id: string
     firstName: string
     lastName: string
+    jobTitle?: string
     sector: string
     profilePhoto?: string | null
   }
@@ -48,10 +51,12 @@ const useGroupSessions = (limit?: number): UseGroupSessionsResult => {
             maxStudents: s.maxStudents,
             currentEnrollment: s._count.enrolments,
             isRegistered: false,
+            joinLink: s.joinLink ?? undefined,
             professional: s.professional
               ? {
                   firstName: s.professional.firstName,
                   lastName: s.professional.lastName,
+                  jobTitle: s.professional.jobTitle,
                   sector: s.professional.sector,
                 }
               : undefined,
@@ -59,6 +64,7 @@ const useGroupSessions = (limit?: number): UseGroupSessionsResult => {
         )
       } catch {
         setError(true)
+        toast.error('Unable to load group sessions.')
       } finally {
         setLoading(false)
       }

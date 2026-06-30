@@ -5,6 +5,7 @@ export const list = async (filters: {
   combination?: string
   page?: number
   limit?: number
+  includeUnmatched?: boolean
 }) => {
   const page = filters.page ?? 1
   const limit = filters.limit ?? 20
@@ -12,8 +13,25 @@ export const list = async (filters: {
 
   const where: Record<string, unknown> = { isActive: true }
   if (filters.sector) where.sector = filters.sector
-  if (filters.combination) {
-    where.combinations = { has: filters.combination }
+  if (filters.combination) where.combinations = { has: filters.combination }
+  if (!filters.includeUnmatched) {
+    const mentorSectors = await prisma.professional
+      .findMany({
+        where: { isMentor: true, isVerified: true, isActive: true },
+        select: { sector: true },
+      })
+      .then((mentors) => [...new Set(mentors.map((m) => m.sector))])
+
+    where.OR = [
+      {
+        professionals: {
+          some: {
+            professional: { isMentor: true, isVerified: true, isActive: true },
+          },
+        },
+      },
+      ...(mentorSectors.length > 0 ? [{ sector: { in: mentorSectors } }] : []),
+    ]
   }
 
   const [careers, total] = await Promise.all([

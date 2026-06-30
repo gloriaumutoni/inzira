@@ -18,6 +18,13 @@ router.post(
   sessionsController.create
 )
 
+router.post(
+  '/book-slot',
+  authMiddleware,
+  roleGuard('STUDENT'),
+  sessionsController.bookMentorSlot
+)
+
 router.get(
   '/:id',
   authMiddleware,
@@ -65,6 +72,13 @@ router.post(
   authMiddleware,
   roleGuard('STUDENT'),
   sessionsController.submitReview
+)
+
+router.post(
+  '/:id/feedback',
+  authMiddleware,
+  roleGuard('STUDENT'),
+  sessionsController.submitFeedback
 )
 
 export default router
