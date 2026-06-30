@@ -323,7 +323,7 @@ GitHub (main branch)
 
 | Environment | Client URL | Server URL |
 |---|---|---|
-| Production | https://inzira.vercel.app | https://inzira-api.onrender.com |
+| Production | [https://inzira.vercel.app](https://inzira-self.vercel.app/) | [https://inzira-api.onrender.com](https://dashboard.render.com/project/prj-d8u227rsq97s73cmfdkg) |
 | Local dev | http://localhost:5173 | http://localhost:3001 |
 
 ### Deployment Steps
