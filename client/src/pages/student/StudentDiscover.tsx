@@ -29,7 +29,7 @@ const StudentDiscover = () => {
     sector: selectedSector || undefined,
     combination: selectedCombination || undefined,
   })
-  const { professionals, loading: prosLoading } = useProfessionals({
+  const { professionals, loading: prosLoading, error: prosError } = useProfessionals({
     sector: selectedSector || undefined,
   })
 
@@ -116,6 +116,12 @@ const StudentDiscover = () => {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+
+        {selectedSector && (
+          <button onClick={() => setSelectedSector('')} className="text-xs text-accent hover:underline">
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Careers tab */}
@@ -174,9 +180,11 @@ const StudentDiscover = () => {
                 <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
               ))}
             </div>
+          ) : prosError ? (
+            <p className="text-sm text-muted text-center mt-12">Unable to load professionals. Please try again.</p>
           ) : sortedProfessionals.length === 0 ? (
             <p className="text-sm text-muted text-center mt-12">
-              No results found. Try adjusting your filters.
+              No professionals found{selectedSector ? ` for ${selectedSector}` : ''}. {selectedSector ? 'Try a different filter or ' : ''}<button onClick={() => setSelectedSector('')} className="text-accent hover:underline">clear filters to see everyone</button>.
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">

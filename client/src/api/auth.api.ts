@@ -23,6 +23,7 @@ export interface SignupPayload {
   district?: string
   yearsOfExperience?: string
   additionalNote?: string
+  linkedinUrl?: string
 }
 
 export const loginUser = async (

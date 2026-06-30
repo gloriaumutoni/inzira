@@ -49,6 +49,7 @@ interface Step3Data {
   jobTitle?: string
   employer?: string
   sector?: string
+  otherSector?: string
   bio?: string
   companyName?: string
   companySize?: string
@@ -60,6 +61,7 @@ interface Step3Data {
   yearsOfExperience?: string
   additionalNote?: string
   selectedSectors?: string[]
+  linkedinUrl?: string
 }
 
 const ROLE_HOME: Record<string, string> = {
@@ -88,7 +90,7 @@ const Signup = () => {
   const [submitted, setSubmitted] = useState(false)
 
   useEffect(() => {
-    if (step === 3 && role === 'CAREER_GUIDE') {
+    if (step === 3 && (role === 'CAREER_GUIDE' || role === 'STUDENT')) {
       getPublicSchools().then(setSchools).catch(() => {})
     }
   }, [step, role])
@@ -125,7 +127,8 @@ const Signup = () => {
         firstName: step1.firstName,
         lastName: step1.lastName,
         ...step3,
-        sector: step3.sector ?? step3.selectedSectors?.[0],
+        sector: step3.sector === 'Other' ? (step3.otherSector ?? '') : (step3.sector ?? step3.selectedSectors?.[0]),
+        linkedinUrl: step3.linkedinUrl,
       }
 
       const { accessToken } = await signupUser(payload)
@@ -383,6 +386,22 @@ const Signup = () => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Which school do you attend?
+                </label>
+                <select
+                  value={step3.schoolId ?? ''}
+                  onChange={(e) => setStep3({ ...step3, schoolId: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">Select your school (optional)</option>
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} — {s.district}</option>
+                  ))}
+                </select>
+              </div>
+
               {error && <p className="text-error text-sm">{error}</p>}
               <button
                 type="submit"
@@ -433,6 +452,22 @@ const Signup = () => {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  LinkedIn Profile URL
+                </label>
+                <input
+                  type="url"
+                  value={step3.linkedinUrl ?? ''}
+                  onChange={(e) => setStep3({ ...step3, linkedinUrl: e.target.value })}
+                  placeholder="https://linkedin.com/in/yourname"
+                  required
+                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+                <p className="text-xs text-muted mt-1">
+                  Our team uses this to verify your professional background.
+                </p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-primary mb-1">Industry Sector</label>
                 <select
                   value={step3.sector ?? ''}
@@ -444,6 +479,19 @@ const Signup = () => {
                   {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              {step3.sector === 'Other' && (
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">Please specify your sector</label>
+                  <input
+                    type="text"
+                    value={step3.otherSector ?? ''}
+                    onChange={(e) => setStep3({ ...step3, otherSector: e.target.value })}
+                    placeholder="e.g. Real Estate"
+                    required
+                    className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Bio</label>
                 <textarea

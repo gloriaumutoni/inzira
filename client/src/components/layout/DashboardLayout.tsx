@@ -231,7 +231,7 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm text-muted">{getDisplayName(user)}</span>
-              {role === 'PROFESSIONAL' && (
+              {role === 'PROFESSIONAL' && user?.professional?.isVerified === true && (
                 <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
                   <CheckCircle size={10} />
                   Verified Mentor

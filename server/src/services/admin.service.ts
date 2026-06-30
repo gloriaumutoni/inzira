@@ -147,7 +147,7 @@ export const rejectProfessional = async (id: string, reason: string) => {
     '/professional/profile',
   )
 
-  return { rejected: true, id }
+  return { rejected: true, id, professional }
 }
 
 export const suspendProfessional = async (id: string) => {

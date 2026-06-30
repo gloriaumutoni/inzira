@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
@@ -118,6 +118,25 @@ const ProfessionalHome = () => {
 
   void isActive // suppress unused warning
 
+  if (user?.professional?.isVerified === false) {
+    return (
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="bg-surface rounded-2xl border border-border p-10 max-w-lg text-center shadow-sm">
+          <Clock className="text-warning w-12 h-12 mx-auto" />
+          <h2 className="text-xl font-bold text-primary mt-4">
+            Your account is under review
+          </h2>
+          <p className="text-sm text-muted mt-3 leading-relaxed">
+            Our team is verifying your professional background using the LinkedIn profile you provided. This usually takes 1–2 business days. You'll receive an email at {user?.email} once your account is approved.
+          </p>
+          <p className="text-xs text-subtle mt-6">
+            Once approved, you'll be able to host group sessions and accept mentorship requests from students.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -125,6 +144,13 @@ const ProfessionalHome = () => {
         <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
         <p className="text-sm text-muted mt-1">
           You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
+        </p>
+      </div>
+
+      <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+        <p className="text-sm font-semibold text-primary">How mentorship works on Inzira</p>
+        <p className="text-xs text-muted mt-1 leading-relaxed">
+          You mentor students through two formats: free group sessions (up to 30 students, where you share your career story and answer questions), and 1-on-1 free intro calls (20 minutes, one per student). There is no in-person contact required — all sessions happen over video call using the link you provide. You set your own availability and choose which session requests to accept.
         </p>
       </div>
 

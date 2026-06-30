@@ -33,6 +33,13 @@ const ALevelGetMentor = () => {
       <h1 className="text-xl font-bold text-primary">Get a Mentor</h1>
       <p className="text-sm text-muted mt-1">Go beyond free sessions. Pick a plan that suits you.</p>
 
+      <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 mb-6">
+        <p className="text-sm font-semibold text-primary">What mentorship means here</p>
+        <p className="text-xs text-muted mt-1 leading-relaxed">
+          A mentor is a working Rwandan professional who volunteers their time to talk with you about their career path. You can join their free group sessions to hear their story, or book a free 20-minute intro call to ask your own questions — all over video call.
+        </p>
+      </div>
+
       {/* Current plan banner */}
       <div
         className={[

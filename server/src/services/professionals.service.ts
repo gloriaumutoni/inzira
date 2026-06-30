@@ -186,3 +186,30 @@ export const getPublicProfile = async (id: string) => {
 
   return { ...professional, averageRating }
 }
+
+export const getRecommended = async (userId: string) => {
+  const student = await prisma.student.findUnique({
+    where: { userId },
+  })
+
+  if (!student?.combination) return []
+
+  const combinationCode = student.combination.split(' ')[0].trim()
+
+  const matchingCareers = await prisma.career.findMany({
+    where: { combinations: { has: combinationCode }, isActive: true },
+    select: { sector: true },
+  })
+
+  const sectors = [...new Set(matchingCareers.map((c) => c.sector))]
+  if (sectors.length === 0) return []
+
+  return prisma.professional.findMany({
+    where: {
+      sector: { in: sectors },
+      isVerified: true,
+      isActive: true,
+    },
+    take: 6,
+  })
+}

@@ -79,3 +79,12 @@ export const getPublicProfile = async (req: Request, res: Response): Promise<voi
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
+
+export const getRecommendedProfessionals = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const professionals = await professionalsService.getRecommended(req.auth!.userId)
+    ok(res, { professionals })
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}

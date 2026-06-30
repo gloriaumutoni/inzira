@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { api } from '@/api/axios'
+import { useAuth } from '@/contexts/AuthContext'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
 import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
@@ -19,6 +21,11 @@ interface Quota {
 }
 
 const ProfessionalSessions = () => {
+  const { user } = useAuth()
+  if (user?.professional?.isVerified === false) {
+    return <Navigate to="/professional/home" replace />
+  }
+
   const [tab, setTab] = useState<'upcoming' | 'past' | 'group'>('upcoming')
   const [showModal, setShowModal] = useState(false)
 

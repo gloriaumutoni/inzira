@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import * as adminService from '../services/admin.service'
 import { ok, badRequest } from '../utils/response'
+import { sendProfessionalVerificationEmail } from '../services/email.service'
 
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -20,7 +21,14 @@ export const getPendingProfessionals = async (req: Request, res: Response): Prom
 
 export const approveProfessional = async (req: Request, res: Response): Promise<void> => {
   try {
-    ok(res, await adminService.approveProfessional(req.params.id))
+    const result = await adminService.approveProfessional(req.params.id)
+    try {
+      await sendProfessionalVerificationEmail(result.user.email, {
+        firstName: result.firstName,
+        approved: true,
+      })
+    } catch {}
+    ok(res, result)
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -28,7 +36,14 @@ export const approveProfessional = async (req: Request, res: Response): Promise<
 
 export const rejectProfessional = async (req: Request, res: Response): Promise<void> => {
   try {
-    ok(res, await adminService.rejectProfessional(req.params.id, req.body.reason))
+    const result = await adminService.rejectProfessional(req.params.id, req.body.reason)
+    try {
+      await sendProfessionalVerificationEmail(result.professional.user.email, {
+        firstName: result.professional.firstName,
+        approved: false,
+      })
+    } catch {}
+    ok(res, { rejected: result.rejected, id: result.id })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

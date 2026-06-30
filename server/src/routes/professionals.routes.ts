@@ -14,6 +14,7 @@ router.get('/me/dashboard', authMiddleware, roleGuard('PROFESSIONAL'), professio
 router.get('/me/quota', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.getQuota)
 
 router.get('/', authMiddleware, professionalsController.browse)
+router.get('/recommended', authMiddleware, roleGuard('STUDENT'), professionalsController.getRecommendedProfessionals)
 router.get('/:id', authMiddleware, professionalsController.getPublicProfile)
 
 export default router

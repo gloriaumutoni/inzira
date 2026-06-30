@@ -6,6 +6,7 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 import { Role } from "../types";
+import { sendNewProfessionalNotificationToAdmin } from "./email.service";
 
 export const COMMISSION_RATE = 0.15;
 
@@ -33,6 +34,7 @@ interface SignupData {
   district?: string;
   yearsOfExperience?: string;
   additionalNote?: string;
+  linkedinUrl?: string;
 }
 
 export const signup = async (data: SignupData) => {
@@ -78,6 +80,7 @@ export const signup = async (data: SignupData) => {
           jobTitle: data.jobTitle ?? "",
           employer: data.employer ?? "",
           sector: data.sector ?? "",
+          linkedinUrl: data.linkedinUrl ?? null,
           bio: data.bio ?? "",
         },
       });
@@ -97,6 +100,17 @@ export const signup = async (data: SignupData) => {
 
     return newUser;
   });
+
+  if (data.role === 'PROFESSIONAL') {
+    try {
+      await sendNewProfessionalNotificationToAdmin({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        linkedinUrl: data.linkedinUrl ?? null,
+      })
+    } catch {}
+  }
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);

@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useCareers from '@/hooks/useCareers'
+import useProfessionals from '@/hooks/useProfessionals'
 import useStats from '@/hooks/useStats'
 import { getSectorStyle } from '@/utils/sectorColors'
 
@@ -24,12 +26,15 @@ const ALevelExploreCareers = () => {
   const [selectedCombination, setSelectedCombination] = useState(studentCombination)
   const [selectedSector, setSelectedSector] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('Popularity')
+  const [showAllPros, setShowAllPros] = useState(false)
+  const [selectedProSector, setSelectedProSector] = useState('')
 
   const { stats } = useStats()
   const { careers, loading, error } = useCareers({
     combination: selectedCombination || undefined,
     sector: selectedSector || undefined,
   })
+  const { professionals, loading: prosLoading, error: prosError } = useProfessionals({ sector: selectedProSector || undefined })
 
   const sorted = [...careers].sort((a, b) => {
     if (sortBy === 'A–Z') return a.title.localeCompare(b.title)
@@ -149,6 +154,83 @@ const ALevelExploreCareers = () => {
           })}
         </div>
       )}
+
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-primary">Professionals</h2>
+          <button
+            onClick={() => setShowAllPros((v) => !v)}
+            className="text-xs text-accent hover:underline"
+          >
+            {showAllPros ? 'Show recommended only' : 'Browse all professionals →'}
+          </button>
+        </div>
+
+        {showAllPros && (
+          <>
+            <div className="flex gap-3 flex-wrap items-center mb-4">
+              <select
+                value={selectedProSector}
+                onChange={(e) => setSelectedProSector(e.target.value)}
+                className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="">All Sectors</option>
+                {SECTORS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {selectedProSector && (
+                <button onClick={() => setSelectedProSector('')} className="text-xs text-accent hover:underline">
+                  Clear filter
+                </button>
+              )}
+            </div>
+
+            {prosLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
+                ))}
+              </div>
+            ) : prosError ? (
+              <p className="text-sm text-muted text-center mt-6">Unable to load professionals. Please try again.</p>
+            ) : professionals.length === 0 ? (
+              <p className="text-sm text-muted text-center mt-6">
+                No professionals found for this sector. Try a different filter or{' '}
+                <button onClick={() => setSelectedProSector('')} className="text-accent hover:underline">clear filters</button>{' '}
+                to see everyone.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {professionals.map((pro) => {
+                  const style = getSectorStyle(pro.sector)
+                  const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
+                  return (
+                    <div key={pro.id} className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow">
+                      <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-bold flex items-center justify-center text-sm flex-shrink-0">
+                        {initials}
+                      </div>
+                      <p className="text-sm font-semibold text-primary mt-3">{pro.firstName} {pro.lastName}</p>
+                      <p className="text-xs text-muted">{pro.jobTitle} · {pro.employer}</p>
+                      <span
+                        className="inline-block text-xs text-white px-2 py-0.5 rounded-full mt-2"
+                        style={{ backgroundColor: style.bg }}
+                      >
+                        {pro.sector}
+                      </span>
+                      <div className="mt-3">
+                        <Link to={`/student/professional/${pro.id}`} className="text-xs text-accent hover:underline">
+                          View Profile →
+                        </Link>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
