@@ -3,7 +3,6 @@
 > **"The path"** in Kinyarwanda — a career guidance platform built specifically for secondary school students in Kigali, Rwanda.
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=flat-square)](https://inzira-self.vercel.app/)
-[![API](https://img.shields.io/badge/API-Render-blue?style=flat-square)](https://inzira-api.onrender.com)
 
 ---
 
