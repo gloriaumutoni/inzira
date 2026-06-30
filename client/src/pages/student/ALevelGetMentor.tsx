@@ -68,7 +68,7 @@ const ALevelGetMentor = () => {
           Explore Careers page.
         </p>
         <Link
-          to="/student/explore-careers"
+          to="/student/explore-careers#professionals"
           className="inline-block bg-white text-primary text-sm font-semibold px-4 py-2 rounded-lg hover:bg-white/90 transition-colors mt-4"
         >
           Find a professional →

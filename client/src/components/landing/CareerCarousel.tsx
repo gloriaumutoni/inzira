@@ -21,20 +21,20 @@ const getSectorStyle = (sector: string) =>
   SECTOR_COLORS[sector] ?? SECTOR_COLORS['Other']
 
 const CareerCard = ({ career }: { career: Career }) => {
-  const style = getSectorStyle(career.sector)
+  const sectorColor = getSectorStyle(career.sector).bg
   return (
-    <div
-      className="w-64 flex-shrink-0 rounded-xl p-5 cursor-pointer hover:shadow-md transition-shadow"
-      style={{ backgroundColor: style.bg }}
-    >
-      <span
-        className="text-xs font-medium px-2 py-0.5 rounded-full uppercase tracking-wide text-white"
-        style={{ backgroundColor: style.badge }}
-      >
-        {career.sector}
-      </span>
-      <h3 className="text-base font-bold text-white mt-3">{career.title}</h3>
-      <p className="text-xs text-white/80 mt-1 leading-relaxed line-clamp-2">{career.description}</p>
+    <div className="w-64 flex-shrink-0 bg-surface border border-border rounded-xl p-5 cursor-pointer hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sectorColor }} />
+        <span
+          className="text-xs font-medium px-2 py-0.5 rounded-full uppercase tracking-wide"
+          style={{ backgroundColor: `${sectorColor}1A`, color: sectorColor }}
+        >
+          {career.sector}
+        </span>
+      </div>
+      <h3 className="text-base font-bold text-primary mt-3">{career.title}</h3>
+      <p className="text-xs text-muted mt-1 leading-relaxed line-clamp-2">{career.description}</p>
     </div>
   )
 }

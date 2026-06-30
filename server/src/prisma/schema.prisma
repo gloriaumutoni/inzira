@@ -124,6 +124,10 @@ model Professional {
   googleAccessToken       String?
   googleRefreshToken      String?
   googleTokenExpiry       DateTime?
+  isMentor                Boolean   @default(false)
+  mentorApplicationStatus String?
+  mentorAppliedAt         DateTime?
+  mentorBio               String?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -133,6 +137,7 @@ model Professional {
   groupSessions GroupSession[]
   mentorships   Mentorship[]
   reviews       Review[]
+  careers       ProfessionalCareer[]
 }
 
 model CareerGuide {
@@ -171,6 +176,8 @@ model Career {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  professionals ProfessionalCareer[]
 }
 
 model Availability {
@@ -317,4 +324,15 @@ model SessionFeedback {
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model ProfessionalCareer {
+  id             String       @id @default(cuid())
+  professionalId String
+  careerId       String
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  career         Career       @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([professionalId, careerId])
 }

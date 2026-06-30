@@ -38,6 +38,8 @@ export interface ProfessionalProfile {
   offersFreeIntro: boolean
   offersProTier: boolean
   offersPremiumTier: boolean
+  isMentor: boolean
+  mentorApplicationStatus?: string | null
 }
 
 export interface CareerGuideProfile {

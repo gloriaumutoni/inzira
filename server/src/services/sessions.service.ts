@@ -62,8 +62,8 @@ export const create = async (studentUserId: string, data: {
     where: { id: data.professionalId },
   })
   if (!professional) throw new Error('Professional not found')
-  if (!professional.isVerified || !professional.isActive) {
-    throw new Error('Professional is not available')
+  if (!professional.isVerified || !professional.isActive || !professional.isMentor) {
+    throw new Error('Professional is not available for mentoring.')
   }
 
   if (data.type === 'FREE_INTRO') {

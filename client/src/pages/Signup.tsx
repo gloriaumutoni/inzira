@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { signupUser, getMe, checkEmail, SignupPayload } from '@/api/auth.api'
+import { api } from '@/api/axios'
 import { setAccessToken } from '@/utils/token'
 import { getPublicSchools } from '@/api/schools.api'
 import { School } from '@/types'
@@ -45,6 +46,7 @@ interface Step1Data {
 interface Step3Data {
   level?: 'O_LEVEL' | 'A_LEVEL'
   combination?: string
+  careerIds?: string[]
   confidence?: number
   jobTitle?: string
   employer?: string
@@ -88,6 +90,7 @@ const Signup = () => {
   const [role, setRole] = useState<SignupRole | null>(null)
   const [step3, setStep3] = useState<Step3Data>({})
   const [schools, setSchools] = useState<School[]>([])
+  const [signupCareers, setSignupCareers] = useState<{ id: string; title: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -95,6 +98,14 @@ const Signup = () => {
   useEffect(() => {
     if (step === 3 && (role === 'CAREER_GUIDE' || role === 'STUDENT')) {
       getPublicSchools().then(setSchools).catch(() => {})
+    }
+  }, [step, role])
+
+  useEffect(() => {
+    if (step === 3 && role === 'PROFESSIONAL') {
+      api.get('/careers?includeUnmatched=true').then(({ data }) => {
+        setSignupCareers(data.data.careers ?? [])
+      }).catch(() => {})
     }
   }, [step, role])
 
@@ -157,6 +168,13 @@ const Signup = () => {
       }
 
       setAccessToken(accessToken)
+
+      if (role === 'PROFESSIONAL' && (step3.careerIds?.length ?? 0) > 0) {
+        try {
+          await api.patch('/professionals/me/careers', { careerIds: step3.careerIds })
+        } catch {}
+      }
+
       const me = await getMe()
       setAuth(accessToken, me)
       navigate(ROLE_HOME[role!] ?? '/')
@@ -551,6 +569,40 @@ const Signup = () => {
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
                 />
               </div>
+              {signupCareers.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">
+                    Which careers do you represent?
+                  </label>
+                  <p className="text-xs text-muted mb-2">
+                    Select the career(s) students should be able to find you under.
+                  </p>
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3">
+                    {signupCareers.map((career) => (
+                      <button
+                        key={career.id}
+                        type="button"
+                        onClick={() => {
+                          const current = step3.careerIds ?? []
+                          setStep3({
+                            ...step3,
+                            careerIds: current.includes(career.id)
+                              ? current.filter((id) => id !== career.id)
+                              : [...current, career.id],
+                          })
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          (step3.careerIds ?? []).includes(career.id)
+                            ? 'bg-accent text-white border-accent'
+                            : 'border-border text-primary hover:border-accent'
+                        }`}
+                      >
+                        {career.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {error && (
                 <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2">
                   <p className="text-error text-sm">{error}</p>

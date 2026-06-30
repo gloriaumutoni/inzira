@@ -6,6 +6,7 @@ import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 import useProfessionalDashboard from '@/hooks/useProfessionalDashboard'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
+import ApplyMentorModal from '@/components/professional/ApplyMentorModal'
 
 const TYPE_BADGE: Record<string, string> = {
   FREE_INTRO: 'bg-accent/10 text-accent',
@@ -28,6 +29,8 @@ const ProfessionalHome = () => {
   const isActive = useState(user?.professional?.isActive ?? true)
   const [outOfOffice, setOutOfOffice] = useState(!(user?.professional?.isActive ?? true))
   const [toggling, setToggling] = useState(false)
+
+  const [showMentorApplyModal, setShowMentorApplyModal] = useState(false)
 
   const { stats, loading: statsLoading } = useProfessionalDashboard()
   const { sessions: pending, loading: pendingLoading, refetch } = useProfessionalSessions({ status: 'PENDING' })
@@ -146,6 +149,35 @@ const ProfessionalHome = () => {
           You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
         </p>
       </div>
+
+      {user?.professional?.isVerified && !user?.professional?.isMentor && (
+        user?.professional?.mentorApplicationStatus === 'PENDING' ? (
+          <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-center gap-3">
+            <Clock className="text-warning w-5 h-5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-primary">Mentor application under review</p>
+              <p className="text-xs text-muted mt-0.5">
+                We'll email you once the admin has reviewed your request.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm font-semibold text-primary">Ready to mentor students?</p>
+              <p className="text-xs text-muted mt-0.5">
+                Apply to become a mentor and start hosting sessions with students.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowMentorApplyModal(true)}
+              className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors"
+            >
+              Apply to be a Mentor
+            </button>
+          </div>
+        )
+      )}
 
       <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
         <p className="text-sm font-semibold text-primary">How mentorship works on Inzira</p>
@@ -319,6 +351,13 @@ const ProfessionalHome = () => {
           />
         </button>
       </div>
+
+      {showMentorApplyModal && (
+        <ApplyMentorModal
+          onClose={() => setShowMentorApplyModal(false)}
+          onSuccess={() => window.location.reload()}
+        />
+      )}
     </div>
   )
 }

@@ -204,22 +204,7 @@ const ProfessionalProfile = () => {
               </button>
             </div>
           )}
-          {profile.offersProTier && (
-            <div className="flex items-center justify-between py-3">
-              <div>
-                <p className="text-sm font-medium text-primary">Mentorship Session</p>
-                <p className="text-xs text-muted mt-0.5">
-                  60 min · 1-on-1 · {profile.proRate.toLocaleString()} RWF
-                </p>
-              </div>
-              <button
-                onClick={() => setBookingType('PRO')}
-                className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0"
-              >
-                Book Session
-              </button>
-            </div>
-          )}
+
           <div className="flex items-center justify-between py-3 last:pb-0">
             <div>
               <p className="text-sm font-medium text-primary">Group Sessions</p>

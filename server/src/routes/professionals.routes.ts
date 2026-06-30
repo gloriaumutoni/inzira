@@ -12,6 +12,8 @@ router.get('/me/availability', authMiddleware, roleGuard('PROFESSIONAL'), profes
 router.post('/me/availability', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.saveAvailability)
 router.get('/me/dashboard', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.getDashboard)
 router.get('/me/quota', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.getQuota)
+router.post('/me/apply-mentor', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.applyToBeMentor)
+router.patch('/me/careers', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.updateMyCareers)
 
 router.get('/', authMiddleware, professionalsController.browse)
 router.get('/recommended', authMiddleware, roleGuard('STUDENT'), professionalsController.getRecommendedProfessionals)

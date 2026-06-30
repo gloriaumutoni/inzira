@@ -13,5 +13,8 @@ router.patch('/verification/professionals/:id/reject', adminController.rejectPro
 router.patch('/professionals/:id/suspend', adminController.suspendProfessional)
 router.patch('/professionals/:id/reinstate', adminController.reinstateProfessional)
 router.patch('/professionals/:id/quota', adminController.updateQuota)
+router.get('/verification/mentors', adminController.getPendingMentorApplications)
+router.patch('/verification/mentors/:id/approve', adminController.approveMentorApplication)
+router.patch('/verification/mentors/:id/reject', adminController.rejectMentorApplication)
 
 export default router

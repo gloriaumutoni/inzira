@@ -135,33 +135,34 @@ const StudentDiscover = () => {
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {sortedCareers.map((career) => {
-                const style = getSectorStyle(career.sector)
-                return (
-                  <div
-                    key={career.id}
-                    className="rounded-xl p-5 text-white cursor-pointer hover:shadow-md transition-shadow"
-                    style={{ backgroundColor: style.bg }}
-                  >
+              {sortedCareers.map((career) => (
+                <div key={career.id} className="bg-surface border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow p-5 cursor-pointer">
+                  <div className="flex items-center gap-2">
                     <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full uppercase text-white"
-                      style={{ backgroundColor: style.badge }}
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getSectorStyle(career.sector).bg }}
+                    />
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded-full uppercase"
+                      style={{
+                        backgroundColor: `${getSectorStyle(career.sector).bg}1A`,
+                        color: getSectorStyle(career.sector).bg,
+                      }}
                     >
                       {career.sector}
                     </span>
-                    <h3 className="text-base font-bold text-white mt-3">{career.title}</h3>
-                    <p className="text-xs text-white/80 mt-2 leading-relaxed line-clamp-3">
-                      {career.description}
-                    </p>
-                    <div className="flex justify-between items-center mt-4">
-                      <span className="text-xs text-white/60">
-                        {career.combinations.length} combination{career.combinations.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className="text-xs text-white underline cursor-pointer">Learn more</span>
-                    </div>
                   </div>
-                )
-              })}
+                  <h3 className="text-base font-bold text-primary mt-3">{career.title}</h3>
+                  <p className="text-xs text-muted mt-2 leading-relaxed line-clamp-3">{career.description}</p>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {career.combinations.map((combo) => (
+                      <span key={combo} className="text-xs px-2 py-0.5 rounded-full border border-border text-muted">
+                        {combo}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </>

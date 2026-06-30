@@ -29,11 +29,11 @@ interface GroupSessionCardProps {
 
 const GroupSessionCard = ({ session, onRegisterSuccess }: GroupSessionCardProps) => {
   const [isRegistered, setIsRegistered] = useState(session.isRegistered)
-  const [enrollment, setEnrollment] = useState(session.currentEnrollment)
+  const [enrollment, setEnrollment] = useState(session.currentEnrollment ?? 0)
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
 
-  const slotsLeft = session.maxStudents - enrollment
+  const slotsLeft = session.maxStudents - (enrollment ?? 0)
   const isFull = slotsLeft <= 0
   const style = getSectorStyle(session.professional?.sector ?? session.sector)
 

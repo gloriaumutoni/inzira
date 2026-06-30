@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useCareers from '@/hooks/useCareers'
 import useProfessionals from '@/hooks/useProfessionals'
+import useRecommendedProfessionals from '@/hooks/useRecommendedProfessionals'
 import useStats from '@/hooks/useStats'
 import { getSectorStyle } from '@/utils/sectorColors'
 
@@ -21,9 +22,17 @@ type SortOption = 'Popularity' | 'Newest' | 'A–Z'
 
 const ALevelExploreCareers = () => {
   const { user } = useAuth()
-  const studentCombination = user?.student?.combination ?? ''
+  const [selectedCombination, setSelectedCombination] = useState<string | undefined>(undefined)
 
-  const [selectedCombination, setSelectedCombination] = useState(studentCombination)
+  useEffect(() => {
+    if (user?.student?.combination && selectedCombination === undefined) {
+      setSelectedCombination(user.student.combination.split(' ')[0])
+    } else if (user && selectedCombination === undefined) {
+      setSelectedCombination('')
+    }
+  }, [user])
+
+  const studentCombination = user?.student?.combination?.split(' ')[0] ?? ''
   const [selectedSector, setSelectedSector] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('Popularity')
   const [showAllPros, setShowAllPros] = useState(false)
@@ -31,10 +40,18 @@ const ALevelExploreCareers = () => {
 
   const { stats } = useStats()
   const { careers, loading, error } = useCareers({
-    combination: selectedCombination || undefined,
+    combination: selectedCombination ?? '',
     sector: selectedSector || undefined,
   })
   const { professionals, loading: prosLoading, error: prosError } = useProfessionals({ sector: selectedProSector || undefined })
+  const { professionals: recommendedPros, loading: recLoading } = useRecommendedProfessionals()
+
+  useEffect(() => {
+    if (window.location.hash === '#professionals') {
+      const el = document.getElementById('professionals-section')
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [])
 
   const sorted = [...careers].sort((a, b) => {
     if (sortBy === 'A–Z') return a.title.localeCompare(b.title)
@@ -59,7 +76,7 @@ const ALevelExploreCareers = () => {
       {/* Filters */}
       <div className="flex gap-3 mt-6 flex-wrap items-center">
         <select
-          value={selectedCombination}
+          value={selectedCombination ?? ''}
           onChange={(e) => setSelectedCombination(e.target.value)}
           className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface focus:outline-none focus:ring-2 focus:ring-accent"
         >
@@ -92,7 +109,13 @@ const ALevelExploreCareers = () => {
       </div>
 
       {/* Career grid */}
-      {loading ? (
+      {selectedCombination === undefined ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
+          ))}
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
@@ -108,52 +131,97 @@ const ALevelExploreCareers = () => {
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          {sorted.map((career) => {
-            const style = getSectorStyle(career.sector)
-            return (
-              <div
-                key={career.id}
-                className="rounded-xl p-5 text-white cursor-pointer hover:shadow-md transition-shadow"
-                style={{ backgroundColor: style.bg }}
-              >
+          {sorted.map((career) => (
+            <div
+              key={career.id}
+              className="bg-surface border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow p-5 cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
                 <span
-                  className="text-xs font-medium px-2 py-0.5 rounded-full uppercase text-white"
-                  style={{ backgroundColor: style.badge }}
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: getSectorStyle(career.sector).bg }}
+                />
+                <span
+                  className="text-xs font-medium px-2 py-0.5 rounded-full uppercase"
+                  style={{
+                    backgroundColor: `${getSectorStyle(career.sector).bg}1A`,
+                    color: getSectorStyle(career.sector).bg,
+                  }}
                 >
                   {career.sector}
                 </span>
-                <h3 className="text-base font-bold text-white mt-3">{career.title}</h3>
-                <p className="text-xs text-white/80 mt-2 leading-relaxed line-clamp-3">
-                  {career.description}
-                </p>
-                <div className="flex flex-wrap gap-1 mt-3">
-                  {career.combinations.map((combo) => {
-                    const isOwn = combo === studentCombination
-                    return (
-                      <span
-                        key={combo}
-                        className={[
-                          'text-xs px-2 py-0.5 rounded-full',
-                          isOwn
-                            ? 'bg-white text-primary font-semibold'
-                            : 'bg-white/20 text-white',
-                        ].join(' ')}
-                      >
-                        {combo}
-                      </span>
-                    )
-                  })}
-                </div>
-                <p className="text-xs text-white/80 underline mt-3 cursor-pointer">Learn more</p>
               </div>
-            )
-          })}
+              <h3 className="text-base font-bold text-primary mt-3">{career.title}</h3>
+              <p className="text-xs text-muted mt-2 leading-relaxed line-clamp-3">{career.description}</p>
+              <div className="flex flex-wrap gap-1 mt-3">
+                {career.combinations.map((combo) => {
+                  const isOwn = combo === studentCombination
+                  return (
+                    <span
+                      key={combo}
+                      className={[
+                        'text-xs px-2 py-0.5 rounded-full border',
+                        isOwn
+                          ? 'bg-accent text-white border-accent font-semibold'
+                          : 'border-border text-muted',
+                      ].join(' ')}
+                    >
+                      {combo}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="mt-10">
+      <div className="mt-10" id="professionals-section">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-primary">Professionals</h2>
+          <div>
+            <h2 className="text-base font-semibold text-primary">Professionals matching your combination</h2>
+            <p className="text-xs text-muted mt-0.5">These professionals are directly linked to careers in your combination</p>
+          </div>
+        </div>
+
+        {recLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
+            ))}
+          </div>
+        ) : recommendedPros.length === 0 ? (
+          <p className="text-sm text-muted">No professionals linked to your combination yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recommendedPros.map((pro) => {
+              const style = getSectorStyle(pro.sector)
+              const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
+              return (
+                <div key={pro.id} className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-bold flex items-center justify-center text-sm flex-shrink-0">
+                    {initials}
+                  </div>
+                  <p className="text-sm font-semibold text-primary mt-3">{pro.firstName} {pro.lastName}</p>
+                  <p className="text-xs text-muted">{pro.jobTitle} · {pro.employer}</p>
+                  <span
+                    className="inline-block text-xs text-white px-2 py-0.5 rounded-full mt-2"
+                    style={{ backgroundColor: style.bg }}
+                  >
+                    {pro.sector}
+                  </span>
+                  <div className="mt-3">
+                    <Link to={`/student/professional/${pro.id}`} className="text-xs text-accent hover:underline">
+                      View Profile →
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="mt-6">
           <button
             onClick={() => setShowAllPros((v) => !v)}
             className="text-xs text-accent hover:underline"

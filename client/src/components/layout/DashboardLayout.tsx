@@ -99,6 +99,7 @@ const SidebarContent = ({
   onLogout,
   role,
   isVerified,
+  isMentor,
 }: {
   navItems: NavItem[]
   pathname: string
@@ -106,6 +107,7 @@ const SidebarContent = ({
   onLogout: () => void
   role: Role
   isVerified: boolean
+  isMentor: boolean
 }) => (
   <>
     <div className="px-6 py-5">
@@ -116,7 +118,7 @@ const SidebarContent = ({
       {navItems.map(({ label, icon: Icon, path }) => {
         const isLocked =
           role === 'PROFESSIONAL' &&
-          isVerified !== true &&
+          (!isVerified || !isMentor) &&
           (label === 'Sessions' || label === 'Mentees')
 
         if (isLocked) {
@@ -124,7 +126,11 @@ const SidebarContent = ({
             <div
               key={path}
               className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/30 cursor-not-allowed select-none"
-              title="Available once your account is verified"
+              title={
+                !isVerified
+                  ? 'Available once your account is verified'
+                  : 'Available once your mentor application is approved'
+              }
             >
               <Icon size={16} />
               {label}
@@ -186,6 +192,7 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
           onLogout={handleLogout}
           role={role}
           isVerified={user?.professional?.isVerified === true}
+          isMentor={user?.professional?.isMentor === true}
         />
       </aside>
 
@@ -206,7 +213,7 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
               {navItems.map(({ label, icon: Icon, path }) => {
                 const isLocked =
                   role === 'PROFESSIONAL' &&
-                  user?.professional?.isVerified !== true &&
+                  (user?.professional?.isVerified !== true || user?.professional?.isMentor !== true) &&
                   (label === 'Sessions' || label === 'Mentees')
 
                 if (isLocked) {
@@ -214,7 +221,11 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
                     <div
                       key={path}
                       className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/30 cursor-not-allowed select-none"
-                      title="Available once your account is verified"
+                      title={
+                        user?.professional?.isVerified !== true
+                          ? 'Available once your account is verified'
+                          : 'Available once your mentor application is approved'
+                      }
                     >
                       <Icon size={16} />
                       {label}

@@ -3,11 +3,16 @@ import { ExternalLink, X } from 'lucide-react'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 import useVerification, { PendingProfessional } from '@/hooks/useVerification'
+import useMentorApplications, { MentorApplication } from '@/hooks/useMentorApplications'
 
 const AdminVerification = () => {
   const { professionals, loading, error, refetch } = useVerification()
+  const { applications, loading: mentorLoading, error: mentorError, refetch: refetchMentors } = useMentorApplications()
   const [actioningId, setActioningId] = useState<string | null>(null)
   const [selectedProfessional, setSelectedProfessional] = useState<PendingProfessional | null>(null)
+  const [activeTab, setActiveTab] = useState<'professionals' | 'mentors'>('professionals')
+  const [selectedApplication, setSelectedApplication] = useState<MentorApplication | null>(null)
+  const [mentorActioningId, setMentorActioningId] = useState<string | null>(null)
 
   const handleApprove = async (id: string) => {
     setActioningId(id)
@@ -37,6 +42,34 @@ const AdminVerification = () => {
     }
   }
 
+  const handleApproveMentor = async (id: string) => {
+    setMentorActioningId(id)
+    try {
+      await api.patch(`/admin/verification/mentors/${id}/approve`)
+      toast.success('Mentor application approved.')
+      setSelectedApplication(null)
+      refetchMentors()
+    } catch {
+      toast.error('Could not approve. Please try again.')
+    } finally {
+      setMentorActioningId(null)
+    }
+  }
+
+  const handleDeclineMentor = async (id: string) => {
+    setMentorActioningId(id)
+    try {
+      await api.patch(`/admin/verification/mentors/${id}/reject`)
+      toast.success('Mentor application declined.')
+      setSelectedApplication(null)
+      refetchMentors()
+    } catch {
+      toast.error('Could not decline. Please try again.')
+    } finally {
+      setMentorActioningId(null)
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -44,12 +77,30 @@ const AdminVerification = () => {
         <p className="text-sm text-muted mt-0.5">Review and approve pending professional applications</p>
       </div>
 
-      <div className="bg-surface rounded-xl border border-border p-4 inline-flex flex-col items-center min-w-[140px]">
-        <p className="text-2xl font-bold text-primary">
-          {loading ? '—' : professionals.length}
-        </p>
-        <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending</p>
+      <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+        {(['professionals', 'mentors'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={
+              activeTab === tab
+                ? 'bg-primary text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors'
+                : 'text-muted text-sm font-medium px-4 py-1.5 rounded-lg hover:text-primary transition-colors'
+            }
+          >
+            {tab === 'professionals' ? 'Professionals' : 'Mentor Applications'}
+          </button>
+        ))}
       </div>
+
+      {activeTab === 'professionals' && (
+        <>
+          <div className="bg-surface rounded-xl border border-border p-4 inline-flex flex-col items-center min-w-[140px]">
+            <p className="text-2xl font-bold text-primary">
+              {loading ? '—' : professionals.length}
+            </p>
+            <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending</p>
+          </div>
 
       {loading ? (
         <div className="space-y-4">
@@ -228,6 +279,146 @@ const AdminVerification = () => {
             </div>
           </div>
         </div>
+      )}
+      </>)}
+
+      {activeTab === 'mentors' && (
+        <>
+          <div className="bg-surface rounded-xl border border-border p-4 inline-flex flex-col items-center min-w-[140px]">
+            <p className="text-2xl font-bold text-primary">
+              {mentorLoading ? '—' : applications.length}
+            </p>
+            <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending</p>
+          </div>
+
+          {mentorLoading ? (
+            <div className="space-y-4">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="animate-pulse bg-border rounded-xl h-32" />
+              ))}
+            </div>
+          ) : mentorError ? (
+            <div className="bg-error/10 border border-error/20 rounded-xl p-6 text-center">
+              <p className="text-sm text-error">Unable to load mentor applications. Please refresh.</p>
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="bg-surface border border-border rounded-xl p-10 text-center">
+              <p className="text-sm text-muted">No mentor applications pending.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {applications.map((app) => (
+                <div key={app.id} className="bg-surface rounded-xl border border-border p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-primary">{app.firstName} {app.lastName}</p>
+                      <p className="text-xs text-muted">{app.email}</p>
+                    </div>
+                    <span className="bg-warning/10 text-warning text-xs font-semibold px-2 py-0.5 rounded-full">
+                      Pending
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setSelectedApplication(app)}
+                      className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      Review
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {selectedApplication && (
+            <div className="fixed inset-0 z-50 flex justify-end">
+              <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedApplication(null)} />
+              <div className="relative bg-surface w-full max-w-md h-full overflow-y-auto p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold text-primary">Review Mentor Application</h2>
+                  <button onClick={() => setSelectedApplication(null)} className="text-muted hover:text-primary transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-base font-semibold text-primary">{selectedApplication.firstName} {selectedApplication.lastName}</p>
+                    <p className="text-sm text-muted">{selectedApplication.email}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-muted">Job Title</p>
+                      <p className="text-sm text-primary">{selectedApplication.jobTitle}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted">Employer</p>
+                      <p className="text-sm text-primary">{selectedApplication.employer}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted">Sector</p>
+                      <p className="text-sm text-primary">{selectedApplication.sector}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted">Applied</p>
+                      <p className="text-sm text-primary">
+                        {selectedApplication.appliedAt ? new Date(selectedApplication.appliedAt).toLocaleDateString() : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedApplication.mentorBio && (
+                    <div>
+                      <p className="text-xs text-muted">Why they want to mentor</p>
+                      <p className="text-sm text-primary mt-1">{selectedApplication.mentorBio}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    {selectedApplication.linkedinUrl ? (
+                      <a
+                        href={selectedApplication.linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-accent hover:underline flex items-center gap-1 w-fit"
+                      >
+                        View LinkedIn Profile
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <p className="text-xs text-error">No LinkedIn profile on file</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                  <button
+                    onClick={() => setSelectedApplication(null)}
+                    className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background transition-colors"
+                  >
+                    Back to list
+                  </button>
+                  <button
+                    onClick={() => handleDeclineMentor(selectedApplication.id)}
+                    disabled={mentorActioningId === selectedApplication.id}
+                    className="flex-1 border border-error text-error py-2.5 rounded-lg text-sm font-semibold hover:bg-error/5 disabled:opacity-60 transition-colors"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => handleApproveMentor(selectedApplication.id)}
+                    disabled={mentorActioningId === selectedApplication.id}
+                    className="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                  >
+                    Approve
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
