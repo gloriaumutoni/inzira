@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, BookOpen, DollarSign, CheckCircle, BarChart2, LayoutDashboard, ShieldCheck, Building2, Menu, X } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, CheckCircle, ShieldCheck, Menu, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
-type Role = 'STUDENT' | 'PROFESSIONAL' | 'COMPANY' | 'CAREER_GUIDE' | 'ADMIN'
+type Role = 'STUDENT' | 'PROFESSIONAL' | 'CAREER_GUIDE' | 'ADMIN'
 type Level = 'O_LEVEL' | 'A_LEVEL'
 
 interface NavItem {
@@ -24,19 +24,11 @@ const PROFESSIONAL_NAV: NavItem[] = [
   { label: 'Home',     icon: Home,        path: '/professional/home' },
   { label: 'Sessions', icon: Calendar,    path: '/professional/sessions' },
   { label: 'Mentees',  icon: Users,       path: '/professional/mentees' },
-  { label: 'Earnings', icon: DollarSign,  path: '/professional/earnings' },
-]
-
-const COMPANY_NAV: NavItem[] = [
-  { label: 'Home',      icon: Home,      path: '/company/home' },
-  { label: 'Workshops', icon: Calendar,  path: '/company/workshops' },
-  { label: 'Insights',  icon: BarChart2, path: '/company/insights' },
 ]
 
 const CAREER_GUIDE_NAV: NavItem[] = [
-  { label: 'Home',      icon: Home,      path: '/career-guide/home' },
-  { label: 'Workshops', icon: BookOpen,  path: '/career-guide/workshops' },
-  { label: 'Sessions',  icon: Calendar,  path: '/career-guide/sessions' },
+  { label: 'Home',     icon: Home,     path: '/career-guide/home' },
+  { label: 'Sessions', icon: Calendar, path: '/career-guide/sessions' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
@@ -46,7 +38,6 @@ const ADMIN_NAV: NavItem[] = [
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',            icon: Home,     path: '/student/home' },
   { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
-  { label: 'Workshops',       icon: BookOpen, path: '/student/workshops' },
   { label: 'Sessions',        icon: Calendar, path: '/student/sessions' },
   { label: 'Get Mentor',      icon: Users,    path: '/student/get-mentor' },
 ]
@@ -61,10 +52,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/professional/home':         'Home',
   '/professional/sessions':     'Sessions',
   '/professional/mentees':      'Mentees',
-  '/professional/earnings':     'Earnings',
-  '/company/home':              'Home',
-  '/company/workshops':         'Workshops',
-  '/company/insights':          'Insights',
   '/career-guide/home':         'Home',
   '/career-guide/workshops':    'Workshops',
   '/career-guide/sessions':     'Career Discovery',
@@ -78,7 +65,6 @@ function getNavItems(role: Role, level?: Level): NavItem[] {
     return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
   }
   if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
-  if (role === 'COMPANY') return COMPANY_NAV
   if (role === 'CAREER_GUIDE') return CAREER_GUIDE_NAV
   if (role === 'ADMIN') return ADMIN_NAV
   return []
@@ -90,7 +76,6 @@ function getInitials(user: ReturnType<typeof useAuth>['user']): string {
   if (p && 'firstName' in p && 'lastName' in p) {
     return `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase()
   }
-  if (user.company) return user.company.companyName[0]?.toUpperCase() ?? 'C'
   return user.email[0]?.toUpperCase() ?? '?'
 }
 
@@ -98,7 +83,6 @@ function getDisplayName(user: ReturnType<typeof useAuth>['user']): string {
   if (!user) return ''
   const p = user.student ?? user.professional ?? user.careerGuide ?? null
   if (p && 'firstName' in p) return `${p.firstName} ${'lastName' in p ? p.lastName : ''}`.trim()
-  if (user.company) return user.company.companyName
   return user.email
 }
 
@@ -251,12 +235,6 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
                 <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
                   <CheckCircle size={10} />
                   Verified Mentor
-                </span>
-              )}
-              {role === 'COMPANY' && user?.company?.isVerified && (
-                <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
-                  <CheckCircle size={10} />
-                  Verified Partner
                 </span>
               )}
               {role === 'CAREER_GUIDE' && (

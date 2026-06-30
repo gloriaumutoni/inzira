@@ -83,20 +83,6 @@ export const signup = async (data: SignupData) => {
       });
     }
 
-    if (data.role === "COMPANY") {
-      await tx.company.create({
-        data: {
-          userId: newUser.id,
-          companyName: data.companyName ?? "",
-          sector: data.sector ?? "",
-          description: data.bio ?? "",
-          companySize: data.companySize ?? "",
-          contactPerson: data.contactPerson ?? "",
-          contactPhone: data.contactPhone ?? "",
-        },
-      });
-    }
-
     if (data.role === "CAREER_GUIDE") {
       await tx.careerGuide.create({
         data: {
@@ -192,7 +178,6 @@ export const getMe = async (userId: string) => {
     include: {
       student: true,
       professional: true,
-      company: true,
       careerGuide: true,
     },
   });

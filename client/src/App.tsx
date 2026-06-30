@@ -8,6 +8,7 @@ const App = () => (
   <>
     <Toaster
       position="top-right"
+      closeButton
       toastOptions={{
         style: {
           background: '#FFFFFF',

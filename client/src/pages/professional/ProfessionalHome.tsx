@@ -93,8 +93,14 @@ const ProfessionalHome = () => {
   const handleConnectCalendar = async () => {
     try {
       const { data } = await api.get('/google-calendar/auth')
+      if (!data?.data?.url) {
+        toast.error('Google Calendar is not configured. Please contact support.')
+        return
+      }
       window.open(data.data.url, '_blank')
-    } catch {}
+    } catch {
+      toast.error('Could not connect to Google Calendar. Please try again.')
+    }
   }
 
   // Build week columns Mon–Fri for the current week

@@ -27,18 +27,12 @@ export const getDashboard = async (userId: string) => {
   const student = await prisma.student.findUnique({ where: { userId } })
   if (!student) throw new Error('Student not found')
 
-  const [upcomingSessions, registeredWorkshops, groupSessions] =
+  const [upcomingSessions, groupSessions] =
     await Promise.all([
       prisma.session.findMany({
         where: { studentId: student.id, status: 'CONFIRMED', scheduledAt: { gte: new Date() } },
         include: { professional: true },
         orderBy: { scheduledAt: 'asc' },
-        take: 3,
-      }),
-      prisma.workshopRegistration.findMany({
-        where: { studentId: student.id },
-        include: { workshop: { include: { company: true } } },
-        orderBy: { registeredAt: 'desc' },
         take: 3,
       }),
       prisma.groupSessionEnrolment.findMany({
@@ -54,7 +48,6 @@ export const getDashboard = async (userId: string) => {
 
   return {
     upcomingSessions,
-    registeredWorkshops,
     groupSessions,
     latestConfidence: student.confidenceLevel ?? null,
   }

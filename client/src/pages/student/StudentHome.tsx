@@ -69,7 +69,6 @@ const StudentHome = () => {
     (e) => new Date(e.groupSession.scheduledAt) > now,
   ).length
   const upcomingCount = (dashboard?.upcomingSessions.length ?? 0) + upcomingGroupCount
-  const workshopsCount = dashboard?.registeredWorkshops.length ?? 0
   const confidenceScore = dashboard?.latestConfidence ?? null
 
   return (
@@ -81,10 +80,9 @@ const StudentHome = () => {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {dashLoading ? (
           <>
-            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </>
@@ -95,12 +93,6 @@ const StudentHome = () => {
                 {dashError ? '—' : upcomingCount}
               </p>
               <p className="text-xs text-muted mt-1 uppercase tracking-wide">Upcoming Sessions</p>
-            </div>
-            <div className="bg-surface rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">
-                {dashError ? '—' : workshopsCount}
-              </p>
-              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Workshops Registered</p>
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">

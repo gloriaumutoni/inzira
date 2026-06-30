@@ -29,6 +29,7 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     if (!joinLink.trim()) {
       setError('A Google Meet or Zoom join link is required.')
       return

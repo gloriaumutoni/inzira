@@ -11,7 +11,6 @@ datasource db {
 enum Role {
   STUDENT
   PROFESSIONAL
-  COMPANY
   CAREER_GUIDE
   ADMIN
 }
@@ -41,30 +40,6 @@ enum SessionStatus {
   RESCHEDULED
 }
 
-enum WorkshopFormat {
-  IN_PERSON
-  ONLINE
-}
-
-enum WorkshopStatus {
-  DRAFT
-  ACTIVE
-  PAST
-  CANCELLED
-}
-
-enum PaymentMethod {
-  MOMO
-  CARD
-}
-
-enum PaymentStatus {
-  PENDING
-  SUCCESSFUL
-  FAILED
-  REFUNDED
-}
-
 enum MentorshipStatus {
   ACTIVE
   CANCELLED
@@ -81,7 +56,6 @@ model User {
 
   student          Student?
   professional     Professional?
-  company          Company?
   careerGuide      CareerGuide?
   notifications    Notification[]
   sentMessages     Message[]      @relation("SentMessages")
@@ -119,7 +93,6 @@ model Student {
   school          School?                 @relation(fields: [schoolId], references: [id])
   sessions        Session[]
   groupEnrolments GroupSessionEnrolment[]
-  workshopRegs    WorkshopRegistration[]
   confidenceLogs  ConfidenceLog[]
   mentorship      Mentorship?
   reviewsGiven    Review[]
@@ -161,26 +134,6 @@ model Professional {
   reviews       Review[]
 }
 
-model Company {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  companyName   String
-  sector        String
-  description   String
-  website       String?
-  companySize   String
-  logoUrl       String?
-  contactPerson String
-  contactPhone  String
-  isVerified    Boolean  @default(false)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workshops Workshop[]
-}
-
 model CareerGuide {
   id           String   @id @default(cuid())
   userId       String   @unique
@@ -192,7 +145,7 @@ model CareerGuide {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   school School? @relation(fields: [schoolId], references: [id])
 }
 
@@ -248,9 +201,8 @@ model Session {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  payment      Payment?
+  student      Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  professional Professional    @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   review       Review?
   feedback     SessionFeedback?
 }
@@ -301,56 +253,6 @@ model Mentorship {
 
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  payments     Payment[]
-}
-
-model Workshop {
-  id                   String         @id @default(cuid())
-  companyId            String
-  title                String
-  description          String
-  sector               String
-  format               WorkshopFormat
-  location             String?
-  meetingLink          String?
-  scheduledAt          DateTime
-  duration             Int
-  maxRegistrations     Int?
-  registrationDeadline DateTime?
-  contactPerson        String
-  contactEmail         String
-  hasRefreshments      Boolean        @default(false)
-  hasCertificate       Boolean        @default(false)
-  specialRequirements  String?
-  status               WorkshopStatus @default(DRAFT)
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-
-  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  registrations WorkshopRegistration[]
-  agendaItems   WorkshopAgendaItem[]
-}
-
-model WorkshopAgendaItem {
-  id         String   @id @default(cuid())
-  workshopId String
-  order      Int
-  content    String
-  createdAt  DateTime @default(now())
-
-  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-}
-
-model WorkshopRegistration {
-  id           String   @id @default(cuid())
-  workshopId   String
-  studentId    String
-  registeredAt DateTime @default(now())
-
-  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([workshopId, studentId])
 }
 
 model Message {
@@ -376,23 +278,6 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Payment {
-  id            String        @id @default(cuid())
-  sessionId     String?       @unique
-  mentorshipId  String?
-  amount        Int
-  currency      String        @default("RWF")
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  momoReference String?
-  phoneNumber   String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  session    Session?    @relation(fields: [sessionId], references: [id])
-  mentorship Mentorship? @relation(fields: [mentorshipId], references: [id])
 }
 
 model Review {

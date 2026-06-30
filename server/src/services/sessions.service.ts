@@ -40,7 +40,6 @@ export const list = async (userId: string, role: string, filters: {
         student: { select: { id: true, firstName: true, lastName: true } },
         professional: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
         review: true,
-        payment: true,
       },
       orderBy: { scheduledAt: 'desc' },
     }),
@@ -116,7 +115,6 @@ export const getOne = async (id: string, userId: string, role: string) => {
       student: true,
       professional: true,
       review: true,
-      payment: true,
     },
   })
 

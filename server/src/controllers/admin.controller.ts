@@ -34,30 +34,6 @@ export const rejectProfessional = async (req: Request, res: Response): Promise<v
   }
 }
 
-export const getPendingCompanies = async (req: Request, res: Response): Promise<void> => {
-  try {
-    ok(res, await adminService.getPendingCompanies())
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const approveCompany = async (req: Request, res: Response): Promise<void> => {
-  try {
-    ok(res, await adminService.approveCompany(req.params.id))
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const rejectCompany = async (req: Request, res: Response): Promise<void> => {
-  try {
-    ok(res, await adminService.rejectCompany(req.params.id, req.body.reason))
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
 export const suspendProfessional = async (req: Request, res: Response): Promise<void> => {
   try {
     ok(res, await adminService.suspendProfessional(req.params.id))
@@ -69,22 +45,6 @@ export const suspendProfessional = async (req: Request, res: Response): Promise<
 export const reinstateProfessional = async (req: Request, res: Response): Promise<void> => {
   try {
     ok(res, await adminService.reinstateProfessional(req.params.id))
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const suspendCompany = async (req: Request, res: Response): Promise<void> => {
-  try {
-    ok(res, await adminService.suspendCompany(req.params.id))
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const reinstateCompany = async (req: Request, res: Response): Promise<void> => {
-  try {
-    ok(res, await adminService.reinstateCompany(req.params.id))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

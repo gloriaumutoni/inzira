@@ -82,12 +82,9 @@ const ALevelGetMentor = () => {
               </li>
             ))}
           </ul>
-          <button
-            onClick={() => alert('Coming soon')}
-            className="w-full mt-6 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
-          >
-            Choose Pro
-          </button>
+          <span className="inline-block mt-6 bg-border text-muted text-xs font-semibold px-3 py-1.5 rounded-full">
+            Coming Soon
+          </span>
         </div>
 
         <div className="bg-primary rounded-xl p-6 text-white">
@@ -102,12 +99,9 @@ const ALevelGetMentor = () => {
               </li>
             ))}
           </ul>
-          <button
-            onClick={() => alert('Coming soon')}
-            className="w-full mt-6 bg-accent text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-accent/90 transition-colors"
-          >
-            Choose Premium
-          </button>
+          <span className="inline-block mt-6 bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+            Coming Soon
+          </span>
         </div>
       </div>
 
