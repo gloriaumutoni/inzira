@@ -27,6 +27,7 @@ export const getStats = async () => {
     recentSessionsRaw,
     sessionsForGrowth,
     studentsForGrowth,
+    activeMentors,
   ] = await Promise.all([
     prisma.student.count(),
     prisma.professional.count({ where: { isVerified: true, isActive: true } }),
@@ -52,6 +53,7 @@ export const getStats = async () => {
       where: { createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
     }),
+    prisma.professional.count({ where: { isVerified: true, isActive: true } }),
   ])
 
   const monthMap: Record<string, { month: string; sessions: number; students: number }> = {}
@@ -85,6 +87,7 @@ export const getStats = async () => {
   return {
     totalStudents,
     activeProfessionals,
+    activeMentors,
     totalSessions,
     totalGroupSessions,
     newStudentsThisWeek,
@@ -107,17 +110,30 @@ export const getStats = async () => {
 }
 
 export const getPendingProfessionals = async () => {
-  return prisma.professional.findMany({
-    where: { isVerified: false },
+  const professionals = await prisma.professional.findMany({
+    where: { verificationStatus: 'PENDING' },
     include: { user: { select: { email: true } } },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   })
+
+  return professionals.map((p) => ({
+    id: p.id,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    email: p.user.email,
+    jobTitle: p.jobTitle,
+    employer: p.employer,
+    sector: p.sector,
+    bio: p.bio,
+    linkedinUrl: p.linkedinUrl,
+    submittedAt: p.createdAt,
+  }))
 }
 
 export const approveProfessional = async (id: string) => {
   const professional = await prisma.professional.update({
     where: { id },
-    data: { isVerified: true },
+    data: { isVerified: true, verificationStatus: 'APPROVED' },
     include: { user: true },
   })
 
@@ -138,6 +154,11 @@ export const rejectProfessional = async (id: string, reason: string) => {
     include: { user: true },
   })
   if (!professional) throw new Error('Professional not found')
+
+  await prisma.professional.update({
+    where: { id },
+    data: { verificationStatus: 'REJECTED' },
+  })
 
   await createNotification(
     professional.userId,

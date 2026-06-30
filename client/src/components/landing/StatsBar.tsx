@@ -2,9 +2,8 @@ import useStats from '@/hooks/useStats'
 
 const STAT_LABELS = [
   { key: 'students' as const,       label: 'STUDENTS',        suffix: '+' },
-  { key: 'professionals' as const,  label: 'PROFESSIONALS',   suffix: '+' },
+  { key: 'professionals' as const,  label: 'MENTORS',         suffix: '+' },
   { key: 'partnerSchools' as const, label: 'PARTNER SCHOOLS', suffix: ''  },
-  { key: 'companies' as const,      label: 'COMPANIES',       suffix: '+' },
 ]
 
 const formatStat = (value: number, suffix: string) => {
@@ -18,7 +17,7 @@ const StatsBar = () => {
   return (
     <section className="bg-primary">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+        <div className="grid grid-cols-3 divide-x divide-white/10">
           {STAT_LABELS.map(({ key, label, suffix }) => (
             <div key={key} className="flex flex-col items-center justify-center py-10 px-6">
               {loading ? (

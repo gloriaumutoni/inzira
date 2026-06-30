@@ -97,11 +97,15 @@ const SidebarContent = ({
   pathname,
   onNavClick,
   onLogout,
+  role,
+  isVerified,
 }: {
   navItems: NavItem[]
   pathname: string
   onNavClick?: () => void
   onLogout: () => void
+  role: Role
+  isVerified: boolean
 }) => (
   <>
     <div className="px-6 py-5">
@@ -110,6 +114,24 @@ const SidebarContent = ({
 
     <nav className="flex-1 mt-2">
       {navItems.map(({ label, icon: Icon, path }) => {
+        const isLocked =
+          role === 'PROFESSIONAL' &&
+          isVerified !== true &&
+          (label === 'Sessions' || label === 'Mentees')
+
+        if (isLocked) {
+          return (
+            <div
+              key={path}
+              className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/30 cursor-not-allowed select-none"
+              title="Available once your account is verified"
+            >
+              <Icon size={16} />
+              {label}
+            </div>
+          )
+        }
+
         const active = pathname === path
         return (
           <Link
@@ -162,6 +184,8 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
           navItems={navItems}
           pathname={location.pathname}
           onLogout={handleLogout}
+          role={role}
+          isVerified={user?.professional?.isVerified === true}
         />
       </aside>
 
@@ -180,6 +204,24 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
             </div>
             <nav className="flex-1 mt-2">
               {navItems.map(({ label, icon: Icon, path }) => {
+                const isLocked =
+                  role === 'PROFESSIONAL' &&
+                  user?.professional?.isVerified !== true &&
+                  (label === 'Sessions' || label === 'Mentees')
+
+                if (isLocked) {
+                  return (
+                    <div
+                      key={path}
+                      className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/30 cursor-not-allowed select-none"
+                      title="Available once your account is verified"
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </div>
+                  )
+                }
+
                 const active = location.pathname === path
                 return (
                   <Link

@@ -13,7 +13,8 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
 
 export const getPendingProfessionals = async (req: Request, res: Response): Promise<void> => {
   try {
-    ok(res, await adminService.getPendingProfessionals())
+    const professionals = await adminService.getPendingProfessionals()
+    ok(res, { professionals })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

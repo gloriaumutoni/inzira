@@ -1,8 +1,10 @@
-import resend from '../utils/resend'
+import { getResend } from '../utils/resend'
 
 export const sendNewProfessionalNotificationToAdmin = async (
   professional: { firstName: string; lastName: string; email: string; linkedinUrl: string | null }
 ) => {
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: 'Inzira <noreply@inzira.app>',
     to: process.env.ADMIN_EMAIL ?? 'admin@inzira.app',
@@ -21,6 +23,9 @@ export const sendProfessionalVerificationEmail = async (
   email: string,
   data: { firstName: string; approved: boolean }
 ) => {
+  const resend = getResend()
+  if (!resend) return
+
   const subject = data.approved
     ? 'Your Inzira account has been approved!'
     : 'Update on your Inzira application'

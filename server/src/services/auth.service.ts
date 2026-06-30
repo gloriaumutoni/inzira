@@ -201,3 +201,8 @@ export const getMe = async (userId: string) => {
   const { passwordHash, ...safeUser } = user;
   return safeUser;
 };
+
+export const checkEmail = async (email: string): Promise<boolean> => {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  return existing === null;
+};

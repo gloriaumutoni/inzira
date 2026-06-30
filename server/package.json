@@ -14,7 +14,7 @@
   },
   "prisma": {
     "schema": "src/prisma/schema.prisma",
-    "seed": "ts-node src/prisma/seed.ts"
+    "seed": "./node_modules/.bin/ts-node --transpile-only src/prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

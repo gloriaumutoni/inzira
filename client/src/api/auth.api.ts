@@ -54,3 +54,8 @@ export const refreshToken = async (): Promise<{ accessToken: string }> => {
   const { data } = await api.post('/auth/refresh')
   return data.data
 }
+
+export const checkEmail = async (email: string): Promise<{ available: boolean }> => {
+  const { data } = await api.get(`/auth/check-email?email=${encodeURIComponent(email)}`)
+  return data.data
+}

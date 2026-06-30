@@ -111,6 +111,7 @@ model Professional {
   bio                     String
   profilePhoto            String?
   isVerified              Boolean   @default(false)
+  verificationStatus      String    @default("PENDING")
   isActive                Boolean   @default(true)
   sessionQuota            Int       @default(20)
   sessionsUsedThisMonth   Int       @default(0)

@@ -27,18 +27,13 @@ export interface PlatformHealth {
 export interface AdminStats {
   totalStudents: number
   activeProfessionals: number
-  partnerCompanies: number
+  activeMentors: number
   totalSessions: number
   totalGroupSessions: number
-  totalWorkshops: number
-  grossRevenue: number
-  grossCommission: number
   newStudentsThisWeek: number
   newProfessionalsThisWeek: number
   mentorshipSessions: number
   mentorshipSessionsLastWeek: number
-  totalCommission: number
-  totalCommissionLastWeek: number
   userRegistrations: number
   userRegistrationsLastWeek: number
   supportTickets: number
