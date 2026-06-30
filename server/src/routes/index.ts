@@ -12,7 +12,7 @@ import sessionsRouter from './sessions.routes'
 import groupSessionsRouter from './groupSessions.routes'
 import mentorshipsRouter from './mentorships.routes'
 import notificationsRouter from './notifications.routes'
-import googleCalendarRouter from './googleCalendar.routes'
+import mentorSlotsRouter from './mentor-slots.routes'
 import adminRouter from './admin.routes'
 
 const router = Router()
@@ -29,7 +29,7 @@ router.use('/sessions', sessionsRouter)
 router.use('/group-sessions', groupSessionsRouter)
 router.use('/mentorships', mentorshipsRouter)
 router.use('/notifications', notificationsRouter)
-router.use('/google-calendar', googleCalendarRouter)
+router.use('/mentor-slots', mentorSlotsRouter)
 router.use('/admin', adminRouter)
 
 export default router

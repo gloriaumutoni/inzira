@@ -14,4 +14,4 @@ prisma/migrations/dev.db
 *.tsbuildinfo
 .vercel
 coverage/
-.env*
+.env

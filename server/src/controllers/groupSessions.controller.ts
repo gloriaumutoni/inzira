@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import * as groupSessionsService from '../services/groupSessions.service'
-import { ok, created, badRequest } from '../utils/response'
+import { ok, created, badRequest, conflict } from '../utils/response'
 
 export const list = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -35,6 +35,10 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     created(res, await groupSessionsService.create(req.auth!.userId, req.body))
   } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') {
+      conflict(res, 'A group session already exists at this date and time.')
+      return
+    }
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }

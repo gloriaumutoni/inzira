@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react'
+import { ChevronLeft, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { signupUser, getMe, checkEmail, SignupPayload } from '@/api/auth.api'
 import { api } from '@/api/axios'
@@ -246,7 +246,7 @@ const Signup = () => {
                   <input
                     type="text"
                     value={step1.firstName}
-                    onChange={(e) => setStep1({ ...step1, firstName: e.target.value })}
+                    onChange={(e) => { setStep1({ ...step1, firstName: e.target.value }); setError(null) }}
                     placeholder="First name"
                     required
                     className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -257,7 +257,7 @@ const Signup = () => {
                   <input
                     type="text"
                     value={step1.lastName}
-                    onChange={(e) => setStep1({ ...step1, lastName: e.target.value })}
+                    onChange={(e) => { setStep1({ ...step1, lastName: e.target.value }); setError(null) }}
                     placeholder="Last name"
                     required
                     className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -269,7 +269,7 @@ const Signup = () => {
                 <input
                   type="email"
                   value={step1.email}
-                  onChange={(e) => setStep1({ ...step1, email: e.target.value })}
+                  onChange={(e) => { setStep1({ ...step1, email: e.target.value }); setError(null) }}
                   placeholder="Enter your email"
                   required
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -281,7 +281,7 @@ const Signup = () => {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={step1.password}
-                    onChange={(e) => setStep1({ ...step1, password: e.target.value })}
+                    onChange={(e) => { setStep1({ ...step1, password: e.target.value }); setError(null) }}
                     placeholder="At least 8 characters"
                     required
                     className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent pr-10"
@@ -301,7 +301,7 @@ const Signup = () => {
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={step1.confirmPassword}
-                    onChange={(e) => setStep1({ ...step1, confirmPassword: e.target.value })}
+                    onChange={(e) => { setStep1({ ...step1, confirmPassword: e.target.value }); setError(null) }}
                     placeholder="Repeat your password"
                     required
                     className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent pr-10"
@@ -316,7 +316,8 @@ const Signup = () => {
                 </div>
               </div>
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                  <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
                   <p className="text-error text-sm">{error}</p>
                 </div>
               )}
@@ -462,7 +463,8 @@ const Signup = () => {
               </div>
 
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                  <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
                   <p className="text-error text-sm">{error}</p>
                 </div>
               )}
@@ -600,7 +602,8 @@ const Signup = () => {
                 </div>
               )}
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                  <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
                   <p className="text-error text-sm">{error}</p>
                 </div>
               )}
@@ -656,7 +659,8 @@ const Signup = () => {
                 </p>
               </div>
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                  <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
                   <p className="text-error text-sm">{error}</p>
                 </div>
               )}

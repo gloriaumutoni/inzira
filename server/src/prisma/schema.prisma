@@ -122,10 +122,6 @@ model Professional {
   proRate                 Int       @default(5000)
   premiumRate             Int       @default(10000)
   premiumSessionsPerMonth Int       @default(2)
-  googleAccessToken       String?
-  googleRefreshToken      String?
-  googleTokenExpiry       DateTime?
-  googleCalendarConnected Boolean   @default(false)
   isMentor                Boolean   @default(false)
   mentorApplicationStatus String?
   mentorAppliedAt         DateTime?
@@ -224,6 +220,7 @@ model MentorSlot {
   bookedByStudentId String?
   student           Student?     @relation(fields: [bookedByStudentId], references: [id])
   sessionId         String?
+  meetLink          String?
   createdAt         DateTime     @default(now())
 
   @@unique([professionalId, scheduledAt])
@@ -297,6 +294,8 @@ model GroupSession {
 
   professional Professional            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   enrolments   GroupSessionEnrolment[]
+
+  @@unique([professionalId, scheduledAt])
 }
 
 model GroupSessionEnrolment {

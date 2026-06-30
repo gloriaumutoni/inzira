@@ -155,7 +155,7 @@ export const bookMentorSlot = async (req: Request, res: Response): Promise<void>
       data: { sessionId: session.id },
     })
 
-    ok(res, session)
+    ok(res, { ...session, meetLink: slot.meetLink ?? null })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

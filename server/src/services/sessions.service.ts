@@ -1,7 +1,6 @@
 import { prisma } from '../prisma/client'
 import { COMMISSION_RATE } from './auth.service'
 import { createNotification } from './notifications.service'
-import * as googleCalendarService from './googleCalendar.service'
 
 export const list = async (userId: string, role: string, filters: {
   status?: string
@@ -107,18 +106,6 @@ export const create = async (studentUserId: string, data: {
       professional: { select: { id: true, firstName: true, lastName: true } },
     },
   })
-
-  const calProfessional = await prisma.professional.findUnique({
-    where: { id: data.professionalId },
-    select: { googleCalendarConnected: true, googleRefreshToken: true },
-  })
-  if (calProfessional?.googleCalendarConnected && calProfessional.googleRefreshToken) {
-    try {
-      await googleCalendarService.createEvent(session.id)
-    } catch (err) {
-      console.error('Failed to create Google Calendar event for session:', session.id, err)
-    }
-  }
 
   return session
 }

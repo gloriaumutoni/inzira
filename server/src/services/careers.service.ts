@@ -15,15 +15,23 @@ export const list = async (filters: {
   if (filters.sector) where.sector = filters.sector
   if (filters.combination) where.combinations = { has: filters.combination }
   if (!filters.includeUnmatched) {
-    where.professionals = {
-      some: {
-        professional: {
-          isMentor: true,
-          isVerified: true,
-          isActive: true,
+    const mentorSectors = await prisma.professional
+      .findMany({
+        where: { isMentor: true, isVerified: true, isActive: true },
+        select: { sector: true },
+      })
+      .then((mentors) => [...new Set(mentors.map((m) => m.sector))])
+
+    where.OR = [
+      {
+        professionals: {
+          some: {
+            professional: { isMentor: true, isVerified: true, isActive: true },
+          },
         },
       },
-    }
+      ...(mentorSectors.length > 0 ? [{ sector: { in: mentorSectors } }] : []),
+    ]
   }
 
   const [careers, total] = await Promise.all([

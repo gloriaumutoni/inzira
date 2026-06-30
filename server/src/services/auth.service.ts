@@ -43,7 +43,7 @@ export const signup = async (data: SignupData) => {
   });
 
   if (existing) {
-    throw new Error("Email already in use");
+    throw new Error('An account with this email already exists. Please sign in instead.');
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
@@ -149,10 +149,10 @@ export const signup = async (data: SignupData) => {
 export const login = async (email: string, password: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user) throw new Error("Invalid email or password");
+  if (!user) throw new Error('No account found with this email. Please check your email or sign up.');
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new Error("Invalid email or password");
+  if (!valid) throw new Error('Incorrect password. Please try again.');
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);

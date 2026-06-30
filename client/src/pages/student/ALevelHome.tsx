@@ -80,7 +80,7 @@ const ALevelHome = () => {
           <p className="text-sm text-muted">No upcoming group sessions right now.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {publicGroupSessions.map((gs) => (
+            {Array.from(new Map(publicGroupSessions.map((gs) => [gs.id, gs])).values()).map((gs) => (
               <GroupSessionCard key={gs.id} session={gs} />
             ))}
           </div>

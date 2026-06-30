@@ -12,6 +12,9 @@ const ProfessionalMentees = () => {
   if (user?.professional?.isVerified === false) {
     return <Navigate to="/professional/home" replace />
   }
+  if (!user?.professional?.isMentor) {
+    return <Navigate to="/professional/home" replace />
+  }
 
   const { mentees, loading, error } = useMentees()
   const navigate = useNavigate()

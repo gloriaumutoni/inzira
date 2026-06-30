@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ExternalLink, Clock, CheckCircle } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
@@ -39,19 +39,6 @@ const ProfessionalHome = () => {
   const [availLoading, setAvailLoading] = useState(true)
   const [actionState, setActionState] = useState<Record<string, 'confirming' | 'declining' | null>>({})
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({})
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const calendarStatus = params.get('connected')
-    const calendarError = params.get('error')
-    if (calendarStatus === 'true') {
-      toast.success('Google Calendar connected successfully.')
-      window.history.replaceState({}, '', '/professional/home')
-    } else if (calendarError === 'calendar_failed') {
-      toast.error('Could not connect Google Calendar. Please try again.')
-      window.history.replaceState({}, '', '/professional/home')
-    }
-  }, [])
 
   useEffect(() => {
     api.get('/professionals/me/availability')
@@ -103,19 +90,6 @@ const ProfessionalHome = () => {
       toast.error('Could not update profile status.')
     } finally {
       setToggling(false)
-    }
-  }
-
-  const handleConnectCalendar = async () => {
-    try {
-      const { data } = await api.get('/google-calendar/auth')
-      if (!data?.data?.url) {
-        toast.error('Google Calendar is not configured. Please contact support.')
-        return
-      }
-      window.open(data.data.url, '_blank')
-    } catch {
-      toast.error('Could not connect to Google Calendar. Please try again.')
     }
   }
 
@@ -313,12 +287,6 @@ const ProfessionalHome = () => {
         <div>
           <div className="flex items-center justify-between">
             <p className="text-base font-semibold text-primary">Weekly Availability</p>
-            <button
-              onClick={handleConnectCalendar}
-              className="text-xs text-accent hover:underline"
-            >
-              Settings
-            </button>
           </div>
 
           {availLoading ? (
@@ -348,22 +316,6 @@ const ProfessionalHome = () => {
             </div>
           )}
 
-          <div className="mt-4">
-            {user?.professional?.googleCalendarConnected ? (
-              <span className="text-xs text-success flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5" />
-                Google Calendar connected
-              </span>
-            ) : (
-              <button
-                onClick={handleConnectCalendar}
-                className="text-xs text-accent hover:underline flex items-center gap-1"
-              >
-                Connect Google Calendar
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
       </div>
 

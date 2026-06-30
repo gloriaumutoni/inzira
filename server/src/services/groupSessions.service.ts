@@ -45,11 +45,17 @@ export const getOwn = async (professionalUserId: string) => {
   })
   if (!professional) throw new Error('Professional not found')
 
-  return prisma.groupSession.findMany({
+  const sessions = await prisma.groupSession.findMany({
     where: { professionalId: professional.id },
     include: { _count: { select: { enrolments: true } } },
     orderBy: { scheduledAt: 'desc' },
   })
+
+  return sessions.map((s) => ({
+    ...s,
+    currentEnrollment: s._count.enrolments,
+    slotsLeft: s.maxStudents - s._count.enrolments,
+  }))
 }
 
 export const getOne = async (id: string) => {

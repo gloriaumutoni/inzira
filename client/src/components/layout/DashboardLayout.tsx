@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, CheckCircle, ShieldCheck, Menu, X } from 'lucide-react'
+import { Home, Compass, Calendar, Users, LogOut, CheckCircle, ShieldCheck, Menu, X, CalendarPlus } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
@@ -21,9 +21,15 @@ const STUDENT_O_LEVEL_NAV: NavItem[] = [
 ]
 
 const PROFESSIONAL_NAV: NavItem[] = [
-  { label: 'Home',     icon: Home,        path: '/professional/home' },
-  { label: 'Sessions', icon: Calendar,    path: '/professional/sessions' },
-  { label: 'Mentees',  icon: Users,       path: '/professional/mentees' },
+  { label: 'Home',     icon: Home,     path: '/professional/home' },
+  { label: 'Sessions', icon: Calendar, path: '/professional/sessions' },
+]
+
+const MENTOR_NAV: NavItem[] = [
+  { label: 'Home',         icon: Home,         path: '/professional/home' },
+  { label: 'Sessions',     icon: Calendar,     path: '/professional/sessions' },
+  { label: 'Mentees',      icon: Users,        path: '/professional/mentees' },
+  { label: 'Create Slots', icon: CalendarPlus, path: '/professional/create-slots' },
 ]
 
 const CAREER_GUIDE_NAV: NavItem[] = [
@@ -52,6 +58,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/professional/home':         'Home',
   '/professional/sessions':     'Sessions',
   '/professional/mentees':      'Mentees',
+  '/professional/create-slots': 'Create Slots',
   '/career-guide/home':         'Home',
   '/career-guide/workshops':    'Workshops',
   '/career-guide/sessions':     'Career Discovery',
@@ -60,11 +67,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/schools':             'Partner Schools',
 }
 
-function getNavItems(role: Role, level?: Level): NavItem[] {
+function getNavItems(role: Role, level?: Level, isMentor?: boolean): NavItem[] {
   if (role === 'STUDENT') {
     return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
   }
-  if (role === 'PROFESSIONAL') return PROFESSIONAL_NAV
+  if (role === 'PROFESSIONAL') return isMentor ? MENTOR_NAV : PROFESSIONAL_NAV
   if (role === 'CAREER_GUIDE') return CAREER_GUIDE_NAV
   if (role === 'ADMIN') return ADMIN_NAV
   return []
@@ -97,17 +104,11 @@ const SidebarContent = ({
   pathname,
   onNavClick,
   onLogout,
-  role,
-  isVerified,
-  isMentor,
 }: {
   navItems: NavItem[]
   pathname: string
   onNavClick?: () => void
   onLogout: () => void
-  role: Role
-  isVerified: boolean
-  isMentor: boolean
 }) => (
   <>
     <div className="px-6 py-5">
@@ -116,28 +117,6 @@ const SidebarContent = ({
 
     <nav className="flex-1 mt-2">
       {navItems.map(({ label, icon: Icon, path }) => {
-        const isLocked =
-          role === 'PROFESSIONAL' &&
-          (!isVerified || !isMentor) &&
-          (label === 'Sessions' || label === 'Mentees')
-
-        if (isLocked) {
-          return (
-            <div
-              key={path}
-              className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/30 cursor-not-allowed select-none"
-              title={
-                !isVerified
-                  ? 'Available once your account is verified'
-                  : 'Available once your mentor application is approved'
-              }
-            >
-              <Icon size={16} />
-              {label}
-            </div>
-          )
-        }
-
         const active = pathname === path
         return (
           <Link
@@ -173,7 +152,7 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const navItems = getNavItems(role, level)
+  const navItems = getNavItems(role, level, user?.professional?.isMentor === true)
   const pageTitle = PAGE_TITLES[location.pathname] ?? ''
 
   const handleLogout = async () => {
@@ -190,9 +169,6 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
           navItems={navItems}
           pathname={location.pathname}
           onLogout={handleLogout}
-          role={role}
-          isVerified={user?.professional?.isVerified === true}
-          isMentor={user?.professional?.isMentor === true}
         />
       </aside>
 
@@ -211,28 +187,6 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
             </div>
             <nav className="flex-1 mt-2">
               {navItems.map(({ label, icon: Icon, path }) => {
-                const isLocked =
-                  role === 'PROFESSIONAL' &&
-                  (user?.professional?.isVerified !== true || user?.professional?.isMentor !== true) &&
-                  (label === 'Sessions' || label === 'Mentees')
-
-                if (isLocked) {
-                  return (
-                    <div
-                      key={path}
-                      className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/30 cursor-not-allowed select-none"
-                      title={
-                        user?.professional?.isVerified !== true
-                          ? 'Available once your account is verified'
-                          : 'Available once your mentor application is approved'
-                      }
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </div>
-                  )
-                }
-
                 const active = location.pathname === path
                 return (
                   <Link
@@ -284,11 +238,18 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm text-muted">{getDisplayName(user)}</span>
-              {role === 'PROFESSIONAL' && user?.professional?.isVerified === true && (
-                <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
-                  <CheckCircle size={10} />
-                  Verified Mentor
-                </span>
+              {role === 'PROFESSIONAL' && user?.professional?.isVerified && (
+                user?.professional?.isMentor ? (
+                  <span className="bg-accent/10 text-accent text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+                    <CheckCircle size={10} />
+                    Verified Mentor
+                  </span>
+                ) : (
+                  <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+                    <CheckCircle size={10} />
+                    Verified Professional
+                  </span>
+                )
               )}
               {role === 'CAREER_GUIDE' && (
                 <span className="text-xs text-muted mt-0.5">Career Discovery</span>

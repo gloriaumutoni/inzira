@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
+import { Users } from 'lucide-react'
 import { api } from '@/api/axios'
 import { useAuth } from '@/contexts/AuthContext'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
+import useMentorSlots from '@/hooks/useMentorSlots'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
 import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
-import AvailabilityBuilder from '@/components/professional/AvailabilityBuilder'
 
 const TYPE_BADGE: Record<string, string> = {
   FREE_INTRO: 'bg-accent/10 text-accent',
@@ -27,7 +28,7 @@ const ProfessionalSessions = () => {
     return <Navigate to="/professional/home" replace />
   }
 
-  const [tab, setTab] = useState<'past' | 'group' | 'availability'>('group')
+  const [tab, setTab] = useState<'past' | 'group' | '1on1'>('group')
   const [showModal, setShowModal] = useState(false)
 
   const { sessions: completed, loading: pastLoading } = useProfessionalSessions({ status: 'COMPLETED' })
@@ -106,13 +107,13 @@ const ProfessionalSessions = () => {
         ))}
         {user?.professional?.isMentor && (
           <button
-            onClick={() => setTab('availability')}
-            className={tab === 'availability'
+            onClick={() => setTab('1on1')}
+            className={tab === '1on1'
               ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
               : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
             }
           >
-            Availability
+            1-on-1 Sessions
           </button>
         )}
       </div>
@@ -171,8 +172,8 @@ const ProfessionalSessions = () => {
             </>
           )}
 
-          {tab === 'availability' && (
-            <AvailabilityBuilder />
+          {tab === '1on1' && (
+            <MentorSlotsTab />
           )}
 
           {tab === 'group' && (
@@ -194,9 +195,23 @@ const ProfessionalSessions = () => {
                 <p className="text-sm text-muted">You have not created any group sessions yet.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {uniqueGroupSessions.map((gs) => (
-                    <GroupSessionCard key={gs.id} session={gs} />
-                  ))}
+                  {uniqueGroupSessions.map((gs) => {
+                    const slotsLeft = gs.maxStudents - (gs.currentEnrollment ?? 0)
+                    return (
+                      <div key={gs.id}>
+                        <GroupSessionCard session={gs} />
+                        <div className="flex items-center gap-4 mt-2 px-1 text-xs text-muted">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5" />
+                            {(gs.currentEnrollment ?? 0)} / {gs.maxStudents} students
+                          </span>
+                          <span className={slotsLeft === 0 ? 'text-error' : 'text-success'}>
+                            {slotsLeft === 0 ? 'Full' : `${slotsLeft} slots left`}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
@@ -239,6 +254,84 @@ const ProfessionalSessions = () => {
           onSuccess={() => setGsTick((t) => t + 1)}
         />
       )}
+    </div>
+  )
+}
+
+const MentorSlotsTab = () => {
+  const { slots, loading } = useMentorSlots()
+
+  const upcoming = slots.filter((s) => new Date(s.scheduledAt) >= new Date())
+
+  const slotsByDate = upcoming.reduce<Record<string, typeof upcoming>>((acc, slot) => {
+    const dateKey = new Date(slot.scheduledAt).toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric',
+    })
+    acc[dateKey] = acc[dateKey] ?? []
+    acc[dateKey].push(slot)
+    return acc
+  }, {})
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <div className="animate-pulse bg-border rounded-xl h-24" />
+        <div className="animate-pulse bg-border rounded-xl h-24" />
+      </div>
+    )
+  }
+
+  if (upcoming.length === 0) {
+    return <p className="text-sm text-muted">No 1-on-1 sessions booked yet.</p>
+  }
+
+  return (
+    <div className="space-y-5">
+      {Object.entries(slotsByDate).map(([dateLabel, dateSlots]) => (
+        <div key={dateLabel}>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{dateLabel}</p>
+          <div className="bg-surface rounded-xl border border-border divide-y divide-border">
+            {dateSlots.map((slot) => {
+              const start = new Date(slot.scheduledAt)
+              const end = new Date(start.getTime() + slot.durationMins * 60000)
+              const formatTime = (d: Date) =>
+                d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+              return (
+                <div key={slot.id} className="flex items-center justify-between py-3 px-4">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-primary">
+                        {formatTime(start)} — {formatTime(end)}
+                      </p>
+                      {slot.student && (
+                        <p className="text-xs text-muted">
+                          {slot.student.firstName} {slot.student.lastName[0]}.
+                        </p>
+                      )}
+                    </div>
+                    <span className={slot.isBooked
+                      ? 'bg-success/10 text-success text-xs px-2 py-0.5 rounded-full'
+                      : 'bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full'
+                    }>
+                      {slot.isBooked ? 'Booked' : 'Open'}
+                    </span>
+                  </div>
+                  {slot.isBooked && slot.meetLink && (
+                    <a
+                      href={slot.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Join Session →
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
