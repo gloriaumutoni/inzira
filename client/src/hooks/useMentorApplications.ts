@@ -12,7 +12,13 @@ export interface MentorApplication {
   sector: string
   linkedinUrl: string | null
   mentorBio: string | null
+  mentorApplicationStatus: string
   appliedAt: string
+  interview: {
+    scheduledAt: string
+    meetLink: string
+    adminSlotId: string
+  } | null
 }
 
 interface UseMentorApplicationsResult {

@@ -74,6 +74,20 @@ const AdminVerification = () => {
     }
   }
 
+  const handleMarkInterviewed = async (id: string) => {
+    setMentorActioningId(id)
+    try {
+      await api.patch(`/admin/verification/mentors/${id}/interviewed`)
+      toast.success('Marked as interviewed.')
+      setSelectedApplication(null)
+      refetchMentors()
+    } catch {
+      toast.error('Could not update status. Please try again.')
+    } finally {
+      setMentorActioningId(null)
+    }
+  }
+
   const handleApproveCG = async (id: string) => {
     setCgActioningId(id)
     try {
@@ -346,8 +360,12 @@ const AdminVerification = () => {
                       <p className="text-sm font-semibold text-primary">{app.firstName} {app.lastName}</p>
                       <p className="text-xs text-muted">{app.email}</p>
                     </div>
-                    <span className="bg-warning/10 text-warning text-xs font-semibold px-2 py-0.5 rounded-full">
-                      Pending
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      app.mentorApplicationStatus === 'INTERVIEWED'
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-warning/10 text-warning'
+                    }`}>
+                      {app.mentorApplicationStatus === 'INTERVIEWED' ? 'Interviewed' : 'Pending'}
                     </span>
                   </div>
                   <div className="mt-4">
@@ -408,6 +426,27 @@ const AdminVerification = () => {
                     </div>
                   )}
 
+                  {selectedApplication.interview ? (
+                    <div className="mt-3 bg-surface border border-border rounded-lg p-3">
+                      <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Interview</p>
+                      <p className="text-sm text-primary">
+                        {new Date(selectedApplication.interview.scheduledAt).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                        {' at '}
+                        {new Date(selectedApplication.interview.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <a
+                        href={selectedApplication.interview.meetLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 bg-accent text-white text-xs px-3 py-1.5 rounded-lg hover:bg-accent/90 transition-colors"
+                      >
+                        Join Interview
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted mt-3">No interview slot booked yet.</p>
+                  )}
+
                   <div>
                     {selectedApplication.linkedinUrl ? (
                       <a
@@ -425,13 +464,22 @@ const AdminVerification = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-8">
+                <div className="flex gap-3 mt-8 flex-wrap">
                   <button
                     onClick={() => setSelectedApplication(null)}
                     className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background transition-colors"
                   >
                     Back to list
                   </button>
+                  {selectedApplication.mentorApplicationStatus === 'PENDING' && (
+                    <button
+                      onClick={() => handleMarkInterviewed(selectedApplication.id)}
+                      disabled={mentorActioningId === selectedApplication.id}
+                      className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background disabled:opacity-60 transition-colors"
+                    >
+                      Mark Interviewed
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDeclineMentor(selectedApplication.id)}
                     disabled={mentorActioningId === selectedApplication.id}

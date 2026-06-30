@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import useProfessionalSessions from '@/hooks/useProfessionalSessions'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
 import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
+import AvailabilityBuilder from '@/components/professional/AvailabilityBuilder'
 
 const TYPE_BADGE: Record<string, string> = {
   FREE_INTRO: 'bg-accent/10 text-accent',
@@ -26,7 +27,7 @@ const ProfessionalSessions = () => {
     return <Navigate to="/professional/home" replace />
   }
 
-  const [tab, setTab] = useState<'past' | 'group'>('group')
+  const [tab, setTab] = useState<'past' | 'group' | 'availability'>('group')
   const [showModal, setShowModal] = useState(false)
 
   const { sessions: completed, loading: pastLoading } = useProfessionalSessions({ status: 'COMPLETED' })
@@ -103,6 +104,17 @@ const ProfessionalSessions = () => {
             {t === 'past' ? 'Past' : 'Group Sessions'}
           </button>
         ))}
+        {user?.professional?.isMentor && (
+          <button
+            onClick={() => setTab('availability')}
+            className={tab === 'availability'
+              ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
+              : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
+            }
+          >
+            Availability
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
@@ -157,6 +169,10 @@ const ProfessionalSessions = () => {
                 </div>
               )}
             </>
+          )}
+
+          {tab === 'availability' && (
+            <AvailabilityBuilder />
           )}
 
           {tab === 'group' && (

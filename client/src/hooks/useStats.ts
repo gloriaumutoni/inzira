@@ -4,6 +4,7 @@ import { api } from '@/api/axios'
 interface PlatformStats {
   students: number
   professionals: number
+  mentors: number
   partnerSchools: number
 }
 
@@ -26,6 +27,7 @@ const useStats = (): UseStatsResult => {
         setStats({
           students: raw.students ?? 0,
           professionals: raw.professionals ?? 0,
+          mentors: raw.mentors ?? 0,
           partnerSchools: raw.partnerSchools ?? 0,
         })
       } catch {

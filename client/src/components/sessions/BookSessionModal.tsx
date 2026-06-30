@@ -74,7 +74,7 @@ const BookSessionModal = ({
     setSlotsLoading(true)
     try {
       const { data } = await api.get(`/google-calendar/slots/${professional.id}`)
-      setSlots(data.data ?? [])
+      setSlots(data.data.slots ?? data.data ?? [])
     } catch {
       setSlots([])
     } finally {

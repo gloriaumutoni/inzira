@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { getPublicStats } from '../controllers/stats.controller'
+import { getAvailableInterviewSlots } from '../controllers/admin.controller'
+import { authMiddleware } from '../middleware'
 import authRouter from './auth.routes'
 import studentsRouter from './students.routes'
 import professionalsRouter from './professionals.routes'
@@ -16,6 +18,7 @@ import adminRouter from './admin.routes'
 const router = Router()
 
 router.get('/stats', getPublicStats)
+router.get('/interview-slots/available', authMiddleware, getAvailableInterviewSlots)
 router.use('/auth', authRouter)
 router.use('/students', studentsRouter)
 router.use('/professionals', professionalsRouter)

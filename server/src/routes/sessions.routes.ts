@@ -18,6 +18,13 @@ router.post(
   sessionsController.create
 )
 
+router.post(
+  '/book-slot',
+  authMiddleware,
+  roleGuard('STUDENT'),
+  sessionsController.bookMentorSlot
+)
+
 router.get(
   '/:id',
   authMiddleware,

@@ -20,6 +20,7 @@ import {
 } from 'recharts'
 import useAdminStats from '@/hooks/useAdminStats'
 import useVerification from '@/hooks/useVerification'
+import InterviewSlotsPanel from '@/components/admin/InterviewSlotsPanel'
 
 const BAR_RADIUS: [number, number, number, number] = [3, 3, 0, 0]
 
@@ -336,6 +337,8 @@ const AdminOverview = () => {
           </div>
         )}
       </div>
+
+      <InterviewSlotsPanel />
 
     </div>
   )

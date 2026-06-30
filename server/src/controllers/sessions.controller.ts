@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import * as sessionsService from '../services/sessions.service'
 import { ok, created, badRequest } from '../utils/response'
+import { prisma } from '../prisma/client'
 
 export const list = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -93,6 +94,68 @@ export const submitFeedback = async (req: Request, res: Response): Promise<void>
       req.auth!.userId,
       { confidenceBefore, confidenceAfter, wasHelpful, professionalFeedback }
     ))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const bookMentorSlot = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { professionalId, scheduledAt } = req.body as {
+      professionalId: string
+      scheduledAt: string
+    }
+
+    const student = await prisma.student.findUnique({ where: { userId: req.auth!.userId } })
+    const professional = await prisma.professional.findUnique({ where: { id: professionalId } })
+
+    if (!professional?.isMentor) {
+      res.status(403).json({ success: false, error: 'This professional is not a mentor.' })
+      return
+    }
+
+    const existing = await prisma.mentorSlot.findFirst({
+      where: { professionalId, scheduledAt: new Date(scheduledAt), isBooked: true },
+    })
+    if (existing) {
+      res.status(409).json({ success: false, error: 'This slot was just taken. Please pick another.' })
+      return
+    }
+
+    const slot = await prisma.mentorSlot.upsert({
+      where: {
+        professionalId_scheduledAt: {
+          professionalId,
+          scheduledAt: new Date(scheduledAt),
+        },
+      },
+      update: { isBooked: true, bookedByStudentId: student!.id },
+      create: {
+        professionalId,
+        scheduledAt: new Date(scheduledAt),
+        durationMins: 30,
+        isBooked: true,
+        bookedByStudentId: student!.id,
+      },
+    })
+
+    const session = await prisma.session.create({
+      data: {
+        studentId: student!.id,
+        professionalId,
+        type: 'FREE_INTRO',
+        status: 'CONFIRMED',
+        scheduledAt: new Date(scheduledAt),
+        duration: 30,
+      },
+    })
+
+    await prisma.mentorSlot.update({
+      where: { id: slot.id },
+      data: { sessionId: session.id },
+    })
+
+    ok(res, session)
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

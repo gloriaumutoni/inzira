@@ -40,6 +40,7 @@ export interface ProfessionalProfile {
   offersPremiumTier: boolean
   isMentor: boolean
   mentorApplicationStatus?: string | null
+  googleCalendarConnected: boolean
 }
 
 export interface CareerGuideProfile {

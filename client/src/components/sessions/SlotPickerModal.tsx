@@ -3,67 +3,68 @@ import { X, Calendar } from 'lucide-react'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 
-interface AvailableSlot {
-  adminSlotId: string
+interface Slot {
   start: string
   end: string
-  meetLink: string
 }
 
-interface ApplyMentorModalProps {
+interface SlotPickerModalProps {
+  mentorId: string
+  mentorName: string
+  mentorJobTitle: string
   onClose: () => void
-  onSuccess: () => void
+  onBooked: () => void
 }
 
-const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
-  const [slots, setSlots] = useState<AvailableSlot[]>([])
-  const [loadingSlots, setLoadingSlots] = useState(true)
-  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+const SlotPickerModal = ({ mentorId, mentorName, mentorJobTitle, onClose, onBooked }: SlotPickerModalProps) => {
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
+  const [booking, setBooking] = useState(false)
 
   useEffect(() => {
     const fetchSlots = async () => {
       try {
-        const { data } = await api.get('/interview-slots/available')
+        const { data } = await api.get(`/professionals/${mentorId}/slots`)
         setSlots(data.data.slots)
       } catch {
         setSlots([])
       } finally {
-        setLoadingSlots(false)
+        setLoading(false)
       }
     }
     fetchSlots()
-  }, [])
+  }, [mentorId])
 
-  const slotsByDay = slots.reduce<Record<string, AvailableSlot[]>>((acc, slot) => {
-    const d = new Date(slot.start)
-    const key = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+  const slotsByDay = slots.reduce<Record<string, Slot[]>>((acc, slot) => {
+    const key = new Date(slot.start).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    })
     acc[key] = acc[key] ?? []
     acc[key].push(slot)
     return acc
   }, {})
 
-  const handleSubmit = async () => {
+  const handleBook = async () => {
     if (!selectedSlot) return
-    setSubmitting(true)
-    setError(null)
+    setBooking(true)
     try {
-      await api.post('/professionals/me/apply-mentor', {
-        adminSlotId: selectedSlot.adminSlotId,
+      await api.post('/sessions/book-slot', {
+        professionalId: mentorId,
         scheduledAt: selectedSlot.start,
-        meetLink: selectedSlot.meetLink,
       })
-      toast.success('Application submitted. Check your email for details.')
-      onSuccess()
+      toast.success('Session booked! You can see it under Sessions.')
+      onBooked()
       onClose()
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Could not submit application. Please try again.'
-      setError(msg)
+        'Could not book. Please try again.'
+      toast.error(msg)
     } finally {
-      setSubmitting(false)
+      setBooking(false)
     }
   }
 
@@ -75,8 +76,10 @@ const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
       >
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-primary">Apply to be a Mentor</h2>
-            <p className="text-sm text-muted mt-1">Pick an interview slot with our team.</p>
+            <h2 className="text-lg font-bold text-primary">Book a session</h2>
+            <p className="text-sm text-muted mt-0.5">
+              {mentorName} · {mentorJobTitle}
+            </p>
           </div>
           <button onClick={onClose} className="text-muted hover:text-primary transition-colors">
             <X className="w-5 h-5" />
@@ -84,15 +87,13 @@ const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
         </div>
 
         <div className="mt-6">
-          {loadingSlots ? (
+          {loading ? (
             <div className="space-y-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="animate-pulse bg-border rounded-lg h-12" />
-              ))}
+              {[0, 1].map((i) => <div key={i} className="animate-pulse bg-border rounded-lg h-16" />)}
             </div>
           ) : slots.length === 0 ? (
             <p className="text-sm text-muted text-center py-8">
-              No interview slots are currently available. Please check back later or contact the admin.
+              This mentor has no open slots in the next two weeks. Try joining one of their group sessions instead.
             </p>
           ) : (
             <div className="space-y-4">
@@ -112,9 +113,10 @@ const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
                             : 'border-border text-primary hover:border-accent'
                         }`}
                       >
-                        {new Date(slot.start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                        {' – '}
-                        {new Date(slot.end).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(slot.start).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </button>
                     ))}
                   </div>
@@ -125,25 +127,19 @@ const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
         </div>
 
         {selectedSlot && (
-          <div className="mt-4 bg-accent/5 border border-accent/20 rounded-lg p-3">
-            <p className="text-xs font-semibold text-primary">Your interview</p>
-            <p className="text-xs text-muted mt-1">
-              {new Date(selectedSlot.start).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-              {' at '}
-              {new Date(selectedSlot.start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </p>
-            <p className="text-xs text-muted mt-0.5">
-              Join via:{' '}
-              <a href={selectedSlot.meetLink} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                {selectedSlot.meetLink}
-              </a>
-            </p>
-          </div>
-        )}
-
-        {error && (
-          <div className="mt-3 bg-error/10 border border-error/20 rounded-lg px-3 py-2">
-            <p className="text-error text-sm">{error}</p>
+          <div className="mt-4 bg-accent/5 border border-accent/20 rounded-lg p-3 text-sm text-primary">
+            You are booking a 30-minute session with {mentorName} on{' '}
+            {new Date(selectedSlot.start).toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'short',
+              day: 'numeric',
+            })}{' '}
+            at{' '}
+            {new Date(selectedSlot.start).toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            .
           </div>
         )}
 
@@ -155,11 +151,11 @@ const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
             Cancel
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={!selectedSlot || submitting}
+            onClick={handleBook}
+            disabled={!selectedSlot || booking}
             className="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
           >
-            {submitting ? 'Submitting...' : 'Submit Application'}
+            {booking ? 'Booking...' : 'Confirm Booking'}
           </button>
         </div>
       </div>
@@ -167,4 +163,4 @@ const ApplyMentorModal = ({ onClose, onSuccess }: ApplyMentorModalProps) => {
   )
 }
 
-export default ApplyMentorModal
+export default SlotPickerModal

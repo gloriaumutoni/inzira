@@ -37,6 +37,16 @@ app.get("/api/health", (_req, res) => {
 app.use(errorHandler);
 
 const PORT = Number(process.env.PORT ?? 3001);
+
+const requiredGoogleEnvVars = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI']
+const missingGoogleVars = requiredGoogleEnvVars.filter((key) => !process.env[key])
+if (missingGoogleVars.length > 0) {
+  console.warn(
+    `⚠️  Google Calendar integration is not configured. Missing: ${missingGoogleVars.join(', ')}\n` +
+    `   Professionals will not be able to connect their calendar until these are set in .env`
+  )
+}
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

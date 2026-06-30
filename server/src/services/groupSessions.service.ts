@@ -84,8 +84,8 @@ export const create = async (
     where: { userId: professionalUserId },
   })
   if (!professional) throw new Error('Professional not found')
-  if (!professional.isMentor) {
-    throw new Error('Only approved mentors can create group sessions.')
+  if (!professional.isVerified) {
+    throw new Error('Only verified professionals can create group sessions.')
   }
 
   const session = await prisma.groupSession.create({

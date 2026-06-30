@@ -97,6 +97,7 @@ model Student {
   mentorship      Mentorship?
   reviewsGiven    Review[]
   sessionFeedback SessionFeedback[]
+  bookedMentorSlots      MentorSlot[]
 }
 
 model Professional {
@@ -124,6 +125,7 @@ model Professional {
   googleAccessToken       String?
   googleRefreshToken      String?
   googleTokenExpiry       DateTime?
+  googleCalendarConnected Boolean   @default(false)
   isMentor                Boolean   @default(false)
   mentorApplicationStatus String?
   mentorAppliedAt         DateTime?
@@ -138,6 +140,9 @@ model Professional {
   mentorships   Mentorship[]
   reviews       Review[]
   careers       ProfessionalCareer[]
+  availabilityTemplates  MentorAvailabilityTemplate[]
+  mentorSlots            MentorSlot[]
+  interviewBooking       MentorApplicationInterviewBooking?
 }
 
 model CareerGuide {
@@ -193,6 +198,62 @@ model Availability {
   updatedAt      DateTime @updatedAt
 
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+}
+
+model MentorAvailabilityTemplate {
+  id             String       @id @default(cuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int
+  startHour      Int
+  startMinute    Int
+  endHour        Int
+  endMinute      Int
+  createdAt      DateTime     @default(now())
+
+  @@unique([professionalId, dayOfWeek, startHour, startMinute])
+}
+
+model MentorSlot {
+  id                String       @id @default(cuid())
+  professionalId    String
+  professional      Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  scheduledAt       DateTime
+  durationMins      Int          @default(30)
+  isBooked          Boolean      @default(false)
+  bookedByStudentId String?
+  student           Student?     @relation(fields: [bookedByStudentId], references: [id])
+  sessionId         String?
+  createdAt         DateTime     @default(now())
+
+  @@unique([professionalId, scheduledAt])
+}
+
+model AdminInterviewSlot {
+  id          String    @id @default(cuid())
+  dayOfWeek   Int
+  startHour   Int
+  startMinute Int
+  endHour     Int
+  endMinute   Int
+  meetLink    String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  bookings    MentorApplicationInterviewBooking[]
+
+  @@unique([dayOfWeek, startHour, startMinute])
+}
+
+model MentorApplicationInterviewBooking {
+  id             String              @id @default(cuid())
+  professionalId String              @unique
+  professional   Professional        @relation(fields: [professionalId], references: [id])
+  adminSlotId    String
+  adminSlot      AdminInterviewSlot  @relation(fields: [adminSlotId], references: [id])
+  scheduledAt    DateTime
+  meetLink       String
+  createdAt      DateTime            @default(now())
 }
 
 model Session {

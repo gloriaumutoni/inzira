@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ExternalLink, Clock } from 'lucide-react'
+import { ExternalLink, Clock, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
@@ -39,6 +39,19 @@ const ProfessionalHome = () => {
   const [availLoading, setAvailLoading] = useState(true)
   const [actionState, setActionState] = useState<Record<string, 'confirming' | 'declining' | null>>({})
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const calendarStatus = params.get('connected')
+    const calendarError = params.get('error')
+    if (calendarStatus === 'true') {
+      toast.success('Google Calendar connected successfully.')
+      window.history.replaceState({}, '', '/professional/home')
+    } else if (calendarError === 'calendar_failed') {
+      toast.error('Could not connect Google Calendar. Please try again.')
+      window.history.replaceState({}, '', '/professional/home')
+    }
+  }, [])
 
   useEffect(() => {
     api.get('/professionals/me/availability')
@@ -151,32 +164,48 @@ const ProfessionalHome = () => {
       </div>
 
       {user?.professional?.isVerified && !user?.professional?.isMentor && (
-        user?.professional?.mentorApplicationStatus === 'PENDING' ? (
-          <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-center gap-3">
-            <Clock className="text-warning w-5 h-5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-primary">Mentor application under review</p>
-              <p className="text-xs text-muted mt-0.5">
-                We'll email you once the admin has reviewed your request.
+        <>
+          {user?.professional?.mentorApplicationStatus === 'INTERVIEWED' ? (
+            <div className="bg-accent/10 border border-accent/20 rounded-xl p-4">
+              <p className="text-sm font-semibold text-primary">Interview complete — awaiting decision</p>
+              <p className="text-xs text-muted mt-1">
+                Your interview has been completed. We'll email you once the admin has made a decision.
               </p>
             </div>
-          </div>
-        ) : (
-          <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <p className="text-sm font-semibold text-primary">Ready to mentor students?</p>
-              <p className="text-xs text-muted mt-0.5">
-                Apply to become a mentor and start hosting sessions with students.
+          ) : user?.professional?.mentorApplicationStatus === 'REJECTED' ? (
+            <div className="bg-error/10 border border-error/20 rounded-xl p-4">
+              <p className="text-sm font-semibold text-primary">Application not approved</p>
+              <p className="text-xs text-muted mt-1">
+                Your mentor application was not approved this time. You can still create group sessions as a verified professional.
               </p>
             </div>
-            <button
-              onClick={() => setShowMentorApplyModal(true)}
-              className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors"
-            >
-              Apply to be a Mentor
-            </button>
-          </div>
-        )
+          ) : user?.professional?.mentorApplicationStatus === 'PENDING' ? (
+            <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-center gap-3">
+              <Clock className="text-warning w-5 h-5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary">Interview scheduled</p>
+                <p className="text-xs text-muted mt-0.5">
+                  Your interview is scheduled. Join at the agreed time using the link provided. We'll email you once a decision is made.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm font-semibold text-primary">Ready to mentor students?</p>
+                <p className="text-xs text-muted mt-0.5">
+                  Apply to become a mentor. You'll pick an interview slot with our team.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMentorApplyModal(true)}
+                className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors"
+              >
+                Apply to be a Mentor
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
@@ -319,13 +348,22 @@ const ProfessionalHome = () => {
             </div>
           )}
 
-          <button
-            onClick={handleConnectCalendar}
-            className="text-xs text-accent hover:underline flex items-center gap-1 mt-4"
-          >
-            <ExternalLink size={12} />
-            Connect Google Calendar
-          </button>
+          <div className="mt-4">
+            {user?.professional?.googleCalendarConnected ? (
+              <span className="text-xs text-success flex items-center gap-1">
+                <CheckCircle className="w-3.5 h-3.5" />
+                Google Calendar connected
+              </span>
+            ) : (
+              <button
+                onClick={handleConnectCalendar}
+                className="text-xs text-accent hover:underline flex items-center gap-1"
+              >
+                Connect Google Calendar
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
