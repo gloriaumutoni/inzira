@@ -3,7 +3,7 @@ import { Globe, Share2, Mail } from 'lucide-react'
 
 const Footer = () => (
   <footer className="bg-primary">
-    <div className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-2 md:grid-cols-3 gap-10">
+    <div className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-3 gap-10">
       {/* Brand */}
       <div>
         <p className="text-lg font-bold text-white">Inzira</p>
@@ -12,13 +12,21 @@ const Footer = () => (
         </p>
       </div>
 
-      {/* Quick links */}
+      {/* Get Started */}
       <div>
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">Get Started</p>
-        <div className="flex flex-col gap-3">
-          <Link to="/signup" className="text-sm text-white/70 hover:text-white transition-colors">Get Started</Link>
-          <Link to="/login" className="text-sm text-white/70 hover:text-white transition-colors">Sign In</Link>
-        </div>
+        <h4 className="text-sm font-semibold text-white mb-4">Get Started</h4>
+        <ul className="space-y-2">
+          <li>
+            <Link to="/login" className="text-white/60 hover:text-white text-sm transition-colors">
+              Sign In
+            </Link>
+          </li>
+          <li>
+            <Link to="/signup" className="text-white/60 hover:text-white text-sm transition-colors">
+              Create Account
+            </Link>
+          </li>
+        </ul>
       </div>
 
       {/* Follow Us */}
@@ -38,7 +46,7 @@ const Footer = () => (
       </div>
     </div>
 
-    <div className="border-t border-white/10 pt-6 pb-6 text-center text-xs text-white/40">
+    <div className="border-t border-white/10 mt-0 pt-6 pb-6 text-center text-xs text-white/40">
       © 2024 Inzira. All rights reserved. Made for the students of Rwanda.
     </div>
   </footer>

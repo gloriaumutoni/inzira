@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { ChevronLeft, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { signupUser, getMe, checkEmail, SignupPayload } from '@/api/auth.api'
-import { api } from '@/api/axios'
+import { signupUser, getMe, SignupPayload } from '@/api/auth.api'
 import { setAccessToken } from '@/utils/token'
 import { getPublicSchools } from '@/api/schools.api'
 import { School } from '@/types'
@@ -34,7 +33,6 @@ const SECTORS = [
   'Arts & Media', 'Business', 'Manufacturing', 'Logistics', 'Other',
 ]
 
-
 interface Step1Data {
   firstName: string
   lastName: string
@@ -46,25 +44,23 @@ interface Step1Data {
 interface Step3Data {
   level?: 'O_LEVEL' | 'A_LEVEL'
   combination?: string
-  careerIds?: string[]
   confidence?: number
   jobTitle?: string
   employer?: string
   sector?: string
-  otherSector?: string
   bio?: string
-  companyName?: string
-  companySize?: string
-  contactPerson?: string
-  contactPhone?: string
   schoolId?: string
-  selectedSectors?: string[]
   linkedinUrl?: string
+  roleAtSchool?: string
+  district?: string
+  yearsOfExperience?: string
+  additionalNote?: string
 }
 
 const ROLE_HOME: Record<string, string> = {
   STUDENT: '/student/home',
   PROFESSIONAL: '/professional/home',
+  CAREER_GUIDE: '/career-guide/home',
   ADMIN: '/admin/overview',
 }
 
@@ -73,9 +69,6 @@ const Signup = () => {
   const { setAuth } = useAuth()
 
   const [step, setStep] = useState(1)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [checkingEmail, setCheckingEmail] = useState(false)
   const [step1, setStep1] = useState<Step1Data>({
     firstName: '',
     lastName: '',
@@ -86,10 +79,10 @@ const Signup = () => {
   const [role, setRole] = useState<SignupRole | null>(null)
   const [step3, setStep3] = useState<Step3Data>({})
   const [schools, setSchools] = useState<School[]>([])
-  const [signupCareers, setSignupCareers] = useState<{ id: string; title: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   useEffect(() => {
     if (step === 3 && (role === 'CAREER_GUIDE' || role === 'STUDENT')) {
@@ -97,40 +90,17 @@ const Signup = () => {
     }
   }, [step, role])
 
-  useEffect(() => {
-    if (step === 3 && role === 'PROFESSIONAL') {
-      api.get('/careers?includeUnmatched=true').then(({ data }) => {
-        setSignupCareers(data.data.careers ?? [])
-      }).catch(() => {})
-    }
-  }, [step, role])
-
-  const handleStep1 = async (e: React.FormEvent) => {
+  const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     if (step1.password !== step1.confirmPassword) {
-      setError('Passwords do not match.')
+      setError('Passwords do not match')
       return
     }
     if (step1.password.length < 8) {
-      setError('Password must be at least 8 characters.')
+      setError('Password must be at least 8 characters')
       return
     }
-
-    setCheckingEmail(true)
-    try {
-      const result = await checkEmail(step1.email)
-      if (!result.available) {
-        setError('An account with this email already exists. Try logging in instead.')
-        setCheckingEmail(false)
-        return
-      }
-    } catch {
-      setError('Could not verify email. Please try again.')
-      setCheckingEmail(false)
-      return
-    }
-    setCheckingEmail(false)
     setStep(2)
   }
 
@@ -142,6 +112,26 @@ const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if ((role === 'PROFESSIONAL' || role === 'CAREER_GUIDE') && !step3.linkedinUrl?.trim()) {
+      setError('LinkedIn profile URL is required.')
+      return
+    }
+
+    if (step3.linkedinUrl && !step3.linkedinUrl.startsWith('http')) {
+      setError('Please enter a valid LinkedIn URL starting with https://')
+      return
+    }
+
+    if (role === 'STUDENT' && !step3.confidence) {
+      setError('Please select your confidence level.')
+      return
+    }
+    if (role === 'STUDENT' && !step3.schoolId) {
+      setError('Please select your school.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -152,65 +142,27 @@ const Signup = () => {
         firstName: step1.firstName,
         lastName: step1.lastName,
         ...step3,
-        sector: step3.sector === 'Other' ? (step3.otherSector ?? '') : (step3.sector ?? step3.selectedSectors?.[0]),
+        sector: step3.sector,
         linkedinUrl: step3.linkedinUrl,
       }
 
       const { accessToken } = await signupUser(payload)
 
-      if (role === 'CAREER_GUIDE') {
-        setSubmitted(true)
-        return
-      }
-
       setAccessToken(accessToken)
-
-      if (role === 'PROFESSIONAL' && (step3.careerIds?.length ?? 0) > 0) {
-        try {
-          await api.patch('/professionals/me/careers', { careerIds: step3.careerIds })
-        } catch {}
-      }
-
       const me = await getMe()
       setAuth(accessToken, me)
       navigate(ROLE_HOME[role!] ?? '/')
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { error?: string; message?: string } } })
+        (err as { response?: { data?: { error?: string } } })
           ?.response?.data?.error ??
-        (err as { response?: { data?: { error?: string; message?: string } } })
-          ?.response?.data?.message ??
-        'Signup failed. Please try again.'
+        'Something went wrong. Please try again.'
       setError(message)
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-primary flex items-center justify-center px-4">
-        <div className="w-full max-w-md bg-surface rounded-2xl shadow-card p-8 text-center">
-          <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-primary mb-2">Request submitted</h2>
-          <p className="text-muted text-sm">
-            Your Career Guide account is under review. You will receive an email
-            once approved. This usually takes 1–2 business days.
-          </p>
-          <Link
-            to="/"
-            className="inline-block mt-6 text-accent text-sm font-medium hover:underline"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-primary flex items-center justify-center px-4 py-12">
@@ -283,12 +235,11 @@ const Signup = () => {
                     value={step1.password}
                     onChange={(e) => { setStep1({ ...step1, password: e.target.value }); setError(null) }}
                     placeholder="At least 8 characters"
-                    required
                     className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent pr-10"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -308,7 +259,7 @@ const Signup = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -316,17 +267,16 @@ const Signup = () => {
                 </div>
               </div>
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">
                   <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <p className="text-error text-sm">{error}</p>
+                  <p className="text-error text-sm leading-snug">{error}</p>
                 </div>
               )}
               <button
                 type="submit"
-                disabled={checkingEmail}
-                className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors mt-2 disabled:opacity-60"
+                className="w-full bg-primary text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors mt-2"
               >
-                {checkingEmail ? 'Checking...' : 'Continue →'}
+                Continue →
               </button>
             </form>
             <p className="text-center text-sm text-muted mt-4">
@@ -420,52 +370,53 @@ const Signup = () => {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-primary mb-3">
-                  How confident are you about your career path?{' '}
-                  <span className="text-muted font-normal text-xs">(optional)</span>
-                </label>
-                <div className="flex gap-3 justify-center mt-2">
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <div key={value} className="flex flex-col items-center">
-                      <button
-                        type="button"
-                        onClick={() => setStep3({ ...step3, confidence: value })}
-                        className={
-                          step3.confidence === value
-                            ? 'w-10 h-10 rounded-full border-2 border-accent bg-accent flex items-center justify-center text-sm font-semibold text-white transition-all'
-                            : 'w-10 h-10 rounded-full border-2 border-border bg-surface flex items-center justify-center text-sm font-semibold text-muted cursor-pointer hover:border-accent hover:text-accent transition-all'
-                        }
-                      >
-                        {value}
-                      </button>
-                      <span className="text-xs text-muted text-center mt-1 h-4">
-                        {value === 1 ? 'Not sure' : value === 3 ? 'Some idea' : value === 5 ? 'Very sure' : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-primary mb-1">
-                  Which school do you attend?
+                  School <span className="text-error">*</span>
                 </label>
                 <select
                   value={step3.schoolId ?? ''}
                   onChange={(e) => setStep3({ ...step3, schoolId: e.target.value })}
+                  required
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 >
-                  <option value="">Select your school (optional)</option>
+                  <option value="">Select your school</option>
                   {schools.map((s) => (
                     <option key={s.id} value={s.id}>{s.name} — {s.district}</option>
                   ))}
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  How confident are you about your career path? <span className="text-error">*</span>
+                </label>
+                <p className="text-xs text-muted mb-3">1 = Not sure at all, 5 = Very confident</p>
+                <div className="flex gap-3">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <div key={value} className="flex flex-col items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setStep3({ ...step3, confidence: value })}
+                        className={`w-11 h-11 rounded-full border-2 text-sm font-bold transition-all ${
+                          step3.confidence === value
+                            ? 'border-accent bg-accent text-white scale-110'
+                            : 'border-border bg-surface text-muted hover:border-accent hover:text-accent'
+                        }`}
+                      >
+                        {value}
+                      </button>
+                      <span className="text-xs text-muted text-center">
+                        {value === 1 ? 'Not\nsure' : value === 3 ? 'Some\nidea' : value === 5 ? 'Very\nsure' : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">
                   <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <p className="text-error text-sm">{error}</p>
+                  <p className="text-error text-sm leading-snug">{error}</p>
                 </div>
               )}
               <button
@@ -517,22 +468,6 @@ const Signup = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  LinkedIn Profile URL
-                </label>
-                <input
-                  type="url"
-                  value={step3.linkedinUrl ?? ''}
-                  onChange={(e) => setStep3({ ...step3, linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/in/yourname"
-                  required
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-                <p className="text-xs text-muted mt-1">
-                  Our team uses this to verify your professional background.
-                </p>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-primary mb-1">Industry Sector</label>
                 <select
                   value={step3.sector ?? ''}
@@ -544,19 +479,6 @@ const Signup = () => {
                   {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              {step3.sector === 'Other' && (
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">Please specify your sector</label>
-                  <input
-                    type="text"
-                    value={step3.otherSector ?? ''}
-                    onChange={(e) => setStep3({ ...step3, otherSector: e.target.value })}
-                    placeholder="e.g. Real Estate"
-                    required
-                    className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                  />
-                </div>
-              )}
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Bio</label>
                 <textarea
@@ -567,44 +489,26 @@ const Signup = () => {
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
                 />
               </div>
-              {signupCareers.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">
-                    Which careers do you represent?
-                  </label>
-                  <p className="text-xs text-muted mb-2">
-                    Select the career(s) students should be able to find you under.
-                  </p>
-                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3">
-                    {signupCareers.map((career) => (
-                      <button
-                        key={career.id}
-                        type="button"
-                        onClick={() => {
-                          const current = step3.careerIds ?? []
-                          setStep3({
-                            ...step3,
-                            careerIds: current.includes(career.id)
-                              ? current.filter((id) => id !== career.id)
-                              : [...current, career.id],
-                          })
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                          (step3.careerIds ?? []).includes(career.id)
-                            ? 'bg-accent text-white border-accent'
-                            : 'border-border text-primary hover:border-accent'
-                        }`}
-                      >
-                        {career.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  LinkedIn Profile URL <span className="text-error">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={step3.linkedinUrl ?? ''}
+                  onChange={(e) => setStep3({ ...step3, linkedinUrl: e.target.value })}
+                  placeholder="https://linkedin.com/in/yourname"
+                  required
+                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+                <p className="text-xs text-muted mt-1">
+                  Used by our team to verify your professional background before approval.
+                </p>
+              </div>
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">
                   <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <p className="text-error text-sm">{error}</p>
+                  <p className="text-error text-sm leading-snug">{error}</p>
                 </div>
               )}
               <button
@@ -644,7 +548,7 @@ const Signup = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">
-                  LinkedIn Profile URL
+                  LinkedIn Profile URL <span className="text-error">*</span>
                 </label>
                 <input
                   type="url"
@@ -655,13 +559,25 @@ const Signup = () => {
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 />
                 <p className="text-xs text-muted mt-1">
-                  Our team uses this to verify your role and background.
+                  Used to verify your role before your account is approved.
                 </p>
               </div>
+               <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Additional note <span className="text-muted font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={step3.additionalNote ?? ''}
+                  onChange={(e) => setStep3({ ...step3, additionalNote: e.target.value })}
+                  placeholder="Anything else we should know?"
+                  rows={2}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                />
+              </div>
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+                <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">
                   <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <p className="text-error text-sm">{error}</p>
+                  <p className="text-error text-sm leading-snug">{error}</p>
                 </div>
               )}
               <button

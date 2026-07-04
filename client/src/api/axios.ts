@@ -18,7 +18,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-const PUBLIC_PATHS = ["/", "/login", "/signup"];
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup"]);
+
+// Singleton so concurrent 401s share one refresh request
+let refreshPromise: Promise<string> | null = null;
 
 api.interceptors.response.use(
   (response) => response,
@@ -27,28 +30,39 @@ api.interceptors.response.use(
 
     // Let the refresh endpoint's own 401 propagate
     if (original.url?.includes("/auth/refresh")) {
-      return Promise.reject(error);
+      throw error;
     }
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
-      try {
-        const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/refresh`,
+
+      refreshPromise ??= axios
+        .post(
+          `${import.meta.env.VITE_API_URL as string}/auth/refresh`,
           {},
           { withCredentials: true },
-        );
-        setAccessToken(data.data.accessToken);
-        original.headers.Authorization = `Bearer ${data.data.accessToken}`;
-        return api(original);
-      } catch {
-        clearAccessToken();
-        if (!PUBLIC_PATHS.includes(window.location.pathname)) {
-          window.location.href = "/login";
-        }
-      }
+        )
+        .then(({ data }) => {
+          const token = data.data.accessToken as string;
+          setAccessToken(token);
+          return token;
+        })
+        .catch((err) => {
+          clearAccessToken();
+          if (!PUBLIC_PATHS.has(globalThis.location.pathname)) {
+            globalThis.location.href = "/login";
+          }
+          throw err;
+        })
+        .finally(() => {
+          refreshPromise = null;
+        });
+
+      const token = await refreshPromise;
+      original.headers.Authorization = `Bearer ${token}`;
+      return api(original);
     }
 
-    return Promise.reject(error);
+    throw error;
   },
 );

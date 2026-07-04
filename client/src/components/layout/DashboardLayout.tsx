@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Compass, Calendar, Users, LogOut, CheckCircle, ShieldCheck, Menu, X, CalendarPlus } from 'lucide-react'
+import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
@@ -11,16 +10,16 @@ interface NavItem {
   label: string
   icon: React.ElementType
   path: string
+  disabled?: boolean
 }
 
 const STUDENT_O_LEVEL_NAV: NavItem[] = [
   { label: 'Home',       icon: Home,     path: '/student/home' },
-  { label: 'Discover',   icon: Compass,  path: '/student/discover' },
   { label: 'Sessions',   icon: Calendar, path: '/student/sessions' },
   { label: 'Get Mentor', icon: Users,    path: '/student/get-mentor' },
 ]
 
-const PROFESSIONAL_NAV: NavItem[] = [
+const PROFESSIONAL_NAV_BASE: NavItem[] = [
   { label: 'Home',     icon: Home,     path: '/professional/home' },
   { label: 'Sessions', icon: Calendar, path: '/professional/sessions' },
 ]
@@ -28,8 +27,13 @@ const PROFESSIONAL_NAV: NavItem[] = [
 const MENTOR_NAV: NavItem[] = [
   { label: 'Home',         icon: Home,         path: '/professional/home' },
   { label: 'Sessions',     icon: Calendar,     path: '/professional/sessions' },
-  { label: 'Mentees',      icon: Users,        path: '/professional/mentees' },
   { label: 'Create Slots', icon: CalendarPlus, path: '/professional/create-slots' },
+]
+
+const UNDER_REVIEW_NAV: NavItem[] = [
+  { label: 'Home',         icon: Home,         path: '/professional/home' },
+  { label: 'Sessions',     icon: Calendar,     path: '/professional/sessions',     disabled: true },
+  { label: 'Create Slots', icon: CalendarPlus, path: '/professional/create-slots', disabled: true },
 ]
 
 const CAREER_GUIDE_NAV: NavItem[] = [
@@ -37,41 +41,47 @@ const CAREER_GUIDE_NAV: NavItem[] = [
   { label: 'Sessions', icon: Calendar, path: '/career-guide/sessions' },
 ]
 
+const CAREER_GUIDE_UNDER_REVIEW_NAV: NavItem[] = [
+  { label: 'Home',     icon: Home,     path: '/career-guide/home' },
+  { label: 'Sessions', icon: Calendar, path: '/career-guide/sessions', disabled: true },
+]
+
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Verification', icon: ShieldCheck, path: '/admin/verification' },
+  { label: 'Overview',        icon: LayoutDashboard, path: '/admin/overview' },
+  { label: 'Verification',    icon: ShieldCheck,     path: '/admin/verification' },
+  { label: 'Interview Slots', icon: CalendarPlus,    path: '/admin/interview-slots' },
+  { label: 'Schools',         icon: Building2,       path: '/admin/schools' },
+  { label: 'Reports',         icon: BarChart2,       path: '/admin/reports' },
 ]
 
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
-  { label: 'Home',            icon: Home,     path: '/student/home' },
-  { label: 'Explore Careers', icon: Compass,  path: '/student/explore-careers' },
-  { label: 'Sessions',        icon: Calendar, path: '/student/sessions' },
-  { label: 'Get Mentor',      icon: Users,    path: '/student/get-mentor' },
+  { label: 'Home',       icon: Home,     path: '/student/home' },
+  { label: 'Sessions',   icon: Calendar, path: '/student/sessions' },
+  { label: 'Get Mentor', icon: Users,    path: '/student/get-mentor' },
 ]
 
 const PAGE_TITLES: Record<string, string> = {
   '/student/home':              'Home',
   '/student/discover':          'Discover',
   '/student/explore-careers':   'Explore Careers',
-  '/student/workshops':         'Workshops',
   '/student/sessions':          'Sessions',
   '/student/get-mentor':        'Get a Mentor',
   '/professional/home':         'Home',
   '/professional/sessions':     'Sessions',
-  '/professional/mentees':      'Mentees',
-  '/professional/create-slots': 'Create Slots',
+  '/professional/earnings':     'Earnings',
   '/career-guide/home':         'Home',
-  '/career-guide/workshops':    'Workshops',
   '/career-guide/sessions':     'Career Discovery',
   '/admin/overview':            'Overview',
   '/admin/verification':        'Verification',
+  '/admin/interview-slots':     'Interview Slots',
   '/admin/schools':             'Partner Schools',
+  '/admin/reports':             'Reports',
 }
 
-function getNavItems(role: Role, level?: Level, isMentor?: boolean): NavItem[] {
+function getNavItems(role: Role, level?: Level): NavItem[] {
   if (role === 'STUDENT') {
     return level === 'A_LEVEL' ? STUDENT_A_LEVEL_NAV : STUDENT_O_LEVEL_NAV
   }
-  if (role === 'PROFESSIONAL') return isMentor ? MENTOR_NAV : PROFESSIONAL_NAV
   if (role === 'CAREER_GUIDE') return CAREER_GUIDE_NAV
   if (role === 'ADMIN') return ADMIN_NAV
   return []
@@ -99,60 +109,27 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-const SidebarContent = ({
-  navItems,
-  pathname,
-  onNavClick,
-  onLogout,
-}: {
-  navItems: NavItem[]
-  pathname: string
-  onNavClick?: () => void
-  onLogout: () => void
-}) => (
-  <>
-    <div className="px-6 py-5">
-      <span className="text-white font-bold text-lg">Inzira</span>
-    </div>
-
-    <nav className="flex-1 mt-2">
-      {navItems.map(({ label, icon: Icon, path }) => {
-        const active = pathname === path
-        return (
-          <Link
-            key={path}
-            to={path}
-            onClick={onNavClick}
-            className={[
-              'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
-              active
-                ? 'bg-accent/20 text-white border-r-2 border-accent'
-                : 'text-white/60 hover:text-white hover:bg-white/5',
-            ].join(' ')}
-          >
-            <Icon size={16} />
-            {label}
-          </Link>
-        )
-      })}
-    </nav>
-
-    <button
-      onClick={onLogout}
-      className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
-    >
-      <LogOut size={16} />
-      Logout
-    </button>
-  </>
-)
-
 const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const navItems = getNavItems(role, level, user?.professional?.isMentor === true)
+
+  const getProfessionalNav = (): NavItem[] => {
+    if (!user?.professional?.isVerified) return UNDER_REVIEW_NAV
+    if (user?.professional?.isMentor) return MENTOR_NAV
+    return PROFESSIONAL_NAV_BASE
+  }
+
+  const getCareerGuideNav = (): NavItem[] => {
+    if (!user?.careerGuide?.isVerified) return CAREER_GUIDE_UNDER_REVIEW_NAV
+    return CAREER_GUIDE_NAV
+  }
+
+  const navItems = role === 'PROFESSIONAL'
+    ? getProfessionalNav()
+    : role === 'CAREER_GUIDE'
+      ? getCareerGuideNav()
+      : getNavItems(role, level)
   const pageTitle = PAGE_TITLES[location.pathname] ?? ''
 
   const handleLogout = async () => {
@@ -163,94 +140,66 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Desktop sidebar */}
+      {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-56 bg-primary flex-shrink-0">
-        <SidebarContent
-          navItems={navItems}
-          pathname={location.pathname}
-          onLogout={handleLogout}
-        />
+        <div className="px-6 py-5">
+          <span className="text-white font-bold text-lg">Inzira</span>
+        </div>
+
+        <nav className="flex-1 mt-2">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const active = location.pathname === item.path
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.path}
+                  className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/25 cursor-not-allowed select-none"
+                  title="Available once your account is verified"
+                >
+                  <Icon size={16} className="opacity-40" />
+                  <span>{item.label}</span>
+                  <span className="ml-auto">
+                    <Lock size={12} className="opacity-40" />
+                  </span>
+                </div>
+              )
+            }
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={[
+                  'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-accent/20 text-white border-r-2 border-accent'
+                    : 'text-white/60 hover:text-white hover:bg-white/5',
+                ].join(' ')}
+              >
+                <Icon size={16} />
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
+        >
+          <LogOut size={16} />
+          Logout
+        </button>
       </aside>
 
-      {/* Mobile overlay sidebar */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          <div className="flex flex-col w-56 bg-primary flex-shrink-0">
-            <div className="flex items-center justify-between px-6 py-5">
-              <span className="text-white font-bold text-lg">Inzira</span>
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="text-white/60 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <nav className="flex-1 mt-2">
-              {navItems.map(({ label, icon: Icon, path }) => {
-                const active = location.pathname === path
-                return (
-                  <Link
-                    key={path}
-                    to={path}
-                    onClick={() => setMobileOpen(false)}
-                    className={[
-                      'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
-                      active
-                        ? 'bg-accent/20 text-white border-r-2 border-accent'
-                        : 'text-white/60 hover:text-white hover:bg-white/5',
-                    ].join(' ')}
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </Link>
-                )
-              })}
-            </nav>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
-            >
-              <LogOut size={16} />
-              Logout
-            </button>
-          </div>
-          {/* Backdrop */}
-          <div
-            className="flex-1 bg-black/40"
-            onClick={() => setMobileOpen(false)}
-          />
-        </div>
-      )}
-
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="md:hidden text-muted hover:text-primary transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-            <span className="text-sm font-semibold text-primary">{pageTitle}</span>
-          </div>
+        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 flex-shrink-0">
+          <span className="text-sm font-semibold text-primary">{pageTitle}</span>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm text-muted">{getDisplayName(user)}</span>
-              {role === 'PROFESSIONAL' && user?.professional?.isVerified && (
-                user?.professional?.isMentor ? (
-                  <span className="bg-accent/10 text-accent text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
-                    <CheckCircle size={10} />
-                    Verified Mentor
-                  </span>
-                ) : (
-                  <span className="bg-success/10 text-success text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
-                    <CheckCircle size={10} />
-                    Verified Professional
-                  </span>
-                )
-              )}
               {role === 'CAREER_GUIDE' && (
                 <span className="text-xs text-muted mt-0.5">Career Discovery</span>
               )}

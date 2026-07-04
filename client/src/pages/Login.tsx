@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { loginUser, getMe } from '@/api/auth.api'
+import { setAccessToken } from '@/utils/token'
 import { Role } from '@/types'
 
 const ROLE_HOME: Record<Role, string> = {
@@ -29,13 +30,15 @@ const Login = () => {
 
     try {
       const { accessToken } = await loginUser(email, password)
+      setAccessToken(accessToken)
       const me = await getMe()
       setAuth(accessToken, me)
       navigate(ROLE_HOME[me.role])
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Login failed. Please try again.'
+        (err as { response?: { data?: { error?: string } } })
+          ?.response?.data?.error ??
+        'Something went wrong. Please try again.'
       setError(message)
     } finally {
       setIsLoading(false)
@@ -107,9 +110,9 @@ const Login = () => {
           </div>
 
           {error && (
-            <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2">
+            <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">
               <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
-              <p className="text-error text-sm">{error}</p>
+              <p className="text-error text-sm leading-snug">{error}</p>
             </div>
           )}
 

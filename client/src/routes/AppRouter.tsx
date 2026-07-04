@@ -8,7 +8,6 @@ import StudentDashboard from '@/pages/dashboards/StudentDashboard'
 import ProfessionalDashboard from '@/pages/dashboards/ProfessionalDashboard'
 import CareerGuideDashboard from '@/pages/dashboards/CareerGuideDashboard'
 import AdminDashboard from '@/pages/dashboards/AdminDashboard'
-import { ProfessionalProfile } from '@/pages/student/ProfessionalProfile'
 
 const AppRouter = () => (
   <Routes>
@@ -21,14 +20,6 @@ const AppRouter = () => (
       element={
         <ProtectedRoute allowedRole="STUDENT">
           <StudentDashboard />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/student/professional/:id"
-      element={
-        <ProtectedRoute allowedRole="STUDENT">
-          <ProfessionalProfile />
         </ProtectedRoute>
       }
     />

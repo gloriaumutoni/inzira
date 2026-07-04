@@ -14,15 +14,7 @@ export interface SignupPayload {
   employer?: string
   sector?: string
   bio?: string
-  companyName?: string
-  companySize?: string
-  contactPerson?: string
-  contactPhone?: string
   schoolId?: string
-  roleAtSchool?: string
-  district?: string
-  yearsOfExperience?: string
-  additionalNote?: string
   linkedinUrl?: string
 }
 
@@ -52,10 +44,5 @@ export const logoutUser = async (): Promise<void> => {
 
 export const refreshToken = async (): Promise<{ accessToken: string }> => {
   const { data } = await api.post('/auth/refresh')
-  return data.data
-}
-
-export const checkEmail = async (email: string): Promise<{ available: boolean }> => {
-  const { data } = await api.get(`/auth/check-email?email=${encodeURIComponent(email)}`)
   return data.data
 }

@@ -15,16 +15,6 @@ interface UpcomingSession {
   }
 }
 
-interface WorkshopRegistration {
-  id: string
-  registeredAt: string
-  workshop: {
-    title: string
-    scheduledAt: string
-    company: { companyName: string }
-  }
-}
-
 interface GroupSessionEnrolment {
   id: string
   joinedAt: string
@@ -40,7 +30,6 @@ interface GroupSessionEnrolment {
 
 interface StudentDashboardData {
   upcomingSessions: UpcomingSession[]
-  registeredWorkshops: WorkshopRegistration[]
   groupSessions: GroupSessionEnrolment[]
   latestConfidence: number | null
 }

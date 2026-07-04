@@ -31,6 +31,7 @@ export interface ProfessionalProfile {
   employer: string
   sector: string
   bio: string
+  linkedinUrl?: string | null
   isVerified: boolean
   isActive: boolean
   proRate: number
@@ -38,15 +39,30 @@ export interface ProfessionalProfile {
   offersFreeIntro: boolean
   offersProTier: boolean
   offersPremiumTier: boolean
-  isMentor: boolean
+  isMentor?: boolean
   mentorApplicationStatus?: string | null
+  mentorRejectionReason?: string | null
+  mentorBio?: string | null
+  mentorApplicationAttempts?: number
+  verificationStatus?: string
+  rejectionReason?: string | null
+  verificationAttempts?: number
+  interviewBooking?: {
+    scheduledAt: string
+    meetLink: string
+  } | null
 }
 
 export interface CareerGuideProfile {
   id: string
   firstName: string
   lastName: string
+  jobTitle: string
+  linkedinUrl?: string | null
   isVerified: boolean
+  verificationStatus?: string
+  rejectionReason?: string | null
+  rejectionCount?: number
   schoolId?: string | null
 }
 

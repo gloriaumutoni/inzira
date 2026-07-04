@@ -6,7 +6,6 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 import { Role } from "../types";
-import { sendAdminVerificationAlert } from './email.service'
 
 export const COMMISSION_RATE = 0.15;
 
@@ -20,21 +19,13 @@ interface SignupData {
   level?: string;
   schoolYear?: string;
   combination?: string;
-  confidence?: number;
   jobTitle?: string;
   employer?: string;
   sector?: string;
   bio?: string;
-  companyName?: string;
-  companySize?: string;
-  contactPerson?: string;
-  contactPhone?: string;
   schoolId?: string;
-  roleAtSchool?: string;
-  district?: string;
-  yearsOfExperience?: string;
-  additionalNote?: string;
   linkedinUrl?: string;
+  confidence?: number;
 }
 
 export const signup = async (data: SignupData) => {
@@ -65,8 +56,9 @@ export const signup = async (data: SignupData) => {
           lastName: data.lastName,
           level: (data.level as "O_LEVEL" | "A_LEVEL") ?? "O_LEVEL",
           schoolYear: data.schoolYear ?? "S1",
+          confidenceLevel: data.confidence ?? null,
+          schoolId: data.schoolId ?? null,
           combination: data.combination ?? null,
-          confidenceLevel: data.confidence ? Number(data.confidence) : null,
         },
       });
     }
@@ -80,13 +72,13 @@ export const signup = async (data: SignupData) => {
           jobTitle: data.jobTitle ?? "",
           employer: data.employer ?? "",
           sector: data.sector ?? "",
-          linkedinUrl: data.linkedinUrl ?? null,
           bio: data.bio ?? "",
+          linkedinUrl: data.linkedinUrl ?? null,
         },
       });
     }
 
-    if (data.role === 'CAREER_GUIDE') {
+    if (data.role === "CAREER_GUIDE") {
       await tx.careerGuide.create({
         data: {
           userId: newUser.id,
@@ -94,34 +86,12 @@ export const signup = async (data: SignupData) => {
           lastName: data.lastName,
           schoolId: data.schoolId ?? null,
           linkedinUrl: data.linkedinUrl ?? null,
-          isVerified: false,
-          verificationStatus: 'PENDING',
         },
-      })
+      });
     }
 
     return newUser;
   });
-
-  if (data.role === 'PROFESSIONAL') {
-    await sendAdminVerificationAlert({
-      roleLabel: 'Professional',
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      linkedinUrl: data.linkedinUrl ?? null,
-    })
-  }
-
-  if (data.role === 'CAREER_GUIDE') {
-    await sendAdminVerificationAlert({
-      roleLabel: 'Career Guide',
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      linkedinUrl: data.linkedinUrl ?? null,
-    })
-  }
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);
@@ -202,7 +172,11 @@ export const getMe = async (userId: string) => {
     where: { id: userId },
     include: {
       student: true,
-      professional: true,
+      professional: {
+        include: {
+          interviewBooking: true,
+        },
+      },
       careerGuide: true,
     },
   });
@@ -211,9 +185,4 @@ export const getMe = async (userId: string) => {
 
   const { passwordHash, ...safeUser } = user;
   return safeUser;
-};
-
-export const checkEmail = async (email: string): Promise<boolean> => {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  return existing === null;
 };

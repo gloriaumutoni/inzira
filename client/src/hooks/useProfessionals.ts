@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
 
 export interface Professional {
   id: string
@@ -10,12 +9,12 @@ export interface Professional {
   employer: string
   sector: string
   bio: string
-  profilePhoto?: string | null
   isVerified: boolean
+  isMentor: boolean
   offersFreeIntro: boolean
   offersProTier: boolean
   offersPremiumTier: boolean
-  proRate: number
+  linkedinUrl: string | null
   averageRating: number | null
   reviewCount: number
 }
@@ -29,6 +28,8 @@ interface UseProfessionalsResult {
 const useProfessionals = (params?: {
   limit?: number
   sector?: string
+  isMentor?: boolean
+  combination?: string
 }): UseProfessionalsResult => {
   const [professionals, setProfessionals] = useState<Professional[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,18 +44,18 @@ const useProfessionals = (params?: {
           ...(params?.limit && { limit: String(params.limit) }),
           ...(params?.sector && { sector: params.sector }),
         })
+        if (params?.isMentor !== undefined) query.set('isMentor', String(params.isMentor))
+        if (params?.combination) query.set('combination', params.combination)
         const { data } = await api.get(`/professionals?${query}`)
         setProfessionals(data.data.professionals ?? data.data)
-      } catch (err) {
-        console.error('useProfessionals error:', err)
+      } catch {
         setError(true)
-        toast.error('Unable to load professionals.')
       } finally {
         setLoading(false)
       }
     }
     fetch()
-  }, [params?.sector, params?.limit])
+  }, [params?.sector, params?.limit, params?.isMentor, params?.combination])
 
   return { professionals, loading, error }
 }

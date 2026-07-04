@@ -1,7 +1,4 @@
 import { Router } from 'express'
-import { getPublicStats } from '../controllers/stats.controller'
-import { getAvailableInterviewSlots } from '../controllers/admin.controller'
-import { authMiddleware } from '../middleware'
 import authRouter from './auth.routes'
 import studentsRouter from './students.routes'
 import professionalsRouter from './professionals.routes'
@@ -11,14 +8,16 @@ import schoolsRouter from './schools.routes'
 import sessionsRouter from './sessions.routes'
 import groupSessionsRouter from './groupSessions.routes'
 import mentorshipsRouter from './mentorships.routes'
+import paymentsRouter from './payments.routes'
 import notificationsRouter from './notifications.routes'
-import mentorSlotsRouter from './mentor-slots.routes'
 import adminRouter from './admin.routes'
+import * as adminController from '../controllers/admin.controller'
+import { authMiddleware } from '../middleware'
 
 const router = Router()
 
-router.get('/stats', getPublicStats)
-router.get('/interview-slots/available', authMiddleware, getAvailableInterviewSlots)
+router.get('/stats', adminController.getPublicStats)
+
 router.use('/auth', authRouter)
 router.use('/students', studentsRouter)
 router.use('/professionals', professionalsRouter)
@@ -28,8 +27,9 @@ router.use('/schools', schoolsRouter)
 router.use('/sessions', sessionsRouter)
 router.use('/group-sessions', groupSessionsRouter)
 router.use('/mentorships', mentorshipsRouter)
+router.use('/payments', paymentsRouter)
 router.use('/notifications', notificationsRouter)
-router.use('/mentor-slots', mentorSlotsRouter)
 router.use('/admin', adminRouter)
+router.get('/interview-slots/available', authMiddleware, adminController.getAvailableInterviewSlots)
 
 export default router
