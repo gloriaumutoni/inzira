@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
 
 const SECTORS = [
   'ICT', 'Engineering', 'Healthcare', 'Finance',
   'Education', 'Agriculture', 'Law', 'Architecture',
   'Arts & Media', 'Business', 'Manufacturing', 'Logistics', 'Other',
+]
+
+const COMBINATIONS = [
+  'MPC', 'MPG', 'MEG', 'MHE', 'MCE',
+  'PCB', 'BCG', 'HEG', 'HEL', 'HGL',
+  'KEG', 'KEL', 'KGL', 'AEG', 'PCG',
 ]
 
 interface CreateGroupSessionModalProps {
@@ -22,16 +27,29 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
   const [duration, setDuration] = useState(60)
   const [maxStudents, setMaxStudents] = useState(30)
   const [joinLink, setJoinLink] = useState('')
+  const [combinations, setCombinations] = useState<string[]>([])
+
+  const toggleCombination = (c: string) =>
+    setCombinations(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const today = new Date().toISOString().slice(0, 16)
 
+  const isValidGoogleMeetLink = (url: string): boolean => {
+    try {
+      const parsed = new URL(url)
+      return parsed.hostname === 'meet.google.com'
+    } catch {
+      return false
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (loading) return
-    if (!joinLink.trim()) {
-      setError('A Google Meet or Zoom join link is required.')
+    if (joinLink && !isValidGoogleMeetLink(joinLink)) {
+      setError('Please enter a valid Google Meet link (https://meet.google.com/...)')
       return
     }
     setLoading(true)
@@ -41,17 +59,16 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
         title,
         description,
         sector,
+        combinations,
         scheduledAt: new Date(scheduledAt).toISOString(),
         duration: Number(duration),
         maxStudents: Number(maxStudents),
-        joinLink: joinLink.trim(),
+        joinLink: joinLink || undefined,
       })
-      toast.success('Group session created successfully.')
       onSuccess()
       onClose()
     } catch {
       setError('Could not create session. Please try again.')
-      toast.error('Could not create session. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -106,6 +123,28 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
+            <label className="block text-xs font-medium text-muted mb-1">A-Level Combinations <span className="text-subtle">(optional)</span></label>
+            <div className="flex flex-wrap gap-2">
+              {COMBINATIONS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleCombination(c)}
+                  className={[
+                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                    combinations.includes(c)
+                      ? 'bg-accent text-white border-accent'
+                      : 'border-border text-muted hover:border-accent/50',
+                  ].join(' ')}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted mt-1">Leave empty to show to all students.</p>
+          </div>
+
+          <div>
             <label className="block text-xs font-medium text-muted mb-1">Date & Time</label>
             <input
               type="datetime-local"
@@ -145,15 +184,15 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Join Link</label>
+            <label className="block text-xs font-medium text-muted mb-1">Join Link <span className="text-subtle">(optional)</span></label>
             <input
-              type="url"
-              required
+              type="text"
               value={joinLink}
               onChange={(e) => setJoinLink(e.target.value)}
-              placeholder="https://meet.google.com/... (required)"
+              placeholder="https://meet.google.com/abc-defg-hij"
               className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
+            <p className="text-xs text-muted mt-1">Only Google Meet links are accepted.</p>
           </div>
 
           {error && <p className="text-error text-sm">{error}</p>}

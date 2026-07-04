@@ -2,6 +2,7 @@ import { prisma } from '../prisma/client'
 
 export const list = async (filters: {
   sector?: string
+  combination?: string
   page?: number
   limit?: number
 }) => {
@@ -14,6 +15,7 @@ export const list = async (filters: {
     scheduledAt: { gte: new Date() },
   }
   if (filters.sector) where.sector = filters.sector
+  if (filters.combination) where.combinations = { has: filters.combination }
 
   const sessions = await prisma.groupSession.findMany({
     where,
@@ -78,6 +80,7 @@ export const create = async (
     title: string
     description: string
     sector: string
+    combinations?: string[]
     scheduledAt: string
     duration: number
     maxStudents?: number
@@ -100,6 +103,7 @@ export const create = async (
       title: data.title,
       description: data.description,
       sector: data.sector,
+      combinations: data.combinations ?? [],
       scheduledAt: new Date(data.scheduledAt),
       duration: data.duration,
       maxStudents: data.maxStudents ?? 30,
@@ -119,6 +123,7 @@ export const create = async (
         title: session.title,
         description: session.description,
         sector: session.sector,
+        combinations: session.combinations,
         scheduledAt: nextDate,
         duration: session.duration,
         maxStudents: session.maxStudents,

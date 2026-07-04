@@ -1,351 +1,371 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Clock } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { X } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
-import useProfessionalDashboard from '@/hooks/useProfessionalDashboard'
-import useProfessionalSessions from '@/hooks/useProfessionalSessions'
-import ApplyMentorModal from '@/components/professional/ApplyMentorModal'
+import MentorApplicationSection from '@/components/professional/MentorApplicationSection'
+import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
 
-const TYPE_BADGE: Record<string, string> = {
-  FREE_INTRO: 'bg-accent/10 text-accent',
-  PRO:        'bg-warning/10 text-warning',
-  PREMIUM:    'bg-success/10 text-success',
-}
-
-interface AvailabilitySlot {
+interface GroupSession {
   id: string
-  dayOfWeek: number
-  startHour: number
-  isBooked: boolean
+  title: string
+  scheduledAt: string
+  maxStudents: number
+  status: string
+  joinLink?: string
+  isCancelled?: boolean
+  _count?: { enrolments: number }
 }
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+interface MenteeSession {
+  id: string
+  scheduledAt: string
+  type: string
+  status: string
+  student: { id: string; firstName: string; lastName: string }
+}
 
 const ProfessionalHome = () => {
   const { user } = useAuth()
-  const firstName = user?.professional?.firstName ?? 'there'
-  const isActive = useState(user?.professional?.isActive ?? true)
-  const [outOfOffice, setOutOfOffice] = useState(!(user?.professional?.isActive ?? true))
-  const [toggling, setToggling] = useState(false)
+  const isMentor = user?.professional?.isMentor ?? false
 
-  const [showMentorApplyModal, setShowMentorApplyModal] = useState(false)
+  const [gsCompletedCount, setGsCompletedCount] = useState<number | null>(null)
+  const [gsUpcomingCount, setGsUpcomingCount] = useState<number | null>(null)
+  const [upcomingGroupSessions, setUpcomingGroupSessions] = useState<GroupSession[]>([])
+  const [gsLoading, setGsLoading] = useState(true)
 
-  const { stats, loading: statsLoading } = useProfessionalDashboard()
-  const { sessions: pending, loading: pendingLoading, refetch } = useProfessionalSessions({ status: 'PENDING' })
+  const [oneOnOneCompletedCount, setOneOnOneCompletedCount] = useState<number | null>(null)
+  const [oneOnOneUpcomingCount, setOneOnOneUpcomingCount] = useState<number | null>(null)
+  const [upcomingMenteeSessions, setUpcomingMenteeSessions] = useState<MenteeSession[]>([])
+  const [menteeLoading, setMenteeLoading] = useState(true)
 
-  const [availability, setAvailability] = useState<AvailabilitySlot[]>([])
-  const [availLoading, setAvailLoading] = useState(true)
-  const [actionState, setActionState] = useState<Record<string, 'confirming' | 'declining' | null>>({})
-  const [cardErrors, setCardErrors] = useState<Record<string, string>>({})
+  const [sessionTab, setSessionTab] = useState<'Group Sessions' | 'Mentor Sessions'>('Group Sessions')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showResubmitModal, setShowResubmitModal] = useState(false)
+  const [resubmitFields, setResubmitFields] = useState({
+    bio: '',
+    jobTitle: '',
+    employer: '',
+    sector: '',
+    linkedinUrl: '',
+  })
+  const [resubmitting, setResubmitting] = useState(false)
+
+  const handleOpenResubmit = () => {
+    setResubmitFields({
+      bio: user?.professional?.bio ?? '',
+      jobTitle: user?.professional?.jobTitle ?? '',
+      employer: user?.professional?.employer ?? '',
+      sector: user?.professional?.sector ?? '',
+      linkedinUrl: user?.professional?.linkedinUrl ?? '',
+    })
+    setShowResubmitModal(true)
+  }
+
+  const handleResubmit = async () => {
+    setResubmitting(true)
+    try {
+      await api.post('/professionals/me/reapply', resubmitFields)
+      toast.success('Application resubmitted.')
+      globalThis.location.reload()
+    } catch {
+      toast.error('Could not resubmit. Please try again.')
+    } finally {
+      setResubmitting(false)
+    }
+  }
+
+  const fetchGroupSessions = () => {
+    api.get('/group-sessions/me').then(({ data }) => {
+      const raw: GroupSession[] = data.data.sessions ?? data.data ?? []
+      const unique = Array.from(new Map(raw.map(s => [s.id, s])).values())
+      const now = new Date()
+      setGsCompletedCount(unique.filter(s => new Date(s.scheduledAt) < now).length)
+      const upcoming = unique.filter(s => new Date(s.scheduledAt) > now && !s.isCancelled)
+      setGsUpcomingCount(upcoming.length)
+      setUpcomingGroupSessions(upcoming.slice(0, 4))
+    }).catch(() => {}).finally(() => setGsLoading(false))
+  }
 
   useEffect(() => {
-    api.get('/professionals/me/availability')
-      .then(({ data }) => setAvailability(data.data ?? []))
-      .catch(() => {})
-      .finally(() => setAvailLoading(false))
-  }, [])
+    fetchGroupSessions()
 
-  const handleAccept = async (id: string) => {
-    setActionState((s) => ({ ...s, [id]: 'confirming' }))
-    setCardErrors((e) => ({ ...e, [id]: '' }))
-    try {
-      await api.patch(`/sessions/${id}/confirm`)
-      refetch()
-      toast.success('Session confirmed successfully.')
-    } catch {
-      setCardErrors((e) => ({ ...e, [id]: 'Could not accept. Try again.' }))
-      toast.error('Could not confirm session. Please try again.')
-    } finally {
-      setActionState((s) => ({ ...s, [id]: null }))
+    if (isMentor) {
+      api.get('/sessions?limit=1000').then(({ data }) => {
+        const sessions: MenteeSession[] = data.data.sessions ?? []
+        const now = new Date()
+        setOneOnOneCompletedCount(sessions.filter(s => new Date(s.scheduledAt) < now).length)
+        const upcoming = sessions.filter(
+          s => new Date(s.scheduledAt) > now && ['PENDING', 'CONFIRMED'].includes(s.status)
+        )
+        setOneOnOneUpcomingCount(upcoming.length)
+        setUpcomingMenteeSessions(upcoming.slice(0, 4))
+      }).catch(() => {}).finally(() => setMenteeLoading(false))
     }
-  }
+  }, [isMentor])
 
-  const handleDecline = async (id: string) => {
-    setActionState((s) => ({ ...s, [id]: 'declining' }))
-    setCardErrors((e) => ({ ...e, [id]: '' }))
-    try {
-      await api.patch(`/sessions/${id}/decline`)
-      refetch()
-      toast.success('Session declined.')
-    } catch {
-      setCardErrors((e) => ({ ...e, [id]: 'Could not decline. Try again.' }))
-      toast.error('Could not decline session. Please try again.')
-    } finally {
-      setActionState((s) => ({ ...s, [id]: null }))
-    }
-  }
+  if (user?.professional && !user.professional.isVerified) {
+    const isRejected = user.professional.verificationStatus === 'REJECTED'
+    const verificationAttempts = user.professional.verificationAttempts ?? 0
 
-  const handleToggleOffice = async () => {
-    if (toggling) return
-    setToggling(true)
-    const next = !outOfOffice
-    setOutOfOffice(next)
-    try {
-      await api.patch('/professionals/me', { isActive: !next })
-      toast.success(next ? 'Profile hidden from new bookings.' : 'Profile is now visible to students.')
-    } catch {
-      setOutOfOffice(!next)
-      toast.error('Could not update profile status.')
-    } finally {
-      setToggling(false)
-    }
-  }
-
-  // Build week columns Mon–Fri for the current week
-  const today = new Date()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
-
-  const weekDays = DAY_LABELS.map((label, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    const dayOfWeek = i + 1 // 1=Mon … 5=Fri
-    const slots = availability.filter((s) => s.dayOfWeek === dayOfWeek)
-    return { label, date: d.getDate(), slots }
-  })
-
-  void isActive // suppress unused warning
-
-  if (user?.professional?.isVerified === false) {
     return (
-      <div className="bg-background min-h-screen flex items-center justify-center p-6">
-        <div className="bg-surface rounded-2xl border border-border p-10 max-w-lg text-center shadow-sm">
-          <Clock className="text-warning w-12 h-12 mx-auto" />
-          <h2 className="text-xl font-bold text-primary mt-4">
-            Your account is under review
-          </h2>
-          <p className="text-sm text-muted mt-3 leading-relaxed">
-            Our team is verifying your professional background using the LinkedIn profile you provided. This usually takes 1–2 business days. You'll receive an email at {user?.email} once your account is approved.
-          </p>
-          <p className="text-xs text-subtle mt-6">
-            Once approved, you'll be able to host group sessions and accept mentorship requests from students.
-          </p>
+      <div className="p-6 space-y-6">
+        {showResubmitModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+            <dialog open aria-labelledby="resubmit-title" className="bg-surface rounded-2xl shadow-xl w-full max-w-lg p-6 m-0 border-0 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 id="resubmit-title" className="text-base font-bold text-primary">Resubmit Application</h2>
+                <button onClick={() => setShowResubmitModal(false)} className="text-muted hover:text-primary">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-muted mb-5">Update your profile details and resubmit for admin review.</p>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="rs-bio" className="text-xs font-semibold text-muted uppercase tracking-wide">Bio</label>
+                  <textarea
+                    id="rs-bio"
+                    value={resubmitFields.bio}
+                    onChange={(e) => setResubmitFields((f) => ({ ...f, bio: e.target.value }))}
+                    rows={4}
+                    className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="rs-jobtitle" className="text-xs font-semibold text-muted uppercase tracking-wide">Job Title</label>
+                    <input
+                      id="rs-jobtitle"
+                      value={resubmitFields.jobTitle}
+                      onChange={(e) => setResubmitFields((f) => ({ ...f, jobTitle: e.target.value }))}
+                      className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="rs-employer" className="text-xs font-semibold text-muted uppercase tracking-wide">Employer</label>
+                    <input
+                      id="rs-employer"
+                      value={resubmitFields.employer}
+                      onChange={(e) => setResubmitFields((f) => ({ ...f, employer: e.target.value }))}
+                      className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="rs-sector" className="text-xs font-semibold text-muted uppercase tracking-wide">Sector</label>
+                  <input
+                    id="rs-sector"
+                    value={resubmitFields.sector}
+                    onChange={(e) => setResubmitFields((f) => ({ ...f, sector: e.target.value }))}
+                    className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="rs-linkedin" className="text-xs font-semibold text-muted uppercase tracking-wide">LinkedIn URL</label>
+                  <input
+                    id="rs-linkedin"
+                    value={resubmitFields.linkedinUrl}
+                    onChange={(e) => setResubmitFields((f) => ({ ...f, linkedinUrl: e.target.value }))}
+                    placeholder="https://linkedin.com/in/your-profile"
+                    className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-6 justify-end">
+                <button
+                  onClick={() => setShowResubmitModal(false)}
+                  className="px-4 py-2 text-sm text-muted hover:text-primary border border-border rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResubmit}
+                  disabled={resubmitting || !resubmitFields.bio.trim()}
+                  className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {resubmitting ? 'Submitting…' : 'Resubmit'}
+                </button>
+              </div>
+            </dialog>
+          </div>
+        )}
+        {isRejected ? (
+          verificationAttempts >= 3 ? (
+            <div className="bg-error/10 border border-error/20 rounded-xl p-5">
+              <p className="text-sm font-semibold text-error">Not eligible to apply</p>
+              <p className="text-xs text-muted mt-1">You have reached the maximum number of verification submissions (3) and are no longer eligible to apply.</p>
+            </div>
+          ) : (
+            <div className="bg-error/10 border border-error/20 rounded-xl p-5">
+              <p className="text-sm font-semibold text-error">Your application was declined</p>
+              {user.professional.rejectionReason && (
+                <p className="text-xs text-muted mt-1">{user.professional.rejectionReason}</p>
+              )}
+              <button
+                onClick={handleOpenResubmit}
+                className="mt-3 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Resubmit for review
+              </button>
+            </div>
+          )
+        ) : (
+          <div className="bg-warning/10 border border-warning/20 rounded-xl p-5">
+            <p className="text-sm font-semibold text-primary">Your account is under review</p>
+            <p className="text-xs text-muted mt-1">Our team is verifying your LinkedIn profile and background. You'll receive an email once approved.</p>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-4 opacity-40 pointer-events-none">
+          {['GROUP SESSIONS COMPLETED', 'UPCOMING GROUP SESSIONS'].map(label => (
+            <div key={label} className="bg-surface border border-border rounded-xl p-5 text-center">
+              <p className="text-2xl font-bold text-border">—</p>
+              <p className="text-xs text-muted uppercase tracking-wide mt-1">{label}</p>
+            </div>
+          ))}
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
-        <p className="text-sm text-muted mt-1">
-          You have {statsLoading ? '…' : (stats?.pendingRequests ?? 0)} new requests waiting for review.
-        </p>
+  const sessionGridClass = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
+
+  const typeLabel = (type: string) => {
+    if (type === 'FREE_INTRO') return 'Free Intro'
+    if (type === 'PRO') return 'Pro'
+    return 'Premium'
+  }
+
+  const renderGroupSessions = () => {
+    if (gsLoading) return (
+      <div className={sessionGridClass}>
+        {[1, 2].map(i => <div key={i} className="animate-pulse bg-border rounded-xl h-24" />)}
       </div>
+    )
+    if (upcomingGroupSessions.length === 0) return <p className="text-sm text-muted">No upcoming group sessions.</p>
+    return (
+      <div className={sessionGridClass}>
+        {upcomingGroupSessions.map(session => {
+          const date = new Date(session.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          const time = new Date(session.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          const enrolled = session._count?.enrolments ?? 0
+          return (
+            <div key={session.id} className="bg-surface border border-border rounded-xl p-3 flex flex-col gap-1">
+              <p className="text-sm font-semibold text-primary truncate">{session.title}</p>
+              <p className="text-xs text-muted">{date} · {time}</p>
+              <p className="text-xs text-muted">{enrolled}/{session.maxStudents} enrolled</p>
+              {session.joinLink && (
+                <a href={session.joinLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline mt-auto">Join →</a>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
-      {user?.professional?.isVerified && !user?.professional?.isMentor && (
-        <>
-          {user?.professional?.mentorApplicationStatus === 'INTERVIEWED' ? (
-            <div className="bg-accent/10 border border-accent/20 rounded-xl p-4">
-              <p className="text-sm font-semibold text-primary">Interview complete — awaiting decision</p>
-              <p className="text-xs text-muted mt-1">
-                Your interview has been completed. We'll email you once the admin has made a decision.
-              </p>
+  const renderMenteeSessions = () => {
+    if (menteeLoading) return (
+      <div className={sessionGridClass}>
+        {[1, 2].map(i => <div key={i} className="animate-pulse bg-border rounded-xl h-24" />)}
+      </div>
+    )
+    if (upcomingMenteeSessions.length === 0) return <p className="text-sm text-muted">No upcoming mentee sessions.</p>
+    return (
+      <div className={sessionGridClass}>
+        {upcomingMenteeSessions.map(session => {
+          const date = new Date(session.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          const time = new Date(session.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          return (
+            <div key={session.id} className="bg-surface border border-border rounded-xl p-3 flex flex-col gap-1">
+              <p className="text-sm font-semibold text-primary">{session.student.firstName} {session.student.lastName}</p>
+              <p className="text-xs text-muted">{date} · {time}</p>
+              <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full w-fit">{typeLabel(session.type)}</span>
             </div>
-          ) : user?.professional?.mentorApplicationStatus === 'REJECTED' ? (
-            <div className="bg-error/10 border border-error/20 rounded-xl p-4">
-              <p className="text-sm font-semibold text-primary">Application not approved</p>
-              <p className="text-xs text-muted mt-1">
-                Your mentor application was not approved this time. You can still create group sessions as a verified professional.
-              </p>
-            </div>
-          ) : user?.professional?.mentorApplicationStatus === 'PENDING' ? (
-            <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-center gap-3">
-              <Clock className="text-warning w-5 h-5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-primary">Interview scheduled</p>
-                <p className="text-xs text-muted mt-0.5">
-                  Your interview is scheduled. Join at the agreed time using the link provided. We'll email you once a decision is made.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="text-sm font-semibold text-primary">Ready to mentor students?</p>
-                <p className="text-xs text-muted mt-0.5">
-                  Apply to become a mentor. You'll pick an interview slot with our team.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowMentorApplyModal(true)}
-                className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors"
-              >
-                Apply to be a Mentor
-              </button>
-            </div>
-          )}
-        </>
-      )}
+          )
+        })}
+      </div>
+    )
+  }
 
-      <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
-        <p className="text-sm font-semibold text-primary">How mentorship works on Inzira</p>
-        <p className="text-xs text-muted mt-1 leading-relaxed">
-          You mentor students through two formats: free group sessions (up to 30 students, where you share your career story and answer questions), and 1-on-1 free intro calls (20 minutes, one per student). There is no in-person contact required — all sessions happen over video call using the link you provide. You set your own availability and choose which session requests to accept.
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-primary">Welcome back, {user?.professional?.firstName}</h1>
+        <p className="text-sm text-muted mt-1">
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {statsLoading ? (
+      <div className={`grid gap-4 ${isMentor ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'}`}>
+        <div className="bg-surface border border-border rounded-xl p-5 text-center">
+          <p className="text-2xl font-bold text-primary">{gsCompletedCount ?? '—'}</p>
+          <p className="text-xs text-muted uppercase tracking-wide mt-1">GROUP SESSIONS COMPLETED</p>
+        </div>
+        <div className="bg-surface border border-border rounded-xl p-5 text-center">
+          <p className="text-2xl font-bold text-primary">{gsUpcomingCount ?? '—'}</p>
+          <p className="text-xs text-muted uppercase tracking-wide mt-1">UPCOMING GROUP SESSIONS</p>
+        </div>
+        {isMentor && (
           <>
-            <div className="animate-pulse bg-border rounded-xl h-24" />
-            <div className="animate-pulse bg-border rounded-xl h-24" />
-            <div className="animate-pulse bg-border rounded-xl h-24" />
-          </>
-        ) : (
-          <>
-            <div className="bg-surface rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{stats?.pendingRequests ?? '—'}</p>
-              <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending Requests</p>
+            <div className="bg-surface border border-border rounded-xl p-5 text-center">
+              <p className="text-2xl font-bold text-primary">{oneOnOneCompletedCount ?? '—'}</p>
+              <p className="text-xs text-muted uppercase tracking-wide mt-1">1-ON-1 SESSIONS COMPLETED</p>
             </div>
-            <div className="bg-surface rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{stats?.sessionsCompleted ?? '—'}</p>
-              <p className="text-xs text-muted uppercase tracking-wide mt-1">Sessions Completed</p>
-            </div>
-            <div className="bg-surface rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{stats?.studentsReached ?? '—'}</p>
-              <p className="text-xs text-muted uppercase tracking-wide mt-1">Students Reached</p>
+            <div className="bg-surface border border-border rounded-xl p-5 text-center">
+              <p className="text-2xl font-bold text-primary">{oneOnOneUpcomingCount ?? '—'}</p>
+              <p className="text-xs text-muted uppercase tracking-wide mt-1">UPCOMING 1-ON-1 SESSIONS</p>
             </div>
           </>
         )}
       </div>
 
-      {/* Two-column */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Incoming requests */}
-        <div>
-          <p className="text-base font-semibold text-primary">Incoming Requests</p>
-          <p className="text-xs text-muted mt-0.5">
-            Free intro requests only — Pro and Premium students book directly from your calendar.
-          </p>
-
-          {pendingLoading ? (
-            <div className="space-y-3 mt-4">
-              <div className="animate-pulse bg-border rounded-xl h-24" />
-              <div className="animate-pulse bg-border rounded-xl h-24" />
-            </div>
-          ) : pending.length === 0 ? (
-            <p className="text-sm text-muted text-center py-6">No pending requests right now.</p>
-          ) : (
-            <div className="space-y-3 mt-4">
-              {pending.map((session) => {
-                const busy = actionState[session.id] !== null && actionState[session.id] !== undefined
-                const date = new Date(session.scheduledAt).toLocaleDateString('en-US', {
-                  weekday: 'short', month: 'short', day: 'numeric',
-                })
-                const time = new Date(session.scheduledAt).toLocaleTimeString('en-US', {
-                  hour: '2-digit', minute: '2-digit',
-                })
-                const studentCode = (session.student as unknown as { code?: string }).code
-                  ?? `S${session.student.id.slice(0, 6).toUpperCase()}`
-
-                return (
-                  <div key={session.id} className="bg-surface rounded-xl border border-border p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-primary">Student {studentCode}</p>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_BADGE[session.type] ?? ''}`}>
-                        {session.type.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted mt-1">{date} · {time}</p>
-                    {cardErrors[session.id] && (
-                      <p className="text-error text-xs mt-1">{cardErrors[session.id]}</p>
-                    )}
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleDecline(session.id)}
-                        disabled={busy}
-                        className="border border-border text-muted text-xs px-3 py-1.5 rounded-lg hover:border-error hover:text-error transition-colors disabled:opacity-60"
-                      >
-                        {actionState[session.id] === 'declining' ? 'Declining…' : 'Decline'}
-                      </button>
-                      <button
-                        onClick={() => handleAccept(session.id)}
-                        disabled={busy}
-                        className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
-                      >
-                        {actionState[session.id] === 'confirming' ? 'Accepting…' : 'Accept'}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          <Link to="/professional/sessions" className="text-sm text-accent hover:underline block mt-4">
-            View All Pending Requests
-          </Link>
-        </div>
-
-        {/* Weekly Availability */}
-        <div>
-          <div className="flex items-center justify-between">
-            <p className="text-base font-semibold text-primary">Weekly Availability</p>
-          </div>
-
-          {availLoading ? (
-            <div className="animate-pulse bg-border rounded-xl h-32 mt-4" />
-          ) : (
-            <div className="grid grid-cols-5 gap-2 mt-4">
-              {weekDays.map(({ label, date, slots }) => (
-                <div key={label} className="text-center">
-                  <p className="text-xs font-medium text-muted">{label}</p>
-                  <p className="text-xs text-subtle mb-2">{date}</p>
-                  <div className="space-y-1">
-                    {slots.map((slot) => (
-                      <span
-                        key={slot.id}
-                        className={`block text-xs px-2 py-1 rounded-md ${
-                          slot.isBooked
-                            ? 'bg-border text-muted'
-                            : 'bg-accent/10 text-accent'
-                        }`}
-                      >
-                        {slot.startHour}:00
-                      </span>
-                    ))}
-                  </div>
-                </div>
+      {/* Sessions section with tabs (mentor) or plain (non-mentor) */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          {isMentor ? (
+            <div className="flex gap-1 bg-surface border border-border rounded-xl p-1">
+              {(['Group Sessions', 'Mentor Sessions'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setSessionTab(tab)}
+                  className={sessionTab === tab
+                    ? 'bg-primary text-white px-4 py-1.5 rounded-lg text-sm font-medium'
+                    : 'text-muted hover:text-primary px-4 py-1.5 rounded-lg text-sm transition-colors'
+                  }
+                >
+                  {tab}
+                </button>
               ))}
             </div>
+          ) : (
+            <h2 className="text-base font-semibold text-primary">Upcoming Group Sessions</h2>
           )}
-
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Create Session
+          </button>
         </div>
+
+        {(!isMentor || sessionTab === 'Group Sessions') && renderGroupSessions()}
+
+        {isMentor && sessionTab === 'Mentor Sessions' && renderMenteeSessions()}
       </div>
 
-      {/* Out of Office toggle */}
-      <div className="bg-primary rounded-xl p-4 flex items-center justify-between mt-2">
-        <div>
-          <p className="text-sm font-semibold text-white">Need a break?</p>
-          <p className="text-xs text-white/70 mt-0.5">
-            Toggle 'Out of Office' to hide your profile from new bookings.
-          </p>
-        </div>
-        <button
-          onClick={handleToggleOffice}
-          disabled={toggling}
-          className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${
-            outOfOffice ? 'bg-white/20' : 'bg-accent'
-          }`}
-        >
-          <span
-            className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-              outOfOffice ? 'left-1' : 'left-5'
-            }`}
-          />
-        </button>
-      </div>
+      {user?.professional?.isVerified && !isMentor && (
+        <MentorApplicationSection />
+      )}
 
-      {showMentorApplyModal && (
-        <ApplyMentorModal
-          onClose={() => setShowMentorApplyModal(false)}
-          onSuccess={() => window.location.reload()}
+      {showCreateModal && (
+        <CreateGroupSessionModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false)
+            setGsLoading(true)
+            fetchGroupSessions()
+          }}
         />
       )}
     </div>

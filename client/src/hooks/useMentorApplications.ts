@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
 
 export interface MentorApplication {
   id: string
@@ -10,49 +9,78 @@ export interface MentorApplication {
   jobTitle: string
   employer: string
   sector: string
-  linkedinUrl: string | null
-  mentorBio: string | null
-  mentorApplicationStatus: string
+  linkedinUrl: string
+  mentorBio: string
   appliedAt: string
+  mentorApplicationAttempts: number
+  mentorRejectionReason: string | null
   interview: {
     scheduledAt: string
     meetLink: string
-    adminSlotId: string
   } | null
 }
 
 interface UseMentorApplicationsResult {
   applications: MentorApplication[]
   loading: boolean
-  error: boolean
   refetch: () => void
 }
 
 const useMentorApplications = (): UseMentorApplicationsResult => {
   const [applications, setApplications] = useState<MentorApplication[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetch = async () => {
       setLoading(true)
-      setError(false)
       try {
         const { data } = await api.get('/admin/verification/mentors')
-        setApplications(data.data.applications)
+        const raw = data.data as Array<{
+          id: string
+          firstName: string
+          lastName: string
+          jobTitle: string
+          employer: string
+          sector: string
+          linkedinUrl: string
+          mentorBio: string
+          mentorApplicationAttempts: number
+          mentorRejectionReason: string | null
+          createdAt: string
+          interviewBooking: { scheduledAt: string; meetLink: string } | null
+          user: { email: string }
+        }>
+        setApplications(
+          raw.map((m) => ({
+            id: m.id,
+            firstName: m.firstName,
+            lastName: m.lastName,
+            email: m.user.email,
+            jobTitle: m.jobTitle,
+            employer: m.employer,
+            sector: m.sector,
+            linkedinUrl: m.linkedinUrl,
+            mentorBio: m.mentorBio,
+            appliedAt: m.createdAt,
+            interview: m.interviewBooking
+              ? { scheduledAt: m.interviewBooking.scheduledAt, meetLink: m.interviewBooking.meetLink }
+              : null,
+            mentorApplicationAttempts: m.mentorApplicationAttempts ?? 0,
+            mentorRejectionReason: m.mentorRejectionReason ?? null,
+          })),
+        )
       } catch (err) {
         console.error('useMentorApplications fetch error:', err)
-        setError(true)
-        toast.error('Unable to load mentor applications.')
+        setApplications([])
       } finally {
         setLoading(false)
       }
     }
-    fetchData()
+    fetch()
   }, [tick])
 
-  return { applications, loading, error, refetch: () => setTick((t) => t + 1) }
+  return { applications, loading, refetch: () => setTick((t) => t + 1) }
 }
 
 export default useMentorApplications

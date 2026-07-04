@@ -2,8 +2,6 @@ import { Request, Response } from 'express'
 import * as professionalsService from '../services/professionals.service'
 import { ok, badRequest } from '../utils/response'
 import { prisma } from '../prisma/client'
-import { sendAdminVerificationAlert } from '../services/email.service'
-import { expandWeeklyTemplate } from '../utils/slots'
 
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -63,10 +61,12 @@ export const getQuota = async (req: Request, res: Response): Promise<void> => {
 
 export const browse = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sector, hasFreeIntro, page, limit } = req.query
+    const { sector, hasFreeIntro, isMentor, page, limit } = req.query
+    const isMentorFilter = isMentor === 'true' ? true : isMentor === 'false' ? false : undefined
     ok(res, await professionalsService.browse({
       sector: sector as string,
       hasFreeIntro: hasFreeIntro === 'true',
+      isMentor: isMentorFilter,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
     }))
@@ -83,37 +83,35 @@ export const getPublicProfile = async (req: Request, res: Response): Promise<voi
   }
 }
 
-export const getRecommendedProfessionals = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const professionals = await professionalsService.getRecommended(req.auth!.userId)
-    ok(res, { professionals })
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
 export const applyToBeMentor = async (req: Request, res: Response): Promise<void> => {
   try {
     const professional = await prisma.professional.findUnique({
       where: { userId: req.auth!.userId },
-      include: { user: { select: { email: true } }, interviewBooking: true },
+      include: { interviewBooking: true },
     })
 
-    if (!professional?.isVerified) {
-      res.status(403).json({ success: false, error: 'Only verified professionals can apply to be mentors.' })
+    if (!professional) {
+      badRequest(res, 'Professional not found.')
       return
     }
-
-    if (
-      professional.mentorApplicationStatus === 'PENDING' ||
-      professional.mentorApplicationStatus === 'INTERVIEWED'
-    ) {
-      res.status(409).json({ success: false, error: 'You already have an active mentor application.' })
+    if (!professional.isVerified) {
+      res.status(403).json({ success: false, error: 'Your account must be verified first.' })
       return
     }
-
     if (professional.isMentor) {
       res.status(409).json({ success: false, error: 'You are already a mentor.' })
+      return
+    }
+    if (professional.mentorApplicationAttempts >= 3) {
+      res.status(403).json({ success: false, error: 'You have reached the maximum number of mentor applications (3).' })
+      return
+    }
+    if (professional.mentorApplicationStatus === 'PENDING') {
+      res.status(409).json({ success: false, error: 'You already have a pending application.' })
+      return
+    }
+    if (professional.interviewBooking) {
+      res.status(409).json({ success: false, error: 'You already have an interview booked.' })
       return
     }
 
@@ -127,14 +125,14 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
       where: { adminSlotId },
     })
     if (existingBooking) {
-      res.status(409).json({ success: false, error: 'This interview slot was just taken. Please pick another.' })
+      res.status(409).json({ success: false, error: 'This slot has already been taken. Please choose another.' })
       return
     }
 
     await prisma.$transaction([
       prisma.professional.update({
         where: { id: professional.id },
-        data: { mentorApplicationStatus: 'PENDING', mentorAppliedAt: new Date() },
+        data: { mentorApplicationStatus: 'PENDING', mentorAppliedAt: new Date(), mentorApplicationAttempts: { increment: 1 }, ...(req.body.mentorBio ? { mentorBio: req.body.mentorBio } : {}) },
       }),
       prisma.mentorApplicationInterviewBooking.create({
         data: {
@@ -146,152 +144,173 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
       }),
     ])
 
-    await sendAdminVerificationAlert({
-      roleLabel: 'Mentor Application',
-      firstName: professional.firstName,
-      lastName: professional.lastName,
-      email: professional.user.email,
-      linkedinUrl: professional.linkedinUrl,
-    })
-
-    res.json({ success: true, data: { mentorApplicationStatus: 'PENDING' } })
+    ok(res, { mentorApplicationStatus: 'PENDING' })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
 
-export const updateMyCareers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const professional = await prisma.professional.findUnique({
-      where: { userId: req.auth!.userId },
-    })
-    if (!professional) {
-      res.status(404).json({ success: false, error: 'Professional not found.' })
-      return
-    }
-
-    const { careerIds } = req.body as { careerIds: string[] }
-
-    await prisma.professionalCareer.deleteMany({ where: { professionalId: professional.id } })
-    if (careerIds.length > 0) {
-      await prisma.professionalCareer.createMany({
-        data: careerIds.map((careerId) => ({ professionalId: professional.id, careerId })),
-        skipDuplicates: true,
-      })
-    }
-
-    res.json({ success: true, data: { careerIds } })
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const getMyAvailabilityTemplate = async (req: Request, res: Response): Promise<void> => {
+export const reapplyVerification = async (req: Request, res: Response): Promise<void> => {
   try {
     const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
-    if (!professional) {
-      res.status(404).json({ success: false, error: 'Not found.' })
+    if (!professional) { badRequest(res, 'Not found'); return }
+    if (professional.verificationAttempts >= 3) {
+      res.status(403).json({ success: false, error: 'You have reached the maximum number of verification resubmissions (3).' })
       return
     }
-    const templates = await prisma.mentorAvailabilityTemplate.findMany({
+    const { bio, jobTitle, employer, sector, linkedinUrl } = req.body as {
+      bio?: string; jobTitle?: string; employer?: string; sector?: string; linkedinUrl?: string
+    }
+    await prisma.professional.update({
+      where: { id: professional.id },
+      data: {
+        verificationStatus: 'PENDING',
+        verificationAttempts: { increment: 1 },
+        ...(bio ? { bio } : {}),
+        ...(jobTitle ? { jobTitle } : {}),
+        ...(employer ? { employer } : {}),
+        ...(sector ? { sector } : {}),
+        ...(linkedinUrl === undefined ? {} : { linkedinUrl }),
+      },
+    })
+    ok(res, { reapplied: true })
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getMentorSlots = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
+    if (!professional) { badRequest(res, 'Professional not found'); return }
+    const slots = await prisma.mentorSlot.findMany({
       where: { professionalId: professional.id },
-      orderBy: [{ dayOfWeek: 'asc' }, { startHour: 'asc' }],
+      include: { Student: { select: { id: true, firstName: true, lastName: true } } },
+      orderBy: { scheduledAt: 'asc' },
     })
-    ok(res, { templates })
+    ok(res, { slots })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
 
-export const addAvailabilityTemplate = async (req: Request, res: Response): Promise<void> => {
+export const createMentorSlot = async (req: Request, res: Response): Promise<void> => {
   try {
     const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
-    if (!professional?.isMentor) {
-      res.status(403).json({ success: false, error: 'Only approved mentors can set availability.' })
+    if (!professional) { badRequest(res, 'Professional not found'); return }
+    if (!professional.isMentor) { res.status(403).json({ success: false, error: 'Only mentors can create slots.' }); return }
+    const { scheduledAt, durationMins, meetLink } = req.body as {
+      scheduledAt: string
+      durationMins: number
+      meetLink?: string
+    }
+    if (!scheduledAt || !durationMins) { badRequest(res, 'scheduledAt and durationMins are required'); return }
+    const slot = await prisma.mentorSlot.create({
+      data: {
+        id: crypto.randomUUID(),
+        professionalId: professional.id,
+        scheduledAt: new Date(scheduledAt),
+        durationMins,
+        meetLink: meetLink ? meetLink.trim() : null,
+      },
+    })
+    ok(res, { slot })
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') {
+      res.status(409).json({ success: false, error: 'A slot already exists at that time.' })
       return
     }
-    const { dayOfWeek, startHour, startMinute, endHour, endMinute } = req.body
-    const template = await prisma.mentorAvailabilityTemplate.create({
-      data: { professionalId: professional.id, dayOfWeek, startHour, startMinute, endHour, endMinute },
-    })
-    ok(res, template)
-  } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
 
-export const deleteAvailabilityTemplate = async (req: Request, res: Response): Promise<void> => {
+export const deleteMentorSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    await prisma.mentorAvailabilityTemplate.delete({ where: { id: req.params.id } })
+    const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
+    if (!professional) { badRequest(res, 'Professional not found'); return }
+    const slot = await prisma.mentorSlot.findUnique({ where: { id: req.params.slotId } })
+    if (!slot || slot.professionalId !== professional.id) { res.status(404).json({ success: false, error: 'Slot not found.' }); return }
+    if (slot.isBooked) { res.status(409).json({ success: false, error: 'Cannot delete a booked slot.' }); return }
+    await prisma.mentorSlot.delete({ where: { id: slot.id } })
     ok(res, { deleted: true })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
 
-export const getApprovedMentors = async (req: Request, res: Response): Promise<void> => {
+export const updateMentorSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sector, combination } = req.query
+    const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
+    if (!professional) { badRequest(res, 'Professional not found'); return }
+    const slot = await prisma.mentorSlot.findUnique({ where: { id: req.params.slotId } })
+    if (!slot || slot.professionalId !== professional.id) { res.status(404).json({ success: false, error: 'Slot not found.' }); return }
+    if (slot.isBooked) { res.status(409).json({ success: false, error: 'Cannot edit a booked slot.' }); return }
+    const { scheduledAt, durationMins, meetLink } = req.body as {
+      scheduledAt: string
+      durationMins: number
+      meetLink?: string
+    }
+    if (!scheduledAt || !durationMins) { badRequest(res, 'scheduledAt and durationMins are required'); return }
+    const updated = await prisma.mentorSlot.update({
+      where: { id: slot.id },
+      data: {
+        scheduledAt: new Date(scheduledAt),
+        durationMins,
+        meetLink: meetLink ? meetLink.trim() : null,
+      },
+    })
+    ok(res, { slot: updated })
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') {
+      res.status(409).json({ success: false, error: 'A slot already exists at that time.' })
+      return
+    }
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
 
-    const mentors = await prisma.professional.findMany({
+export const getPublicMentorSlots = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const slots = await prisma.mentorSlot.findMany({
       where: {
-        isMentor: true,
-        isVerified: true,
-        isActive: true,
-        ...(sector ? { sector: String(sector) } : {}),
-        ...(combination
-          ? {
-              careers: {
-                some: {
-                  career: {
-                    combinations: { has: String(combination) },
-                  },
-                },
-              },
-            }
-          : {}),
+        professionalId: req.params.id,
+        isBooked: false,
+        scheduledAt: { gt: new Date() },
       },
-      include: {
-        careers: { include: { career: { select: { title: true, sector: true } } } },
-      },
-      orderBy: { createdAt: 'asc' },
+      select: { id: true, scheduledAt: true, durationMins: true },
+      orderBy: { scheduledAt: 'asc' },
     })
-
-    ok(res, {
-      mentors: mentors.map((m) => ({
-        id: m.id,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        jobTitle: m.jobTitle,
-        employer: m.employer,
-        sector: m.sector,
-        bio: m.bio,
-        careers: m.careers.map((c) => c.career.title),
-      })),
-    })
+    ok(res, { slots: slots.map(s => ({ id: s.id, scheduledAt: s.scheduledAt, duration: s.durationMins })) })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
 
-export const getMentorOpenSlots = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const professional = await prisma.professional.findUnique({
-      where: { id: req.params.id },
-      include: { availabilityTemplates: true },
-    })
-    if (!professional?.isMentor) {
-      res.status(404).json({ success: false, error: 'Mentor not found.' })
-      return
+export const getApprovedMentors = async (req: Request, res: Response): Promise<void> => {  try {
+    const { sector } = req.query
+    const where: Record<string, unknown> = {
+      isVerified: true,
+      isMentor: true,
+      isActive: true,
     }
-    const expandedSlots = expandWeeklyTemplate(professional.availabilityTemplates)
-    const bookedSlots = await prisma.mentorSlot.findMany({
-      where: { professionalId: req.params.id, isBooked: true, scheduledAt: { gte: new Date() } },
-      select: { scheduledAt: true },
+    if (sector) where.sector = String(sector)
+
+    const mentors = await prisma.professional.findMany({
+      where,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        jobTitle: true,
+        employer: true,
+        sector: true,
+        bio: true,
+        profilePhoto: true,
+      },
+      orderBy: { createdAt: 'asc' },
     })
-    const bookedTimes = new Set(bookedSlots.map((s) => s.scheduledAt.toISOString()))
-    const openSlots = expandedSlots.filter((slot) => !bookedTimes.has(slot.start.toISOString()))
-    ok(res, { slots: openSlots })
+
+    ok(res, { professionals: mentors })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

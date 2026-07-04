@@ -68,7 +68,7 @@ export const getDashboard = async (userId: string) => {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [pendingRequests, upcomingSessions, activePremiumStudents, monthlyEarnings] =
+  const [pendingRequests, upcomingSessions, activePremiumStudents, monthlyEarnings, completedCount] =
     await Promise.all([
       prisma.session.findMany({
         where: { professionalId: professional.id, status: 'PENDING' },
@@ -96,6 +96,9 @@ export const getDashboard = async (userId: string) => {
         },
         _sum: { netAmount: true },
       }),
+      prisma.session.count({
+        where: { professionalId: professional.id, status: 'COMPLETED' },
+      }),
     ])
 
   return {
@@ -103,6 +106,7 @@ export const getDashboard = async (userId: string) => {
     upcomingSessions,
     activePremiumStudents,
     monthlyEarnings: monthlyEarnings._sum.netAmount ?? 0,
+    sessionsCompleted: completedCount,
     sessionsUsedThisMonth: professional.sessionsUsedThisMonth,
     sessionQuota: professional.sessionQuota,
   }
@@ -122,6 +126,7 @@ export const getQuota = async (userId: string) => {
 export const browse = async (filters: {
   sector?: string
   hasFreeIntro?: boolean
+  isMentor?: boolean
   page?: number
   limit?: number
 }) => {
@@ -136,6 +141,7 @@ export const browse = async (filters: {
 
   if (filters.sector) where.sector = filters.sector
   if (filters.hasFreeIntro) where.offersFreeIntro = true
+  if (filters.isMentor !== undefined) where.isMentor = filters.isMentor
 
   const [professionals, total] = await Promise.all([
     prisma.professional.findMany({
@@ -171,6 +177,9 @@ export const getPublicProfile = async (id: string) => {
         orderBy: { createdAt: 'desc' },
         take: 10,
       },
+      ProfessionalCareer: {
+        include: { Career: { select: { id: true, title: true, sector: true } } },
+      },
     },
   })
 
@@ -184,7 +193,15 @@ export const getPublicProfile = async (id: string) => {
         professional.reviews.length
       : null
 
-  return { ...professional, averageRating }
+  return {
+    ...professional,
+    averageRating,
+    careers: professional.ProfessionalCareer.map((c) => ({
+      id: c.Career.id,
+      title: c.Career.title,
+      sector: c.Career.sector,
+    })),
+  }
 }
 
 export const getRecommended = async (userId: string) => {

@@ -2,11 +2,6 @@ import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useMentees from '@/hooks/useMentees'
 
-const PLAN_BADGE: Record<string, string> = {
-  PRO:     'bg-warning/10 text-warning',
-  PREMIUM: 'bg-success/10 text-success',
-}
-
 const ProfessionalMentees = () => {
   const { user } = useAuth()
   if (user?.professional?.isVerified === false) {
@@ -79,9 +74,6 @@ const ProfessionalMentees = () => {
                   {mentee.student.level.replace('_', '-')}
                   {mentee.student.combination ? ` · ${mentee.student.combination}` : ''}
                 </p>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-2 w-fit inline-block ${PLAN_BADGE[mentee.plan] ?? ''}`}>
-                  {mentee.plan}
-                </span>
                 <p className="text-xs text-muted mt-2">{mentee.sessionsCompleted} sessions completed</p>
                 <p className="text-xs text-muted">
                   {nextDate ? `Next: ${nextDate}` : 'No upcoming session'}
