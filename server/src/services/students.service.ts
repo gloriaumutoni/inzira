@@ -16,6 +16,9 @@ export const updateMe = async (userId: string, data: {
   combination?: string
   interests?: string[]
   profilePhoto?: string
+  combinationsConsidering?: string[]
+  careerInterests?: string[]
+  onboardingCompleted?: boolean
 }) => {
   return prisma.student.update({
     where: { userId },

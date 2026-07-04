@@ -78,3 +78,13 @@ export const toggle = async (id: string) => {
 export const remove = async (id: string) => {
   return prisma.career.delete({ where: { id } })
 }
+
+export const getSectors = async () => {
+  const careers = await prisma.career.findMany({
+    where: { isActive: true },
+    select: { sector: true },
+    distinct: ['sector'],
+    orderBy: { sector: 'asc' },
+  })
+  return careers.map(c => c.sector)
+}

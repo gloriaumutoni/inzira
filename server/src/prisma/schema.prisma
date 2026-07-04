@@ -42,9 +42,12 @@ model Student {
   level           Level
   schoolYear      String
   combination     String?
-  confidenceLevel Int?
-  mentorPlan      MentorPlan              @default(FREE)
-  interests       String[]
+  confidenceLevel          Int?
+  mentorPlan               MentorPlan              @default(FREE)
+  interests                String[]
+  combinationsConsidering  String[]
+  careerInterests          String[]
+  onboardingCompleted      Boolean                 @default(false)
   profilePhoto    String?
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt

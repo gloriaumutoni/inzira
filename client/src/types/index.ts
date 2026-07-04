@@ -21,6 +21,9 @@ export interface StudentProfile {
   interests: string[]
   profilePhoto?: string | null
   schoolId?: string | null
+  combinationsConsidering: string[]
+  careerInterests: string[]
+  onboardingCompleted: boolean
 }
 
 export interface ProfessionalProfile {

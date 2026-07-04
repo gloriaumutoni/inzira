@@ -57,3 +57,11 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
+
+export const getSectors = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careersService.getSectors())
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}

@@ -4,6 +4,7 @@ import { authMiddleware, roleGuard } from '../middleware'
 
 const router = Router()
 
+router.get('/sectors', authMiddleware, careersController.getSectors)
 router.get('/', authMiddleware, careersController.list)
 router.get('/:id', authMiddleware, careersController.getOne)
 router.post('/', authMiddleware, roleGuard('ADMIN'), careersController.create)
