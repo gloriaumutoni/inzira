@@ -1,105 +1,30 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Users,
-  Briefcase,
-  UserCheck,
-  BookOpen,
-  Video,
-  CheckCircle,
-} from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import { useNavigate } from 'react-router-dom'
+import { Users, Briefcase, CheckCircle, GraduationCap, BookOpen, UserCheck } from 'lucide-react'
 import useAdminStats from '@/hooks/useAdminStats'
-import useVerification from '@/hooks/useVerification'
-import InterviewSlotsPanel from '@/components/admin/InterviewSlotsPanel'
 
-const BAR_RADIUS: [number, number, number, number] = [3, 3, 0, 0]
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'Just now'
-  if (m < 60) return `${m} min${m === 1 ? '' : 's'} ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`
-  const d = Math.floor(h / 24)
-  return `${d} day${d === 1 ? '' : 's'} ago`
-}
-
-function sessionIcon(type: string) {
-  if (type === 'FREE_INTRO') return <BookOpen size={14} />
-  if (type === 'PREMIUM') return <CheckCircle size={14} />
-  return <Video size={14} />
-}
-
-function sessionIconBg(type: string): string {
-  if (type === 'FREE_INTRO') return 'bg-warning/20 text-warning'
-  if (type === 'PREMIUM') return 'bg-success/20 text-success'
-  return 'bg-accent/20 text-accent'
-}
-
-function statusBadge(status: string): string {
-  if (status === 'COMPLETED') return 'bg-success/10 text-success'
-  if (status === 'CONFIRMED') return 'bg-accent/10 text-accent'
-  if (status === 'CANCELLED') return 'bg-error/10 text-error'
-  if (status === 'RESCHEDULED') return 'bg-warning/10 text-warning'
-  return 'bg-border text-muted'
-}
 
 const AdminOverview = () => {
   const { stats, loading } = useAdminStats()
-  const { professionals } = useVerification()
-  const [search, setSearch] = useState('')
-  const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '6M'>('6M')
-
-  const filteredGrowth =
-    chartPeriod === '6M'
-      ? (stats?.platformGrowth ?? [])
-      : (stats?.platformGrowth ?? []).slice(-1)
-
-  const filteredSessions = (stats?.recentSessions ?? []).filter(
-    (s) =>
-      !search ||
-      s.studentCode.toLowerCase().includes(search.toLowerCase()) ||
-      s.type.toLowerCase().includes(search.toLowerCase()) ||
-      s.status.toLowerCase().includes(search.toLowerCase()),
-  )
+  const navigate = useNavigate()
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Platform Overview</h1>
-          <p className="text-sm text-muted mt-1">Real-time snapshot of Inzira's activity.</p>
-        </div>
-        <input
-          type="text"
-          placeholder="Search activity, students, or reports..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 text-sm w-64 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
-        />
+      <div>
+        <h1 className="text-xl font-bold text-primary">Platform Overview</h1>
+        <p className="text-sm text-muted mt-1">Real-time snapshot of Inzira's activity.</p>
       </div>
 
       {/* Top stats row */}
       {loading ? (
-        <div className="grid grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
             <div key={i} className="animate-pulse bg-border rounded-xl h-28" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           {[
             {
               Icon: Users,
@@ -120,11 +45,20 @@ const AdminOverview = () => {
               positive: true,
             },
             {
-              Icon: UserCheck,
+              Icon: CheckCircle,
               bg: 'bg-warning/10',
               color: 'text-warning',
               value: stats?.activeMentors ?? 0,
               label: 'Active Mentors',
+              growth: null,
+              positive: true,
+            },
+            {
+              Icon: GraduationCap,
+              bg: 'bg-primary/10',
+              color: 'text-primary',
+              value: stats?.approvedCareerGuides ?? 0,
+              label: 'Approved Career Guides',
               growth: null,
               positive: true,
             },
@@ -149,52 +83,69 @@ const AdminOverview = () => {
         </div>
       )}
 
-      {/* Chart + Attention */}
+      {/* How it works + Attention */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-surface rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-primary">Platform Growth</h2>
-            <div className="flex gap-1 bg-background rounded-lg p-1">
-              {(['1W', '1M', '6M'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setChartPeriod(p)}
-                  className={
-                    chartPeriod === p
-                      ? 'bg-surface shadow-sm text-primary text-xs px-3 py-1 rounded-md'
-                      : 'text-muted text-xs px-3 py-1'
-                  }
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+          <h2 className="text-base font-semibold text-primary mb-1">How Inzira Works</h2>
+          <p className="text-sm text-muted mb-5">
+            Inzira connects Rwandan secondary school students with verified professionals and career guides, helping them explore careers and make informed academic choices.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              {
+                Icon: Users,
+                bg: 'bg-accent/10',
+                color: 'text-accent',
+                title: 'Students',
+                desc: 'O-Level and A-Level students sign up, browse professionals by sector, and book career guidance sessions.',
+              },
+              {
+                Icon: Briefcase,
+                bg: 'bg-success/10',
+                color: 'text-success',
+                title: 'Professionals',
+                desc: 'Industry professionals register, get admin-verified, and offer free intro and premium 1-on-1 sessions to students.',
+              },
+              {
+                Icon: CheckCircle,
+                bg: 'bg-warning/10',
+                color: 'text-warning',
+                title: 'Mentors',
+                desc: 'Verified professionals apply for mentor status through an admin interview. Approved mentors run group sessions for many students at once.',
+              },
+              {
+                Icon: GraduationCap,
+                bg: 'bg-primary/10',
+                color: 'text-primary',
+                title: 'Career Guides',
+                desc: 'School counselors registered on Inzira who support students within their school and help them navigate the platform.',
+              },
+              {
+                Icon: BookOpen,
+                bg: 'bg-error/10',
+                color: 'text-error',
+                title: 'Sessions',
+                desc: 'Students book free intro sessions to explore careers, then upgrade to premium sessions for in-depth guidance with their chosen professional.',
+              },
+              {
+                Icon: UserCheck,
+                bg: 'bg-border',
+                color: 'text-muted',
+                title: 'Admin Role',
+                desc: 'You verify professionals, approve mentor applications, manage interview slots, and oversee schools and career guides.',
+              },
+            ].map(({ Icon, bg, color, title, desc }) => (
+              <div key={title} className="flex gap-3">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${bg}`}>
+                  <Icon size={16} className={color} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-primary">{title}</p>
+                  <p className="text-xs text-muted mt-0.5 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
-          {loading ? (
-            <div className="animate-pulse bg-border rounded-xl h-48 mt-4" />
-          ) : filteredGrowth.length < 2 ? (
-            <p className="text-sm text-muted mt-6">Not enough data to display chart.</p>
-          ) : (
-            <div style={{ width: '100%', height: 220 }} className="mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredGrowth} barGap={2} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11, fill: '#64748B' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis hide />
-                  <Tooltip />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="sessions" name="Sessions" fill="#0F2B46" radius={BAR_RADIUS} />
-                  <Bar dataKey="students" name="Students" fill="#1A6B8A" radius={BAR_RADIUS} />
-                  <Bar dataKey="revenue" name="Revenue (k RWF)" fill="#16A34A" radius={BAR_RADIUS} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
         </div>
 
         <div className="bg-surface rounded-xl border border-border p-5">
@@ -202,80 +153,41 @@ const AdminOverview = () => {
           <div className="space-y-4 mt-4">
             {[
               {
-                count: professionals.length,
+                count: stats?.pendingProfessionals ?? 0,
                 cls: 'bg-warning/10 text-warning',
                 label: 'Pending Professional Verifications',
-                to: '/admin/verification',
+                tab: 'professionals' as const,
               },
               {
-                count: 0,
-                cls: 'bg-error/10 text-error',
-                label: 'Flagged Content Reports',
-                to: '#',
+                count: stats?.pendingMentors ?? 0,
+                cls: 'bg-accent/10 text-accent',
+                label: 'Pending Mentor Applications',
+                tab: 'mentors' as const,
               },
-            ].map(({ count, cls, label, to }) => (
+              {
+                count: stats?.pendingCareerGuides ?? 0,
+                cls: 'bg-primary/10 text-primary',
+                label: 'Pending Career Guide Verifications',
+                tab: 'careerGuides' as const,
+              },
+            ].map(({ count, cls, label, tab }) => (
               <div key={label} className="flex items-start gap-3">
-                <span
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${cls}`}
-                >
+                <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${cls}`}>
                   {count}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-primary">{label}</p>
-                  <Link to={to} className="text-xs text-accent hover:underline">
-                    Review →
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent sessions */}
-      <div className="bg-surface rounded-xl border border-border p-5">
-        <div className="flex justify-between items-center">
-          <h2 className="text-base font-semibold text-primary">Recent Sessions</h2>
-          <span className="text-sm text-accent cursor-default select-none">View All</span>
-        </div>
-        {loading ? (
-          <div className="space-y-3 mt-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="animate-pulse bg-border rounded h-12" />
-            ))}
-          </div>
-        ) : filteredSessions.length === 0 ? (
-          <p className="text-sm text-muted mt-4">No recent sessions.</p>
-        ) : (
-          <div className="mt-4">
-            {filteredSessions.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 py-3 border-b border-border last:border-0"
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${sessionIconBg(s.type)}`}
-                >
-                  {sessionIcon(s.type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-primary">Session #{s.id.slice(0, 4).toUpperCase()}</p>
-                  <p className="text-xs text-muted">
-                    {s.studentCode} · {s.grade}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs text-muted">{timeAgo(s.scheduledAt)}</p>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${statusBadge(s.status)}`}
+                  <button
+                    onClick={() => navigate('/admin/verification', { state: { tab } })}
+                    className="text-xs text-accent hover:underline"
                   >
-                    {s.status}
-                  </span>
+                    Review →
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Platform health */}
@@ -337,9 +249,6 @@ const AdminOverview = () => {
           </div>
         )}
       </div>
-
-      <InterviewSlotsPanel />
-
     </div>
   )
 }

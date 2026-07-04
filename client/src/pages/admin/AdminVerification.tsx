@@ -1,629 +1,521 @@
 import { useState } from 'react'
-import { ExternalLink, X } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { CheckCircle, ExternalLink, UserCheck, Award, GraduationCap, X } from 'lucide-react'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
-import useVerification, { PendingProfessional } from '@/hooks/useVerification'
-import useMentorApplications, { MentorApplication } from '@/hooks/useMentorApplications'
-import useCareerGuideVerification, { PendingCareerGuide } from '@/hooks/useCareerGuideVerification'
+import useVerification from '@/hooks/useVerification'
+import useMentorApplications from '@/hooks/useMentorApplications'
+import useCareerGuideVerification from '@/hooks/useCareerGuideVerification'
+import useVerificationStats from '@/hooks/useVerificationStats'
+import useAdminStats from '@/hooks/useAdminStats'
+
+type VerificationType = 'professionals' | 'mentors' | 'career-guides'
+
+function initials(first: string, last: string): string {
+  return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
+}
+
+const EmptyState = ({ label }: { label: string }) => (
+  <div className="text-center py-16">
+    <CheckCircle className="w-10 h-10 text-success mx-auto mb-3" />
+    <p className="text-sm font-semibold text-primary">All clear</p>
+    <p className="text-xs text-muted mt-1">No pending {label} at the moment.</p>
+  </div>
+)
+
+const SKELETON_KEYS = ['a', 'b', 'c'] as const
+
+const LoadingSkeleton = () => (
+  <div className="space-y-4">
+    {SKELETON_KEYS.map((k) => (
+      <div key={k} className="animate-pulse bg-border rounded-xl h-64" />
+    ))}
+  </div>
+)
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+interface StatCardProps {
+  icon: React.ReactNode
+  label: string
+  value: number
+  bg: string
+  loading: boolean
+}
+
+const StatCard = ({ icon, label, value, bg, loading }: StatCardProps) => (
+  <div className="bg-surface rounded-xl border border-border p-5 flex items-start gap-3">
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${bg}`}>
+      {icon}
+    </div>
+    <div>
+      <p className="text-2xl font-bold text-primary">{loading ? '—' : value.toLocaleString()}</p>
+      <p className="text-xs text-muted uppercase tracking-wide mt-1">{label}</p>
+    </div>
+  </div>
+)
 
 const AdminVerification = () => {
-  const { professionals, loading, error, refetch } = useVerification()
-  const { applications, loading: mentorLoading, error: mentorError, refetch: refetchMentors } = useMentorApplications()
-  const { careerGuides, loading: cgLoading, error: cgError, refetch: refetchCG } = useCareerGuideVerification()
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState<'professionals' | 'mentors' | 'careerGuides'>(
+    ((location.state as { tab?: string })?.tab as 'professionals' | 'mentors' | 'careerGuides') ?? 'professionals'
+  )
   const [actioningId, setActioningId] = useState<string | null>(null)
-  const [selectedProfessional, setSelectedProfessional] = useState<PendingProfessional | null>(null)
-  const [activeTab, setActiveTab] = useState<'professionals' | 'mentors' | 'careerGuides'>('professionals')
-  const [selectedApplication, setSelectedApplication] = useState<MentorApplication | null>(null)
-  const [mentorActioningId, setMentorActioningId] = useState<string | null>(null)
-  const [selectedCareerGuide, setSelectedCareerGuide] = useState<PendingCareerGuide | null>(null)
-  const [cgActioningId, setCgActioningId] = useState<string | null>(null)
+  const [declineModal, setDeclineModal] = useState<{
+    id: string
+    type: VerificationType
+    refetch: () => void
+  } | null>(null)
+  const [declineReason, setDeclineReason] = useState('')
 
-  const handleApprove = async (id: string) => {
+  const { professionals, loading: proLoading, refetch: refetchPros } = useVerification()
+  const { applications: mentorApps, loading: mentorLoading, refetch: refetchMentors } = useMentorApplications()
+  const { careerGuides, loading: cgLoading, refetch: refetchCGs } = useCareerGuideVerification()
+  const { stats, loading: statsLoading } = useVerificationStats()
+  const { refetch: statsRefetch } = useAdminStats()
+
+  const handleApprove = async (
+    id: string,
+    type: 'professionals' | 'mentors' | 'career-guides',
+    refetch: () => void,
+  ) => {
     setActioningId(id)
     try {
-      await api.patch(`/admin/verification/professionals/${id}/approve`)
-      toast.success('Professional approved. They will receive a confirmation email.')
-      setSelectedProfessional(null)
+      await api.patch(`/admin/verification/${type}/${id}/approve`)
+      toast.success('Approved successfully')
       refetch()
+      statsRefetch()
     } catch {
-      toast.error('Could not approve. Please try again.')
+      toast.error('Action failed')
     } finally {
       setActioningId(null)
     }
   }
 
-  const handleDecline = async (id: string) => {
+  const openDeclineModal = (
+    id: string,
+    type: VerificationType,
+    refetch: () => void,
+  ) => {
+    setDeclineModal({ id, type, refetch })
+    setDeclineReason('')
+  }
+
+  const confirmDecline = async () => {
+    if (!declineModal) return
+    const { id, type, refetch } = declineModal
     setActioningId(id)
     try {
-      await api.patch(`/admin/verification/professionals/${id}/reject`)
-      toast.success('Professional declined.')
-      setSelectedProfessional(null)
+      await api.patch(`/admin/verification/${type}/${id}/reject`, {
+        reason: declineReason.trim() || 'Does not meet current requirements',
+      })
+      toast.success('Declined')
       refetch()
+      statsRefetch()
+      setDeclineModal(null)
     } catch {
-      toast.error('Could not decline. Please try again.')
+      toast.error('Action failed')
     } finally {
       setActioningId(null)
     }
   }
 
-  const handleApproveMentor = async (id: string) => {
-    setMentorActioningId(id)
-    try {
-      await api.patch(`/admin/verification/mentors/${id}/approve`)
-      toast.success('Mentor application approved.')
-      setSelectedApplication(null)
-      refetchMentors()
-    } catch {
-      toast.error('Could not approve. Please try again.')
-    } finally {
-      setMentorActioningId(null)
-    }
-  }
-
-  const handleDeclineMentor = async (id: string) => {
-    setMentorActioningId(id)
-    try {
-      await api.patch(`/admin/verification/mentors/${id}/reject`)
-      toast.success('Mentor application declined.')
-      setSelectedApplication(null)
-      refetchMentors()
-    } catch {
-      toast.error('Could not decline. Please try again.')
-    } finally {
-      setMentorActioningId(null)
-    }
-  }
-
-  const handleMarkInterviewed = async (id: string) => {
-    setMentorActioningId(id)
-    try {
-      await api.patch(`/admin/verification/mentors/${id}/interviewed`)
-      toast.success('Marked as interviewed.')
-      setSelectedApplication(null)
-      refetchMentors()
-    } catch {
-      toast.error('Could not update status. Please try again.')
-    } finally {
-      setMentorActioningId(null)
-    }
-  }
-
-  const handleApproveCG = async (id: string) => {
-    setCgActioningId(id)
-    try {
-      await api.patch(`/admin/verification/career-guides/${id}/approve`)
-      toast.success('Career guide approved. They will receive a confirmation email.')
-      setSelectedCareerGuide(null)
-      refetchCG()
-    } catch {
-      toast.error('Could not approve. Please try again.')
-    } finally {
-      setCgActioningId(null)
-    }
-  }
-
-  const handleDeclineCG = async (id: string) => {
-    setCgActioningId(id)
-    try {
-      await api.patch(`/admin/verification/career-guides/${id}/reject`)
-      toast.success('Career guide declined.')
-      setSelectedCareerGuide(null)
-      refetchCG()
-    } catch {
-      toast.error('Could not decline. Please try again.')
-    } finally {
-      setCgActioningId(null)
-    }
-  }
+  const activeTabClass =
+    'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2'
+  const inactiveTabClass =
+    'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2'
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-primary">Verification Queue</h1>
-        <p className="text-sm text-muted mt-0.5">Review and approve pending professional applications</p>
+        <h1 className="text-xl font-bold text-primary">Verification</h1>
+        <p className="text-sm text-muted mt-1">
+          Review and approve pending professional, mentor, and career guide applications.
+        </p>
       </div>
 
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          icon={<UserCheck className="w-5 h-5 text-success" />}
+          label="APPROVED PROFESSIONALS"
+          value={stats.approvedProfessionals}
+          bg="bg-success/10"
+          loading={statsLoading}
+        />
+        <StatCard
+          icon={<Award className="w-5 h-5 text-accent" />}
+          label="APPROVED MENTORS"
+          value={stats.approvedMentors}
+          bg="bg-accent/10"
+          loading={statsLoading}
+        />
+        <StatCard
+          icon={<GraduationCap className="w-5 h-5 text-primary" />}
+          label="APPROVED CAREER GUIDES"
+          value={stats.approvedCareerGuides}
+          bg="bg-primary/10"
+          loading={statsLoading}
+        />
+      </div>
+
+      {/* Tab bar */}
       <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
-        {(['professionals', 'mentors', 'careerGuides'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={
-              activeTab === tab
-                ? 'bg-primary text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors'
-                : 'text-muted text-sm font-medium px-4 py-1.5 rounded-lg hover:text-primary transition-colors'
-            }
-          >
-            {tab === 'professionals' ? 'Professionals' : tab === 'mentors' ? 'Mentor Applications' : 'Career Guides'}
-          </button>
-        ))}
+        <button
+          onClick={() => setActiveTab('professionals')}
+          className={activeTab === 'professionals' ? activeTabClass : inactiveTabClass}
+        >
+          Professionals
+          {professionals.length > 0 && (
+            <span className="bg-warning/20 text-warning text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {professionals.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('mentors')}
+          className={activeTab === 'mentors' ? activeTabClass : inactiveTabClass}
+        >
+          Mentors
+          {mentorApps.length > 0 && (
+            <span className="bg-warning/20 text-warning text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {mentorApps.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('careerGuides')}
+          className={activeTab === 'careerGuides' ? activeTabClass : inactiveTabClass}
+        >
+          Career Guides
+          {careerGuides.length > 0 && (
+            <span className="bg-warning/20 text-warning text-xs font-bold px-1.5 py-0.5 rounded-full">
+              {careerGuides.length}
+            </span>
+          )}
+        </button>
       </div>
 
+      {/* Professionals tab */}
       {activeTab === 'professionals' && (
-        <>
-          <div className="bg-surface rounded-xl border border-border p-4 inline-flex flex-col items-center min-w-[140px]">
-            <p className="text-2xl font-bold text-primary">
-              {loading ? '—' : professionals.length}
-            </p>
-            <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending</p>
-          </div>
-
-      {loading ? (
         <div className="space-y-4">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="animate-pulse bg-border rounded-xl h-48" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="bg-error/10 border border-error/20 rounded-xl p-6 text-center">
-          <p className="text-sm text-error">Unable to load verification queue. Please refresh.</p>
-        </div>
-      ) : professionals.length === 0 ? (
-        <div className="bg-surface border border-border rounded-xl p-10 text-center">
-          <p className="text-sm text-muted">No professionals pending verification.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {professionals.map((pro) => (
-            <div key={pro.id} className="bg-surface rounded-xl border border-border p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-primary">
-                    {pro.firstName} {pro.lastName}
-                  </p>
-                  <p className="text-xs text-muted">{pro.email}</p>
-                </div>
-                <span className="bg-warning/10 text-warning text-xs font-semibold px-2 py-0.5 rounded-full">
-                  Pending
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <div>
-                  <p className="text-xs text-muted">Job Title</p>
-                  <p className="text-sm text-primary">{pro.jobTitle}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Employer</p>
-                  <p className="text-sm text-primary">{pro.employer}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Sector</p>
-                  <p className="text-sm text-primary">{pro.sector}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Submitted</p>
-                  <p className="text-sm text-primary">
-                    {new Date(pro.submittedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <p className="text-xs text-muted">Bio</p>
-                <p className="text-sm text-primary mt-1">{pro.bio}</p>
-              </div>
-
-              <div className="mt-3">
-                {pro.linkedinUrl ? (
-                  <a
-                    href={pro.linkedinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-accent hover:underline flex items-center gap-1 w-fit"
-                  >
-                    View LinkedIn Profile
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                ) : (
-                  <p className="text-xs text-error">No LinkedIn profile submitted</p>
-                )}
-              </div>
-
-              <div className="mt-4">
-                <button
-                  onClick={() => setSelectedProfessional(pro)}
-                  className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Review
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selectedProfessional && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="fixed inset-0 bg-black/40"
-            onClick={() => setSelectedProfessional(null)}
-          />
-          <div className="relative bg-surface w-full max-w-md h-full overflow-y-auto p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-primary">Review Professional</h2>
-              <button
-                onClick={() => setSelectedProfessional(null)}
-                className="text-muted hover:text-primary transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-base font-semibold text-primary">
-                  {selectedProfessional.firstName} {selectedProfessional.lastName}
-                </p>
-                <p className="text-sm text-muted">{selectedProfessional.email}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted">Job Title</p>
-                  <p className="text-sm text-primary">{selectedProfessional.jobTitle}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Employer</p>
-                  <p className="text-sm text-primary">{selectedProfessional.employer}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Sector</p>
-                  <p className="text-sm text-primary">{selectedProfessional.sector}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Submitted</p>
-                  <p className="text-sm text-primary">
-                    {new Date(selectedProfessional.submittedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted">Bio</p>
-                <p className="text-sm text-primary mt-1">{selectedProfessional.bio}</p>
-              </div>
-
-              <div>
-                {selectedProfessional.linkedinUrl ? (
-                  <a
-                    href={selectedProfessional.linkedinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-accent hover:underline flex items-center gap-1 w-fit"
-                  >
-                    View LinkedIn Profile
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                ) : (
-                  <p className="text-xs text-error">No LinkedIn profile submitted</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-8">
-              <button
-                onClick={() => setSelectedProfessional(null)}
-                className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background transition-colors"
-              >
-                Back to list
-              </button>
-              <button
-                onClick={() => handleDecline(selectedProfessional.id)}
-                disabled={actioningId === selectedProfessional.id}
-                className="flex-1 border border-error text-error py-2.5 rounded-lg text-sm font-semibold hover:bg-error/5 disabled:opacity-60 transition-colors"
-              >
-                Decline
-              </button>
-              <button
-                onClick={() => handleApprove(selectedProfessional.id)}
-                disabled={actioningId === selectedProfessional.id}
-                className="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
-              >
-                Approve
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      </>)}
-
-      {activeTab === 'mentors' && (
-        <>
-          <div className="bg-surface rounded-xl border border-border p-4 inline-flex flex-col items-center min-w-[140px]">
-            <p className="text-2xl font-bold text-primary">
-              {mentorLoading ? '—' : applications.length}
-            </p>
-            <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending</p>
-          </div>
-
-          {mentorLoading ? (
-            <div className="space-y-4">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="animate-pulse bg-border rounded-xl h-32" />
-              ))}
-            </div>
-          ) : mentorError ? (
-            <div className="bg-error/10 border border-error/20 rounded-xl p-6 text-center">
-              <p className="text-sm text-error">Unable to load mentor applications. Please refresh.</p>
-            </div>
-          ) : applications.length === 0 ? (
-            <div className="bg-surface border border-border rounded-xl p-10 text-center">
-              <p className="text-sm text-muted">No mentor applications pending.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {applications.map((app) => (
-                <div key={app.id} className="bg-surface rounded-xl border border-border p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-primary">{app.firstName} {app.lastName}</p>
-                      <p className="text-xs text-muted">{app.email}</p>
+          {proLoading && <LoadingSkeleton />}
+          {!proLoading && professionals.length === 0 && <EmptyState label="professionals" />}
+          {!proLoading && professionals.length > 0 && professionals.map((p) => (
+              <div key={p.id} className="bg-surface rounded-xl border border-border p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {initials(p.firstName, p.lastName)}
                     </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                      app.mentorApplicationStatus === 'INTERVIEWED'
-                        ? 'bg-accent/10 text-accent'
-                        : 'bg-warning/10 text-warning'
-                    }`}>
-                      {app.mentorApplicationStatus === 'INTERVIEWED' ? 'Interviewed' : 'Pending'}
-                    </span>
+                    <div>
+                      <p className="font-semibold text-primary text-sm">
+                        {p.firstName} {p.lastName}
+                      </p>
+                      <p className="text-xs text-muted">{p.email}</p>
+                    </div>
                   </div>
-                  <div className="mt-4">
+                  <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                    PENDING
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div>
+                    <p className="text-xs text-muted uppercase tracking-wide">Job Title</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">{p.jobTitle}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted uppercase tracking-wide">Employer</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">{p.employer}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted uppercase tracking-wide">Sector</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">{p.sector}</p>
+                  </div>
+                </div>
+
+                {p.linkedinUrl && (
+                  <a
+                    href={p.linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-3"
+                  >
+                    <ExternalLink className="w-3 h-3" /> LinkedIn Profile
+                  </a>
+                )}
+
+                {p.verificationAttempts > 0 && (
+                  <div className="mt-3 p-3 bg-error/5 border border-error/20 rounded-lg">
+                    <p className="text-xs font-semibold text-error">
+                      Previously declined {p.verificationAttempts} time{p.verificationAttempts === 1 ? '' : 's'}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      <span className="font-medium text-error/80">Reason: </span>
+                      {p.rejectionReason ?? 'No reason provided'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted">Submitted {formatDate(p.submittedAt)}</p>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => setSelectedApplication(app)}
-                      className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                      onClick={() => openDeclineModal(p.id, 'professionals', refetchPros)}
+                      disabled={actioningId === p.id}
+                      className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
                     >
-                      Review
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => handleApprove(p.id, 'professionals', refetchPros)}
+                      disabled={actioningId === p.id}
+                      className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {actioningId === p.id ? '…' : 'Approve'}
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+        </div>
+      )}
 
-          {selectedApplication && (
-            <div className="fixed inset-0 z-50 flex justify-end">
-              <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedApplication(null)} />
-              <div className="relative bg-surface w-full max-w-md h-full overflow-y-auto p-6 shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-primary">Review Mentor Application</h2>
-                  <button onClick={() => setSelectedApplication(null)} className="text-muted hover:text-primary transition-colors">
-                    <X className="w-5 h-5" />
-                  </button>
+      {/* Mentors tab */}
+      {activeTab === 'mentors' && (
+        <div className="space-y-4">
+          {mentorLoading && <LoadingSkeleton />}
+          {!mentorLoading && mentorApps.length === 0 && <EmptyState label="mentor applications" />}
+          {!mentorLoading && mentorApps.length > 0 && mentorApps.map((m) => (
+              <div key={m.id} className="bg-surface rounded-xl border border-border p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {initials(m.firstName, m.lastName)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-primary text-sm">
+                        {m.firstName} {m.lastName}
+                      </p>
+                      <p className="text-xs text-muted">{m.email}</p>
+                    </div>
+                  </div>
+                  <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                    PENDING
+                  </span>
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 mt-4">
                   <div>
-                    <p className="text-base font-semibold text-primary">{selectedApplication.firstName} {selectedApplication.lastName}</p>
-                    <p className="text-sm text-muted">{selectedApplication.email}</p>
+                    <p className="text-xs text-muted uppercase tracking-wide">Job Title</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">{m.jobTitle}</p>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted">Job Title</p>
-                      <p className="text-sm text-primary">{selectedApplication.jobTitle}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted">Employer</p>
-                      <p className="text-sm text-primary">{selectedApplication.employer}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted">Sector</p>
-                      <p className="text-sm text-primary">{selectedApplication.sector}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted">Applied</p>
-                      <p className="text-sm text-primary">
-                        {selectedApplication.appliedAt ? new Date(selectedApplication.appliedAt).toLocaleDateString() : '—'}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs text-muted uppercase tracking-wide">Employer</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">{m.employer}</p>
                   </div>
+                  <div>
+                    <p className="text-xs text-muted uppercase tracking-wide">Sector</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">{m.sector}</p>
+                  </div>
+                </div>
 
-                  {selectedApplication.mentorBio && (
-                    <div>
-                      <p className="text-xs text-muted">Why they want to mentor</p>
-                      <p className="text-sm text-primary mt-1">{selectedApplication.mentorBio}</p>
-                    </div>
-                  )}
+                {m.mentorBio && (
+                  <p className="text-sm text-muted mt-3 leading-relaxed line-clamp-3">{m.mentorBio}</p>
+                )}
 
-                  {selectedApplication.interview ? (
-                    <div className="mt-3 bg-surface border border-border rounded-lg p-3">
-                      <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Interview</p>
-                      <p className="text-sm text-primary">
-                        {new Date(selectedApplication.interview.scheduledAt).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                        {' at '}
-                        {new Date(selectedApplication.interview.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                {m.linkedinUrl && (
+                  <a
+                    href={m.linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-3"
+                  >
+                    <ExternalLink className="w-3 h-3" /> LinkedIn Profile
+                  </a>
+                )}
+
+                {m.interview && (
+                  <div className="mt-3 p-3 bg-accent/5 rounded-lg">
+                    <p className="text-xs text-muted uppercase tracking-wide">Interview Scheduled</p>
+                    <p className="text-sm text-primary font-medium mt-0.5">
+                      {formatDate(m.interview.scheduledAt)}
+                    </p>
+                    {m.interview.meetLink && (
                       <a
-                        href={selectedApplication.interview.meetLink}
+                        href={m.interview.meetLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-block mt-2 bg-accent text-white text-xs px-3 py-1.5 rounded-lg hover:bg-accent/90 transition-colors"
+                        className="text-xs text-accent hover:underline"
                       >
-                        Join Interview
+                        Join meeting
                       </a>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted mt-3">No interview slot booked yet.</p>
-                  )}
-
-                  <div>
-                    {selectedApplication.linkedinUrl ? (
-                      <a
-                        href={selectedApplication.linkedinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-accent hover:underline flex items-center gap-1 w-fit"
-                      >
-                        View LinkedIn Profile
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    ) : (
-                      <p className="text-xs text-error">No LinkedIn profile on file</p>
                     )}
                   </div>
-                </div>
+                )}
 
-                <div className="flex gap-3 mt-8 flex-wrap">
-                  <button
-                    onClick={() => setSelectedApplication(null)}
-                    className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background transition-colors"
-                  >
-                    Back to list
-                  </button>
-                  {selectedApplication.mentorApplicationStatus === 'PENDING' && (
+                {m.mentorApplicationAttempts > 0 && (
+                  <div className="mt-3 p-3 bg-error/5 border border-error/20 rounded-lg">
+                    <p className="text-xs font-semibold text-error">
+                      Previously declined {m.mentorApplicationAttempts} time{m.mentorApplicationAttempts === 1 ? '' : 's'}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      <span className="font-medium text-error/80">Reason: </span>
+                      {m.mentorRejectionReason ?? 'No reason provided'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted">Applied {formatDate(m.appliedAt)}</p>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => handleMarkInterviewed(selectedApplication.id)}
-                      disabled={mentorActioningId === selectedApplication.id}
-                      className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background disabled:opacity-60 transition-colors"
+                      onClick={() => openDeclineModal(m.id, 'mentors', refetchMentors)}
+                      disabled={actioningId === m.id}
+                      className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
                     >
-                      Mark Interviewed
+                      Decline
                     </button>
-                  )}
-                  <button
-                    onClick={() => handleDeclineMentor(selectedApplication.id)}
-                    disabled={mentorActioningId === selectedApplication.id}
-                    className="flex-1 border border-error text-error py-2.5 rounded-lg text-sm font-semibold hover:bg-error/5 disabled:opacity-60 transition-colors"
-                  >
-                    Decline
-                  </button>
-                  <button
-                    onClick={() => handleApproveMentor(selectedApplication.id)}
-                    disabled={mentorActioningId === selectedApplication.id}
-                    className="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
-                  >
-                    Approve
-                  </button>
+                    <button
+                      onClick={() => handleApprove(m.id, 'mentors', refetchMentors)}
+                      disabled={actioningId === m.id}
+                      className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {actioningId === m.id ? '…' : 'Approve'}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </>
+            ))}
+        </div>
       )}
 
-      {activeTab === 'careerGuides' && (
-        <>
-          <div className="bg-surface rounded-xl border border-border p-4 inline-flex flex-col items-center min-w-[140px]">
-            <p className="text-2xl font-bold text-primary">
-              {cgLoading ? '—' : careerGuides.length}
+      {/* Decline modal */}
+      {declineModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <dialog
+            open
+            aria-labelledby="decline-modal-title"
+            className="bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 m-0 border-0"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 id="decline-modal-title" className="text-base font-bold text-primary">Decline application</h2>
+              <button onClick={() => setDeclineModal(null)} className="text-muted hover:text-primary">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted mb-4">
+              Provide a reason so the applicant understands the decision.
             </p>
-            <p className="text-xs text-muted uppercase tracking-wide mt-1">Pending</p>
-          </div>
+            <textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="E.g. Missing LinkedIn profile, incomplete bio…"
+              rows={4}
+              autoFocus
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-error/30 bg-background text-primary"
+            />
+            <div className="flex gap-2 mt-4 justify-end">
+              <button
+                onClick={() => setDeclineModal(null)}
+                className="px-4 py-2 text-sm text-muted hover:text-primary border border-border rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDecline}
+                disabled={!!actioningId || !declineReason.trim()}
+                className="px-4 py-2 text-sm bg-error text-white rounded-lg hover:bg-error/90 disabled:opacity-60"
+              >
+                {actioningId ? '…' : 'Confirm decline'}
+              </button>
+            </div>
+          </dialog>
+        </div>
+      )}
 
-          {cgLoading ? (
-            <div className="space-y-4">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="animate-pulse bg-border rounded-xl h-32" />
-              ))}
-            </div>
-          ) : cgError ? (
-            <div className="bg-error/10 border border-error/20 rounded-xl p-6 text-center">
-              <p className="text-sm text-error">Unable to load career guide queue. Please refresh.</p>
-            </div>
-          ) : careerGuides.length === 0 ? (
-            <div className="bg-surface border border-border rounded-xl p-10 text-center">
-              <p className="text-sm text-muted">No career guides pending verification.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {careerGuides.map((cg) => (
-                <div key={cg.id} className="bg-surface rounded-xl border border-border p-5">
-                  <div className="flex items-start justify-between">
+      {/* Career Guides tab */}
+      {activeTab === 'careerGuides' && (
+        <div className="space-y-4">
+          {cgLoading && <LoadingSkeleton />}
+          {!cgLoading && careerGuides.length === 0 && <EmptyState label="career guide applications" />}
+          {!cgLoading && careerGuides.length > 0 && careerGuides.map((cg) => (
+              <div key={cg.id} className="bg-surface rounded-xl border border-border p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {initials(cg.firstName, cg.lastName)}
+                    </div>
                     <div>
-                      <p className="text-sm font-semibold text-primary">{cg.firstName} {cg.lastName}</p>
+                      <p className="font-semibold text-primary text-sm">
+                        {cg.firstName} {cg.lastName}
+                      </p>
                       <p className="text-xs text-muted">{cg.email}</p>
                     </div>
-                    <span className="bg-warning/10 text-warning text-xs font-semibold px-2 py-0.5 rounded-full">
-                      Pending
-                    </span>
                   </div>
-                  <p className="text-xs text-muted mt-2">{cg.school}</p>
-                  <div className="mt-4">
+                  <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                    PENDING
+                  </span>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-xs text-muted uppercase tracking-wide">School</p>
+                  <p className="text-sm text-primary font-medium mt-0.5">{cg.school ?? '—'}</p>
+                </div>
+
+                {cg.linkedinUrl && (
+                  <a
+                    href={cg.linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-3"
+                  >
+                    <ExternalLink className="w-3 h-3" /> LinkedIn Profile
+                  </a>
+                )}
+
+                {cg.rejectionCount > 0 && (
+                  <div className="mt-3 p-3 bg-error/5 border border-error/20 rounded-lg">
+                    <p className="text-xs font-semibold text-error">
+                      Previously declined {cg.rejectionCount} time{cg.rejectionCount === 1 ? '' : 's'}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      <span className="font-medium text-error/80">Reason: </span>
+                      {cg.rejectionReason ?? 'No reason provided'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted">Submitted {formatDate(cg.submittedAt)}</p>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => setSelectedCareerGuide(cg)}
-                      className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                      onClick={() => openDeclineModal(cg.id, 'career-guides', refetchCGs)}
+                      disabled={actioningId === cg.id}
+                      className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
                     >
-                      Review
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => handleApprove(cg.id, 'career-guides', refetchCGs)}
+                      disabled={actioningId === cg.id}
+                      className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {actioningId === cg.id ? '…' : 'Approve'}
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {selectedCareerGuide && (
-            <div className="fixed inset-0 z-50 flex justify-end">
-              <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedCareerGuide(null)} />
-              <div className="relative bg-surface w-full max-w-md h-full overflow-y-auto p-6 shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-primary">Review Career Guide</h2>
-                  <button onClick={() => setSelectedCareerGuide(null)} className="text-muted hover:text-primary transition-colors">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-base font-semibold text-primary">{selectedCareerGuide.firstName} {selectedCareerGuide.lastName}</p>
-                    <p className="text-sm text-muted">{selectedCareerGuide.email}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted">School</p>
-                      <p className="text-sm text-primary">{selectedCareerGuide.school}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted">Submitted</p>
-                      <p className="text-sm text-primary">
-                        {new Date(selectedCareerGuide.submittedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    {selectedCareerGuide.linkedinUrl ? (
-                      <a
-                        href={selectedCareerGuide.linkedinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-accent hover:underline flex items-center gap-1 w-fit"
-                      >
-                        View LinkedIn Profile
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    ) : (
-                      <p className="text-xs text-error">No LinkedIn profile submitted</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-8">
-                  <button
-                    onClick={() => setSelectedCareerGuide(null)}
-                    className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background transition-colors"
-                  >
-                    Back to list
-                  </button>
-                  <button
-                    onClick={() => handleDeclineCG(selectedCareerGuide.id)}
-                    disabled={cgActioningId === selectedCareerGuide.id}
-                    className="flex-1 border border-error text-error py-2.5 rounded-lg text-sm font-semibold hover:bg-error/5 disabled:opacity-60 transition-colors"
-                  >
-                    Decline
-                  </button>
-                  <button
-                    onClick={() => handleApproveCG(selectedCareerGuide.id)}
-                    disabled={cgActioningId === selectedCareerGuide.id}
-                    className="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
-                  >
-                    Approve
-                  </button>
-                </div>
               </div>
-            </div>
-          )}
-        </>
+            ))}
+        </div>
       )}
     </div>
   )

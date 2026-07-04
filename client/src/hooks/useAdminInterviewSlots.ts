@@ -1,5 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
+
+export interface SlotBooking {
+  id: string
+  scheduledAt: string
+  meetLink: string
+  professional: {
+    id: string
+    firstName: string
+    lastName: string
+    jobTitle: string
+    employer: string
+    mentorBio: string | null
+    mentorAppliedAt: string | null
+    user: { email: string }
+  }
+}
 
 export interface AdminInterviewSlot {
   id: string
@@ -9,15 +26,11 @@ export interface AdminInterviewSlot {
   endHour: number
   endMinute: number
   meetLink: string
+  isActive: boolean
+  bookings: SlotBooking[]
 }
 
-interface UseAdminInterviewSlotsResult {
-  slots: AdminInterviewSlot[]
-  loading: boolean
-  refetch: () => void
-}
-
-const useAdminInterviewSlots = (): UseAdminInterviewSlotsResult => {
+const useAdminInterviewSlots = () => {
   const [slots, setSlots] = useState<AdminInterviewSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
@@ -29,7 +42,7 @@ const useAdminInterviewSlots = (): UseAdminInterviewSlotsResult => {
         const { data } = await api.get('/admin/interview-slots')
         setSlots(data.data.slots)
       } catch {
-        setSlots([])
+        toast.error('Could not load interview slots.')
       } finally {
         setLoading(false)
       }

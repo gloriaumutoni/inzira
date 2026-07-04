@@ -8,13 +8,23 @@ export interface PlatformGrowthPoint {
   revenue: number
 }
 
-export interface RecentSession {
+export interface MentorSession {
   id: string
-  studentCode: string
+  studentName: string
+  school: string | null
   type: string
   status: string
   scheduledAt: string
   grade: string
+}
+
+export interface GroupSessionItem {
+  id: string
+  title: string
+  sector: string
+  scheduledAt: string
+  enrolmentCount: number
+  isCancelled: boolean
 }
 
 export interface PlatformHealth {
@@ -27,19 +37,24 @@ export interface PlatformHealth {
 export interface AdminStats {
   totalStudents: number
   activeProfessionals: number
-  activeMentors: number
   totalSessions: number
   totalGroupSessions: number
   newStudentsThisWeek: number
   newProfessionalsThisWeek: number
   mentorshipSessions: number
-  mentorshipSessionsLastWeek: number
   userRegistrations: number
-  userRegistrationsLastWeek: number
-  supportTickets: number
-  supportTicketsLastWeek: number
+  approvedProfessionals: number
+  approvedMentors: number
+  activeMentors: number
+  approvedCareerGuides: number
+  pendingProfessionals: number
+  pendingMentors: number
+  pendingCareerGuides: number
   platformGrowth: PlatformGrowthPoint[]
-  recentSessions: RecentSession[]
+  recentMentorSessions: MentorSession[]
+  upcomingMentorSessions: MentorSession[]
+  recentGroupSessions: GroupSessionItem[]
+  upcomingGroupSessions: GroupSessionItem[]
   platformHealth: PlatformHealth
 }
 
@@ -62,7 +77,18 @@ const useAdminStats = (): UseAdminStatsResult => {
       setError(false)
       try {
         const { data } = await api.get('/admin/stats')
-        setStats(data.data)
+        const raw = data.data
+        setStats({
+          ...raw,
+          pendingProfessionals: raw.pendingProfessionals ?? 0,
+          pendingMentors: raw.pendingMentors ?? 0,
+          pendingCareerGuides: raw.pendingCareerGuides ?? 0,
+          activeMentors: raw.activeMentors ?? 0,
+          recentMentorSessions: raw.recentMentorSessions ?? [],
+          upcomingMentorSessions: raw.upcomingMentorSessions ?? [],
+          recentGroupSessions: raw.recentGroupSessions ?? [],
+          upcomingGroupSessions: raw.upcomingGroupSessions ?? [],
+        })
       } catch {
         setError(true)
       } finally {

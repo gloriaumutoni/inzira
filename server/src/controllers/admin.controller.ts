@@ -1,9 +1,25 @@
 import { Request, Response } from 'express'
 import * as adminService from '../services/admin.service'
-import { ok, badRequest } from '../utils/response'
-import { sendVerificationResultAlert } from '../services/email.service'
+import { ok, badRequest, conflict } from '../utils/response'
 import { prisma } from '../prisma/client'
 import { expandWeeklyTemplate } from '../utils/slots'
+
+export const getPublicStats = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [oLevelStudents, aLevelStudents, professionals, mentors, careerGuides, partnerSchools] =
+      await Promise.all([
+        prisma.student.count({ where: { level: 'O_LEVEL' } }),
+        prisma.student.count({ where: { level: 'A_LEVEL' } }),
+        prisma.professional.count({ where: { isVerified: true } }),
+        prisma.professional.count({ where: { isMentor: true } }),
+        prisma.careerGuide.count({ where: { isVerified: true } }),
+        prisma.school.count({ where: { isActive: true } }),
+      ])
+    ok(res, { oLevelStudents, aLevelStudents, professionals, mentors, careerGuides, partnerSchools })
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
 
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -15,8 +31,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
 
 export const getPendingProfessionals = async (req: Request, res: Response): Promise<void> => {
   try {
-    const professionals = await adminService.getPendingProfessionals()
-    ok(res, { professionals })
+    ok(res, await adminService.getPendingProfessionals())
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -24,14 +39,7 @@ export const getPendingProfessionals = async (req: Request, res: Response): Prom
 
 export const approveProfessional = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await adminService.approveProfessional(req.params.id)
-    await sendVerificationResultAlert({
-      roleLabel: 'Professional',
-      email: result.user.email,
-      firstName: result.firstName,
-      approved: true,
-    })
-    ok(res, result)
+    ok(res, await adminService.approveProfessional(req.params.id))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -39,14 +47,55 @@ export const approveProfessional = async (req: Request, res: Response): Promise<
 
 export const rejectProfessional = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await adminService.rejectProfessional(req.params.id, req.body.reason)
-    await sendVerificationResultAlert({
-      roleLabel: 'Professional',
-      email: result.professional.user.email,
-      firstName: result.professional.firstName,
-      approved: false,
-    })
-    ok(res, { rejected: result.rejected, id: result.id })
+    ok(res, await adminService.rejectProfessional(req.params.id, req.body.reason))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getPendingCareerGuides = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.getPendingCareerGuides())
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const approveCareerGuide = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.approveCareerGuide(req.params.id))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const rejectCareerGuide = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.rejectCareerGuide(req.params.id, req.body.reason))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getPendingMentorApplications = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.getPendingMentorApplications())
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const approveMentorApplication = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.approveMentorApplication(req.params.id))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const rejectMentorApplication = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.rejectMentorApplication(req.params.id, req.body.reason))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -76,176 +125,33 @@ export const updateQuota = async (req: Request, res: Response): Promise<void> =>
   }
 }
 
-export const getPendingMentorApplications = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const applications = await prisma.professional.findMany({
-      where: { mentorApplicationStatus: { in: ['PENDING', 'INTERVIEWED'] } },
-      include: {
-        user: { select: { email: true } },
-        interviewBooking: { include: { adminSlot: true } },
-      },
-      orderBy: { mentorAppliedAt: 'desc' },
-    })
-
-    ok(res, {
-      applications: applications.map((p) => ({
-        id: p.id,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        email: p.user.email,
-        jobTitle: p.jobTitle,
-        employer: p.employer,
-        sector: p.sector,
-        linkedinUrl: p.linkedinUrl,
-        mentorBio: p.mentorBio,
-        mentorApplicationStatus: p.mentorApplicationStatus,
-        appliedAt: p.mentorAppliedAt,
-        interview: p.interviewBooking
-          ? {
-              scheduledAt: p.interviewBooking.scheduledAt,
-              meetLink: p.interviewBooking.meetLink,
-              adminSlotId: p.interviewBooking.adminSlotId,
-            }
-          : null,
-      })),
-    })
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const markMentorInterviewed = async (req: Request, res: Response): Promise<void> => {
-  try {
-    await prisma.professional.update({
-      where: { id: req.params.id },
-      data: { mentorApplicationStatus: 'INTERVIEWED' },
-    })
-    ok(res, { marked: true })
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const approveMentorApplication = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const professional = await prisma.professional.update({
-      where: { id: req.params.id },
-      data: { isMentor: true, mentorApplicationStatus: 'APPROVED' },
-      include: { user: { select: { email: true } } },
-    })
-
-    await sendVerificationResultAlert({
-      roleLabel: 'Mentor Application',
-      email: professional.user.email,
-      firstName: professional.firstName,
-      approved: true,
-    })
-
-    ok(res, professional)
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const rejectMentorApplication = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const professional = await prisma.professional.update({
-      where: { id: req.params.id },
-      data: { isMentor: false, mentorApplicationStatus: 'REJECTED' },
-      include: { user: { select: { email: true } } },
-    })
-
-    await prisma.mentorApplicationInterviewBooking.deleteMany({
-      where: { professionalId: req.params.id },
-    })
-
-    await sendVerificationResultAlert({
-      roleLabel: 'Mentor Application',
-      email: professional.user.email,
-      firstName: professional.firstName,
-      approved: false,
-    })
-
-    ok(res, professional)
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const getPendingCareerGuides = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const careerGuides = await prisma.careerGuide.findMany({
-      where: { verificationStatus: 'PENDING' },
-      include: {
-        user: { select: { email: true } },
-        school: { select: { name: true, district: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    ok(res, {
-      careerGuides: careerGuides.map((cg) => ({
-        id: cg.id,
-        firstName: cg.firstName,
-        lastName: cg.lastName,
-        email: cg.user.email,
-        school: cg.school ? `${cg.school.name} — ${cg.school.district}` : 'Not selected',
-        linkedinUrl: cg.linkedinUrl,
-        submittedAt: cg.createdAt,
-      })),
-    })
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const approveCareerGuide = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const careerGuide = await prisma.careerGuide.update({
-      where: { id: req.params.id },
-      data: { isVerified: true, verificationStatus: 'APPROVED' },
-      include: { user: { select: { email: true } } },
-    })
-
-    await sendVerificationResultAlert({
-      roleLabel: 'Career Guide',
-      email: careerGuide.user.email,
-      firstName: careerGuide.firstName,
-      approved: true,
-    })
-
-    ok(res, careerGuide)
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
-export const rejectCareerGuide = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const careerGuide = await prisma.careerGuide.update({
-      where: { id: req.params.id },
-      data: { isVerified: false, verificationStatus: 'REJECTED' },
-      include: { user: { select: { email: true } } },
-    })
-
-    await sendVerificationResultAlert({
-      roleLabel: 'Career Guide',
-      email: careerGuide.user.email,
-      firstName: careerGuide.firstName,
-      approved: false,
-    })
-
-    ok(res, careerGuide)
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
 export const getAdminInterviewSlots = async (req: Request, res: Response): Promise<void> => {
   try {
     const slots = await prisma.adminInterviewSlot.findMany({
       where: { isActive: true },
       orderBy: [{ dayOfWeek: 'asc' }, { startHour: 'asc' }],
+      include: {
+        bookings: {
+          where: {
+            scheduledAt: { gt: new Date() },
+            professional: { mentorApplicationStatus: 'PENDING' },
+          },
+          include: {
+            professional: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                jobTitle: true,
+                employer: true,
+                mentorBio: true,
+                mentorAppliedAt: true,
+                user: { select: { email: true } },
+              },
+            },
+          },
+        },
+      },
     })
     ok(res, { slots })
   } catch (err) {
@@ -253,22 +159,115 @@ export const getAdminInterviewSlots = async (req: Request, res: Response): Promi
   }
 }
 
+export const updateAdminInterviewSlot = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+    const existing = await prisma.adminInterviewSlot.findUnique({
+      where: { id },
+      include: { bookings: { take: 1 } },
+    })
+    if (!existing?.isActive) {
+      badRequest(res, 'Slot not found.')
+      return
+    }
+    if (existing.bookings.length > 0) {
+      badRequest(res, 'Cannot edit a slot that has already been booked.')
+      return
+    }
+    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink } = req.body as {
+      dayOfWeek: number
+      startHour: number
+      startMinute: number
+      endHour: number
+      endMinute: number
+      meetLink: string
+    }
+    const updated = await prisma.adminInterviewSlot.update({
+      where: { id },
+      data: { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink },
+    })
+    ok(res, updated)
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') {
+      conflict(res, 'A slot already exists at this day and time.')
+      return
+    }
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
 export const createAdminInterviewSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink } = req.body
+    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink } = req.body as {
+      dayOfWeek: number
+      startHour: number
+      startMinute: number
+      endHour: number
+      endMinute: number
+      meetLink: string
+    }
     const slot = await prisma.adminInterviewSlot.create({
       data: { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink },
     })
     ok(res, slot)
   } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') {
+      conflict(res, 'A slot already exists at this day and time.')
+      return
+    }
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }
 
 export const deleteAdminInterviewSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    await prisma.adminInterviewSlot.update({ where: { id: req.params.id }, data: { isActive: false } })
+    await prisma.adminInterviewSlot.update({
+      where: { id: req.params.id },
+      data: { isActive: false },
+    })
     ok(res, { deleted: true })
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getReportStudents = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const level = req.query.level === 'A_LEVEL' ? 'A_LEVEL' : 'O_LEVEL'
+    const page = Math.max(1, Number.parseInt(req.query.page as string) || 1)
+    ok(res, await adminService.getReportStudents(level, page))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getReportProfessionals = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = req.query.type as string
+    let type: 'professional' | 'mentor' | 'rejected' | 'mentor-rejected' = 'professional'
+    if (q === 'mentor') type = 'mentor'
+    else if (q === 'rejected') type = 'rejected'
+    else if (q === 'mentor-rejected') type = 'mentor-rejected'
+    const page = Math.max(1, Number.parseInt(req.query.page as string) || 1)
+    ok(res, await adminService.getReportProfessionals(type, page))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getReportCareerGuides = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page as string) || 1)
+    const status = req.query.status === 'rejected' ? 'rejected' : 'approved'
+    ok(res, await adminService.getReportCareerGuides(page, status))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getReportSummary = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.getReportSummary())
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
