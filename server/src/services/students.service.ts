@@ -27,10 +27,10 @@ export const getDashboard = async (userId: string) => {
   const student = await prisma.student.findUnique({ where: { userId } })
   if (!student) throw new Error('Student not found')
 
-  const [upcomingSessions, groupSessions] =
+  const [upcomingSessions, groupSessions, confidenceLogEntry] =
     await Promise.all([
       prisma.session.findMany({
-        where: { studentId: student.id, status: 'CONFIRMED', scheduledAt: { gte: new Date() } },
+        where: { studentId: student.id, status: { in: ['PENDING', 'CONFIRMED'] }, scheduledAt: { gte: new Date() } },
         include: { professional: true },
         orderBy: { scheduledAt: 'asc' },
         take: 3,
@@ -41,16 +41,21 @@ export const getDashboard = async (userId: string) => {
           groupSession: { isCancelled: false, scheduledAt: { gte: new Date() } },
         },
         include: { groupSession: { include: { professional: true } } },
-        orderBy: { joinedAt: 'asc' },
+        orderBy: { joinedAt: 'desc' },
         take: 3,
+      }),
+      prisma.confidenceLog.findFirst({
+        where: { studentId: student.id },
+        orderBy: { createdAt: 'desc' },
       }),
     ])
 
-  return {
-    upcomingSessions,
-    groupSessions,
-    latestConfidence: student.confidenceLevel ?? null,
-  }
+  const latestConfidence = confidenceLogEntry
+    ?? (student.confidenceLevel === null
+      ? null
+      : { id: 'initial', score: student.confidenceLevel, note: null, createdAt: student.createdAt })
+
+  return { upcomingSessions, groupSessions, latestConfidence }
 }
 
 export const logConfidence = async (userId: string, score: number, note?: string) => {
@@ -76,5 +81,23 @@ export const getConfidenceLogs = async (userId: string) => {
   return prisma.confidenceLog.findMany({
     where: { studentId: student.id },
     orderBy: { createdAt: 'asc' },
+  })
+}
+
+export const getGroupSessions = async (userId: string) => {
+  const student = await prisma.student.findUnique({ where: { userId } })
+  if (!student) throw new Error('Student not found')
+
+  return prisma.groupSessionEnrolment.findMany({
+    where: { studentId: student.id },
+    include: {
+      groupSession: {
+        include: {
+          professional: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+          _count: { select: { enrolments: true } },
+        },
+      },
+    },
+    orderBy: { groupSession: { scheduledAt: 'asc' } },
   })
 }

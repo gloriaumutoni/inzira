@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import useMentors from '@/hooks/useMentors'
-import SlotPickerModal from '@/components/sessions/SlotPickerModal'
+import useProfessionals from '@/hooks/useProfessionals'
 import { getSectorStyle } from '@/utils/sectorColors'
-
-const SECTORS = [
-  'Healthcare', 'Technology', 'Finance', 'Education', 'Engineering',
-  'Agriculture', 'Law', 'Architecture', 'Arts & Media', 'Business',
-]
+import ProfessionalProfileModal from '@/components/professionals/ProfessionalProfileModal'
 
 const COMBINATIONS = [
-  'MPC', 'MPG', 'MEG', 'MHE', 'MCE', 'PCB', 'BCG',
-  'HEG', 'HEL', 'HGL', 'KEG', 'KEL', 'KGL', 'AEG', 'PCG',
+  'MPC', 'MPG', 'MEG', 'MHE', 'MCE',
+  'PCB', 'BCG', 'HEG', 'HEL', 'HGL',
+  'KEG', 'KEL', 'KGL', 'AEG', 'PCG',
 ]
 
 const ALevelGetMentor = () => {
   const { user } = useAuth()
-  const [selectedSector, setSelectedSector] = useState('')
   const [selectedCombination, setSelectedCombination] = useState<string | undefined>(undefined)
   const [search, setSearch] = useState('')
-  const [bookingMentor, setBookingMentor] = useState<{ id: string; name: string; jobTitle: string } | null>(null)
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(null)
 
   useEffect(() => {
     if (user?.student?.combination) {
@@ -27,18 +22,17 @@ const ALevelGetMentor = () => {
     }
   }, [user])
 
-  const { mentors, loading, error } = useMentors({
-    sector: selectedSector || undefined,
+  const { professionals, loading, error } = useProfessionals({
     combination: selectedCombination,
+    isMentor: true,
   })
 
-  const filtered = mentors.filter((m) => {
+  const filtered = professionals.filter((p) => {
     if (!search) return true
     const q = search.toLowerCase()
     return (
-      `${m.firstName} ${m.lastName}`.toLowerCase().includes(q) ||
-      m.jobTitle.toLowerCase().includes(q) ||
-      m.employer.toLowerCase().includes(q)
+      `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
+      p.jobTitle.toLowerCase().includes(q)
     )
   })
 
@@ -46,7 +40,7 @@ const ALevelGetMentor = () => {
     <div className="p-6">
       <h1 className="text-xl font-bold text-primary">Find a Mentor</h1>
       <p className="text-sm text-muted mt-1">
-        Connect with a Rwandan professional who can guide your career exploration.
+        Connect with a verified professional for a 1-on-1 session or join their group sessions.
       </p>
 
       <div className="flex flex-wrap gap-3 mt-6 items-center">
@@ -55,34 +49,22 @@ const ALevelGetMentor = () => {
           onChange={(e) => setSelectedCombination(e.target.value || undefined)}
           className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
         >
-          <option value="">Show all mentors</option>
-          {COMBINATIONS.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        <select
-          value={selectedSector}
-          onChange={(e) => setSelectedSector(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
-        >
-          <option value="">All Sectors</option>
-          {SECTORS.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+          <option value="">All combinations</option>
+          {COMBINATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, title, or employer"
+          placeholder="Search by name or role..."
           className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface placeholder:text-subtle flex-1 min-w-[200px]"
         />
-        {(selectedSector || search) && (
+        {(selectedCombination || search) && (
           <button
-            onClick={() => { setSelectedSector(''); setSearch('') }}
+            onClick={() => { setSelectedCombination(undefined); setSearch('') }}
             className="text-xs text-accent hover:underline"
           >
-            Clear filters
+            Clear
           </button>
         )}
       </div>
@@ -98,56 +80,34 @@ const ALevelGetMentor = () => {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted text-center mt-12">
           {selectedCombination
-            ? `No mentors linked to ${selectedCombination} yet. Try "Show all mentors" to browse everyone.`
-            : 'No mentors available right now. Check back soon.'}
+            ? `No mentors available for ${selectedCombination} yet. Try removing the combination filter.`
+            : 'No mentors available yet. Check back soon.'}
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          {filtered.map((mentor) => {
-            const style = getSectorStyle(mentor.sector)
-            const initials = `${mentor.firstName[0] ?? ''}${mentor.lastName[0] ?? ''}`.toUpperCase()
-            const shownCareers = mentor.careers.slice(0, 3)
-            const extraCareers = mentor.careers.length - shownCareers.length
+          {filtered.map((pro) => {
+            const style = getSectorStyle(pro.sector)
+            const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
             return (
               <div
-                key={mentor.id}
-                className="bg-surface border border-border rounded-xl p-5 hover:shadow-md transition-shadow"
+                key={pro.id}
+                className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setSelectedProfessionalId(pro.id)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-bold flex items-center justify-center text-sm flex-shrink-0">
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-primary truncate">
-                      {mentor.firstName} {mentor.lastName}
-                    </p>
-                    <p className="text-xs text-muted truncate">{mentor.jobTitle} · {mentor.employer}</p>
-                  </div>
+                <div className="w-12 h-12 rounded-full bg-accent/10 text-accent font-bold flex items-center justify-center text-sm">
+                  {initials}
                 </div>
+                <p className="text-sm font-semibold text-primary mt-3">{pro.firstName} {pro.lastName}</p>
+                <p className="text-xs text-muted">{pro.jobTitle} · {pro.employer}</p>
                 <span
-                  className="inline-block text-xs text-white px-2 py-0.5 rounded-full mt-3"
+                  className="inline-block text-xs text-white px-2 py-0.5 rounded-full mt-2"
                   style={{ backgroundColor: style.bg }}
                 >
-                  {mentor.sector}
+                  {pro.sector}
                 </span>
-                <p className="text-xs text-muted mt-2 leading-relaxed line-clamp-3">{mentor.bio}</p>
-                {mentor.careers.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {shownCareers.map((c) => (
-                      <span key={c} className="text-xs bg-background text-primary px-2 py-0.5 rounded-full border border-border">
-                        {c}
-                      </span>
-                    ))}
-                    {extraCareers > 0 && (
-                      <span className="text-xs text-muted px-2 py-0.5">+{extraCareers} more</span>
-                    )}
-                  </div>
-                )}
-                <button
-                  onClick={() => setBookingMentor({ id: mentor.id, name: `${mentor.firstName} ${mentor.lastName}`, jobTitle: mentor.jobTitle })}
-                  className="mt-4 bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Book a Session
+                <p className="text-xs text-muted mt-2 line-clamp-2">{pro.bio}</p>
+                <button className="mt-4 w-full bg-primary text-white text-xs py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                  View Profile & Book
                 </button>
               </div>
             )
@@ -155,13 +115,10 @@ const ALevelGetMentor = () => {
         </div>
       )}
 
-      {bookingMentor && (
-        <SlotPickerModal
-          mentorId={bookingMentor.id}
-          mentorName={bookingMentor.name}
-          mentorJobTitle={bookingMentor.jobTitle}
-          onClose={() => setBookingMentor(null)}
-          onBooked={() => setBookingMentor(null)}
+      {selectedProfessionalId && (
+        <ProfessionalProfileModal
+          professionalId={selectedProfessionalId}
+          onClose={() => setSelectedProfessionalId(null)}
         />
       )}
     </div>

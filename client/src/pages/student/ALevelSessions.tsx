@@ -1,231 +1,354 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import useStudentSessions from '@/hooks/useStudentSessions'
-import useStudentDashboard from '@/hooks/useStudentDashboard'
-import PostSessionFeedbackModal from '@/components/sessions/PostSessionFeedbackModal'
+import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { api } from '@/api/axios'
+import { toast } from '@/utils/toast'
+import useStudentSessions, { StudentSession } from '@/hooks/useStudentSessions'
 
-const STATUS_STYLES: Record<string, string> = {
-  CONFIRMED: 'bg-success/10 text-success text-xs px-2 py-1 rounded-full font-medium',
-  PENDING:   'bg-warning/10 text-warning text-xs px-2 py-1 rounded-full font-medium',
-  COMPLETED: 'bg-border text-muted text-xs px-2 py-1 rounded-full font-medium',
-  CANCELLED: 'bg-error/10 text-error text-xs px-2 py-1 rounded-full font-medium',
+interface GroupSession {
+  id: string
+  title: string
+  description?: string
+  scheduledAt: string
+  duration: number
+  sector: string
+  maxStudents: number
+  joinLink?: string
+  professional: { id: string; firstName: string; lastName: string; jobTitle?: string }
+  _count: { enrolments: number }
 }
 
-const TIPS = [
-  'Prepare 2–3 specific questions you want answered',
-  "Research the professional's background before the session",
-  'Take notes during the call and follow up afterwards',
-  'Be honest about where you are in your career thinking',
+interface MentorSlot {
+  id: string
+  scheduledAt: string
+  durationMins: number
+  meetLink: string | null
+  Professional: { id: string; firstName: string; lastName: string; jobTitle: string }
+}
+
+const COMBINATIONS = [
+  'MPC', 'MPG', 'MEG', 'MHE', 'MCE',
+  'PCB', 'BCG', 'HEG', 'HEL', 'HGL',
+  'KEG', 'KEL', 'KGL', 'AEG', 'PCG',
 ]
 
-interface MergedSession {
-  id: string
-  kind: 'session' | 'group'
-  scheduledAt: string
-  status: string
-  duration: number
-  type?: string
-  title?: string
-  professional?: {
-    firstName: string
-    lastName: string
-    jobTitle?: string
-    sector?: string
-  }
-}
+const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+const SKELETON_KEYS = ['sk1', 'sk2', 'sk3', 'sk4']
 
-const SessionSkeleton = () => (
-  <div className="animate-pulse bg-surface rounded-xl border border-border p-4 flex items-start gap-4">
-    <div className="w-10 h-10 rounded-full bg-border flex-shrink-0" />
-    <div className="flex-1 space-y-2">
-      <div className="h-3 bg-border rounded w-1/3" />
-      <div className="h-3 bg-border rounded w-1/2" />
-    </div>
+const TabBar = ({ tabs, active, onChange }: {
+  tabs: string[]
+  active: string
+  onChange: (t: string) => void
+}) => (
+  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+    {tabs.map(t => (
+      <button
+        key={t}
+        onClick={() => onChange(t)}
+        className={active === t
+          ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
+          : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
+        }
+      >
+        {t}
+      </button>
+    ))}
   </div>
 )
 
+const SkeletonGrid = () => (
+  <div className={GRID}>
+    {SKELETON_KEYS.map(k => (
+      <div key={k} className="animate-pulse bg-border rounded-xl h-36" />
+    ))}
+  </div>
+)
+
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+const fmtTime = (d: string) =>
+  new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+
 const ALevelSessions = () => {
-  const { sessions, loading: sessionsLoading, error } = useStudentSessions()
-  const { dashboard, loading: dashLoading, refetch: refetchDashboard } = useStudentDashboard()
-  const [feedbackSession, setFeedbackSession] = useState<{ id: string; proName: string } | null>(null)
+  const { user } = useAuth()
+  const { sessions, loading: sessionsLoading } = useStudentSessions()
 
-  const loading = sessionsLoading || dashLoading
+  const [categoryTab, setCategoryTab] = useState<'Group Sessions' | '1-on-1 Mentor'>('Group Sessions')
+  const [timeTab, setTimeTab] = useState<'Upcoming' | 'Past'>('Upcoming')
+  const [selectedCombination, setSelectedCombination] = useState<string | undefined>(undefined)
 
-  const now = new Date()
+  const [upcomingGs, setUpcomingGs] = useState<GroupSession[]>([])
+  const [pastEnrolledGs, setPastEnrolledGs] = useState<GroupSession[]>([])
+  const [enrolledUpcomingCount, setEnrolledUpcomingCount] = useState(0)
+  const [gsLoading, setGsLoading] = useState(true)
+  const [enrolling, setEnrolling] = useState<string | null>(null)
 
-  const merged: MergedSession[] = [
-    ...sessions.map((s) => ({
-      id: s.id,
-      kind: 'session' as const,
-      scheduledAt: s.scheduledAt,
-      status: s.status,
-      duration: s.duration,
-      type: s.type,
-      professional: s.professional,
-    })),
-    ...(dashboard?.groupSessions ?? []).map((e) => ({
-      id: e.id,
-      kind: 'group' as const,
-      scheduledAt: e.groupSession.scheduledAt,
-      status: 'CONFIRMED',
-      duration: 60,
-      title: e.groupSession.title,
-      professional: {
-        firstName: e.groupSession.professional.firstName,
-        lastName: e.groupSession.professional.lastName,
-      },
-    })),
-  ].sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
+  const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(true)
 
-  const upcomingCount = merged.filter(
-    (s) =>
-      (s.status === 'CONFIRMED' || s.status === 'PENDING') &&
-      new Date(s.scheduledAt) > now,
-  ).length
-  const completedCount = merged.filter((s) => s.status === 'COMPLETED').length
+  useEffect(() => {
+    if (user?.student?.combination) {
+      setSelectedCombination(user.student.combination.split(' ')[0])
+    }
+  }, [user])
+
+  const fetchGroupData = useCallback(async () => {
+    setGsLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: '100' })
+      if (selectedCombination) params.set('combination', selectedCombination)
+
+      const [gsRes, enrollRes] = await Promise.all([
+        api.get(`/group-sessions?${params}`),
+        api.get('/students/me/group-sessions'),
+      ])
+      const available: GroupSession[] = gsRes.data.data.sessions ?? []
+      const enrolments: { id: string; groupSession: GroupSession }[] = enrollRes.data.data.enrolments ?? []
+
+      const enrolled = enrolments.map(e => e.groupSession)
+      const ids = new Set<string>(enrolments.map(e => e.groupSession.id))
+      const now = new Date()
+
+      setUpcomingGs(available.filter(g => new Date(g.scheduledAt) > now && !ids.has(g.id)))
+      setPastEnrolledGs(enrolled.filter(g => new Date(g.scheduledAt) <= now))
+      setEnrolledUpcomingCount(enrolled.filter(g => new Date(g.scheduledAt) > now).length)
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        'Could not load sessions.'
+      toast.error(msg)
+    } finally {
+      setGsLoading(false)
+    }
+  }, [selectedCombination])
+
+  useEffect(() => { fetchGroupData() }, [fetchGroupData])
+
+  useEffect(() => {
+    api.get('/students/me/mentor-slots')
+      .then(({ data }) => setMentorSlots(data.data.slots ?? []))
+      .catch(() => {})
+      .finally(() => setSlotsLoading(false))
+  }, [])
+
+  const handleEnrol = async (sessionId: string) => {
+    setEnrolling(sessionId)
+    try {
+      await api.post(`/group-sessions/${sessionId}/enrol`)
+      await fetchGroupData()
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        'Could not enrol. Please try again.'
+      toast.error(msg)
+    } finally {
+      setEnrolling(null)
+    }
+  }
+
+  const renderEnrollButton = (gs: GroupSession) => {
+    const isPending = enrolling === gs.id
+    if (enrolledUpcomingCount >= 3) {
+      return (
+        <div className="relative group mt-auto pt-2">
+          <button
+            disabled
+            className="w-full bg-border text-muted text-xs px-3 py-1.5 rounded-lg opacity-60 cursor-not-allowed"
+          >
+            Enroll
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+            Enrolled in 3 sessions — opt out of one to join another
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className="mt-auto pt-2">
+        <button
+          onClick={() => handleEnrol(gs.id)}
+          disabled={isPending}
+          className="w-full bg-accent text-white text-xs px-3 py-1.5 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+        >
+          {isPending ? 'Enrolling...' : 'Enroll'}
+        </button>
+      </div>
+    )
+  }
+
+  const renderGroupCard = (gs: GroupSession) => (
+    <div key={gs.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+      <p className="text-sm font-semibold text-primary leading-tight">{gs.title}</p>
+      {gs.description && (
+        <p className="text-xs text-muted line-clamp-2">{gs.description}</p>
+      )}
+      <p className="text-xs text-muted">{gs.professional.firstName} {gs.professional.lastName}</p>
+      <p className="text-xs text-muted">{fmtDate(gs.scheduledAt)} · {fmtTime(gs.scheduledAt)}</p>
+      <p className="text-xs text-muted">{gs._count.enrolments}/{gs.maxStudents} enrolled</p>
+      {gs.sector && (
+        <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{gs.sector}</span>
+      )}
+      {gs.joinLink && (
+        <a href={gs.joinLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
+          Join ↗
+        </a>
+      )}
+      {renderEnrollButton(gs)}
+    </div>
+  )
+
+  const renderPastGroupCard = (gs: GroupSession) => (
+    <div key={gs.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+      <p className="text-sm font-semibold text-primary">{gs.title}</p>
+      <p className="text-xs text-muted">{gs.professional.firstName} {gs.professional.lastName}</p>
+      <p className="text-xs text-muted">{fmtDate(gs.scheduledAt)} · {fmtTime(gs.scheduledAt)}</p>
+      {gs.sector && (
+        <span className="self-start text-xs bg-border text-muted px-2 py-0.5 rounded-full">{gs.sector}</span>
+      )}
+      <span className="self-start text-xs bg-border text-muted px-2 py-0.5 rounded-full font-medium mt-auto">Attended</span>
+    </div>
+  )
+
+  const renderMentorSlotCard = (slot: MentorSlot) => {
+    const pro = slot.Professional
+    const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
+    return (
+      <div key={slot.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center flex-shrink-0">
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-primary truncate">{pro.firstName} {pro.lastName}</p>
+            <p className="text-xs text-muted truncate">{pro.jobTitle}</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted">{fmtDate(slot.scheduledAt)} · {fmtTime(slot.scheduledAt)} · {slot.durationMins} min</p>
+        {slot.meetLink && (
+          <a href={slot.meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
+            Join ↗
+          </a>
+        )}
+        <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Confirmed</span>
+      </div>
+    )
+  }
+
+  const renderPastMentorCard = (s: StudentSession) => {
+    const pro = s.professional
+    const initials = pro ? `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase() : '?'
+    const statusColor = s.status === 'CANCELLED' ? 'bg-error/10 text-error' : 'bg-border text-muted'
+    return (
+      <div key={s.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-accent/10 text-accent font-semibold text-sm flex items-center justify-center flex-shrink-0">
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-primary truncate">
+              {pro ? `${pro.firstName} ${pro.lastName}` : 'Session'}
+            </p>
+            {pro?.jobTitle && <p className="text-xs text-muted truncate">{pro.jobTitle}</p>}
+          </div>
+        </div>
+        <p className="text-xs text-muted">{fmtDate(s.scheduledAt)} · {fmtTime(s.scheduledAt)} · {s.duration} min</p>
+        <span className={`self-start text-xs px-2 py-0.5 rounded-full font-medium mt-auto ${statusColor}`}>
+          {s.status.charAt(0) + s.status.slice(1).toLowerCase()}
+        </span>
+      </div>
+    )
+  }
+
+  const renderGroupContent = () => {
+    if (gsLoading) return <SkeletonGrid />
+
+    if (timeTab === 'Past') {
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">Sessions you were enrolled in that have already taken place.</p>
+          {pastEnrolledGs.length === 0 && <p className="text-sm text-muted">No past group sessions yet.</p>}
+          {pastEnrolledGs.length > 0 && <div className={GRID}>{pastEnrolledGs.map(gs => renderPastGroupCard(gs))}</div>}
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted">Browse available sessions and enroll to secure your spot. You can be enrolled in up to 3 at a time.</p>
+        {upcomingGs.length === 0 && (
+          <p className="text-sm text-muted">
+            {selectedCombination
+              ? `No sessions available for ${selectedCombination} yet. Try a different combination.`
+              : 'No group sessions available right now.'}
+          </p>
+        )}
+        {upcomingGs.length > 0 && <div className={GRID}>{upcomingGs.map(gs => renderGroupCard(gs))}</div>}
+      </div>
+    )
+  }
+
+  const renderMentorContent = () => {
+    if (timeTab === 'Past') {
+      if (sessionsLoading) return <SkeletonGrid />
+      const pastMentorSessions = sessions.filter(s => s.status === 'COMPLETED' || s.status === 'CANCELLED')
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">Your completed and cancelled mentor sessions.</p>
+          {pastMentorSessions.length === 0 && <p className="text-sm text-muted">No past mentor sessions yet.</p>}
+          {pastMentorSessions.length > 0 && <div className={GRID}>{pastMentorSessions.map(s => renderPastMentorCard(s))}</div>}
+        </div>
+      )
+    }
+
+    if (slotsLoading) return <SkeletonGrid />
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted">Your confirmed upcoming 1-on-1 sessions with mentors.</p>
+        {mentorSlots.length === 0 && <p className="text-sm text-muted">No upcoming mentor sessions.</p>}
+        {mentorSlots.length > 0 && <div className={GRID}>{mentorSlots.map(slot => renderMentorSlotCard(slot))}</div>}
+      </div>
+    )
+  }
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Sessions</h1>
-          <p className="text-sm text-muted mt-1">
-            Manage your sessions and messages with career guides.
-          </p>
-        </div>
-        <Link
-          to="/student/explore-careers"
-          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors self-start"
+    <div className="p-6 space-y-6">
+      <h1 className="text-xl font-bold text-primary">Sessions</h1>
+
+      <div className="flex flex-wrap gap-3 items-center">
+        <select
+          value={selectedCombination ?? ''}
+          onChange={(e) => setSelectedCombination(e.target.value || undefined)}
+          className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
         >
-          Find a professional
-        </Link>
+          <option value="">All combinations</option>
+          {COMBINATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {selectedCombination && (
+          <button
+            onClick={() => setSelectedCombination(undefined)}
+            className="text-xs text-accent hover:underline"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
-      {!loading && (
-        <div className="flex gap-4 mt-4 flex-wrap">
-          <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
-            <span className="text-xs font-semibold text-primary">{merged.length}</span>
-            <span className="text-xs text-muted">Total</span>
-          </div>
-          <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
-            <span className="text-xs font-semibold text-primary">{upcomingCount}</span>
-            <span className="text-xs text-muted">Upcoming</span>
-          </div>
-          <div className="bg-surface border border-border rounded-full px-4 py-2 flex items-center gap-2">
-            <span className="text-xs font-semibold text-primary">{completedCount}</span>
-            <span className="text-xs text-muted">Completed</span>
-          </div>
-        </div>
-      )}
+      <TabBar
+        tabs={['Group Sessions', '1-on-1 Mentor']}
+        active={categoryTab}
+        onChange={(t) => {
+          setCategoryTab(t as typeof categoryTab)
+          setTimeTab('Upcoming')
+        }}
+      />
 
-      <div className="flex flex-col lg:flex-row gap-6 mt-6">
-        <div className="flex-1 space-y-4">
-          {loading ? (
-            <>
-              <SessionSkeleton />
-              <SessionSkeleton />
-              <SessionSkeleton />
-            </>
-          ) : error ? (
-            <p className="text-sm text-muted text-center py-8">Unable to load. Please try again.</p>
-          ) : merged.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-sm text-muted">No sessions yet.</p>
-              <p className="text-sm text-muted mt-1">
-                Book a free intro with a professional to get started.{' '}
-                <Link to="/student/explore-careers" className="text-accent hover:underline">
-                  Find one here
-                </Link>
-              </p>
-            </div>
-          ) : (
-            merged.map((session) => {
-              const pro = session.professional
-              const initials = pro
-                ? `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
-                : 'GS'
-              const date = new Date(session.scheduledAt).toLocaleDateString('en-US', {
-                weekday: 'short', month: 'short', day: 'numeric',
-              })
-              const time = new Date(session.scheduledAt).toLocaleTimeString('en-US', {
-                hour: '2-digit', minute: '2-digit',
-              })
-              const typeLabel = session.type?.replace('_', ' ')
-              return (
-                <div
-                  key={`${session.kind}-${session.id}`}
-                  className="bg-surface rounded-xl border border-border p-4 flex items-start gap-4"
-                >
-                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-semibold text-sm flex items-center justify-center flex-shrink-0">
-                    {initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-primary">
-                        {session.kind === 'group'
-                          ? (session.title ?? 'Group Session')
-                          : pro ? `${pro.firstName} ${pro.lastName}` : 'Session'}
-                      </p>
-                      {session.kind === 'group' && (
-                        <span className="bg-success/10 text-success text-xs px-2 py-0.5 rounded-full">GROUP</span>
-                      )}
-                    </div>
-                    {pro && session.kind === 'session' && (
-                      <p className="text-xs text-muted">{pro.jobTitle}</p>
-                    )}
-                    <p className="text-xs text-muted mt-1">{date} · {time}</p>
-                    <p className="text-xs text-muted">{session.duration} min{typeLabel ? ` · ${typeLabel}` : ''}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <span className={STATUS_STYLES[session.status] ?? STATUS_STYLES['PENDING']}>
-                      {session.status.charAt(0) + session.status.slice(1).toLowerCase()}
-                    </span>
-                    {session.status === 'COMPLETED' && session.kind === 'session' && (
-                      <button
-                        onClick={() =>
-                          setFeedbackSession({
-                            id: session.id,
-                            proName: pro ? `${pro.firstName} ${pro.lastName}` : 'Professional',
-                          })
-                        }
-                        className="text-xs text-accent hover:underline"
-                      >
-                        Leave feedback
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
+      <TabBar
+        tabs={['Upcoming', 'Past']}
+        active={timeTab}
+        onChange={(t) => setTimeTab(t as typeof timeTab)}
+      />
 
-        <aside className="hidden lg:block w-72 flex-shrink-0">
-          <div className="bg-surface rounded-xl border border-border p-5">
-            <h3 className="text-sm font-semibold text-primary">Session tips</h3>
-            <div className="space-y-3 mt-3">
-              {TIPS.map((tip, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="text-success mt-0.5 flex-shrink-0">✓</span>
-                  <p className="text-xs text-muted">{tip}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      {feedbackSession && (
-        <PostSessionFeedbackModal
-          sessionId={feedbackSession.id}
-          professionalName={feedbackSession.proName}
-          onClose={() => setFeedbackSession(null)}
-          onSuccess={() => {
-            setFeedbackSession(null)
-            refetchDashboard()
-          }}
-        />
-      )}
+      {categoryTab === 'Group Sessions' && renderGroupContent()}
+      {categoryTab === '1-on-1 Mentor' && renderMentorContent()}
     </div>
   )
 }

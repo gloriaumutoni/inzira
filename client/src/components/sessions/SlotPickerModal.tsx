@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { X, Calendar } from 'lucide-react'
+import { X, Calendar, Clock } from 'lucide-react'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 
-interface Slot {
-  start: string
-  end: string
+interface AvailableSlot {
+  id: string
+  scheduledAt: string
+  duration: number
 }
 
 interface SlotPickerModalProps {
@@ -16,148 +17,148 @@ interface SlotPickerModalProps {
   onBooked: () => void
 }
 
+const SKELETON_KEYS = ['sk1', 'sk2', 'sk3', 'sk4']
+
 const SlotPickerModal = ({ mentorId, mentorName, mentorJobTitle, onClose, onBooked }: SlotPickerModalProps) => {
-  const [slots, setSlots] = useState<Slot[]>([])
+  const [slots, setSlots] = useState<AvailableSlot[]>([])
+  const [bookedCount, setBookedCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [booking, setBooking] = useState(false)
 
   useEffect(() => {
-    const fetchSlots = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await api.get(`/professionals/${mentorId}/slots`)
-        setSlots(data.data.slots)
+        const [slotsRes, bookedRes] = await Promise.all([
+          api.get(`/professionals/${mentorId}/slots`),
+          api.get('/students/me/mentor-slots'),
+        ])
+        setSlots(slotsRes.data.data.slots ?? slotsRes.data.data)
+        setBookedCount((bookedRes.data.data.slots ?? []).length)
       } catch {
-        setSlots([])
+        toast.error('Could not load available slots.')
       } finally {
         setLoading(false)
       }
     }
-    fetchSlots()
+    fetchData()
   }, [mentorId])
 
-  const slotsByDay = slots.reduce<Record<string, Slot[]>>((acc, slot) => {
-    const key = new Date(slot.start).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-    })
-    acc[key] = acc[key] ?? []
-    acc[key].push(slot)
-    return acc
-  }, {})
-
   const handleBook = async () => {
-    if (!selectedSlot) return
+    if (!selectedSlotId || booking) return
     setBooking(true)
     try {
-      await api.post('/sessions/book-slot', {
-        professionalId: mentorId,
-        scheduledAt: selectedSlot.start,
-      })
-      toast.success('Session booked! You can see it under Sessions.')
+      await api.post('/sessions', { professionalId: mentorId, slotId: selectedSlotId, type: 'FREE_INTRO' })
+      toast.success('Session booked successfully!')
       onBooked()
-      onClose()
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Could not book. Please try again.'
+        'Could not book session. Please try again.'
       toast.error(msg)
     } finally {
       setBooking(false)
     }
   }
 
+  const atLimit = bookedCount >= 3
+
+  const slotClassName = (selected: boolean) => {
+    const base = 'w-full text-left rounded-lg border p-3 transition-colors'
+    if (atLimit) return `${base} opacity-50 cursor-not-allowed border-border`
+    if (selected) return `${base} border-accent bg-accent/5`
+    return `${base} border-border hover:border-accent/50`
+  }
+
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <div className="space-y-2">
+          {SKELETON_KEYS.map(k => (
+            <div key={k} className="animate-pulse bg-border rounded-lg h-14" />
+          ))}
+        </div>
+      )
+    }
+    if (slots.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <Calendar className="w-8 h-8 text-muted mx-auto mb-2" />
+          <p className="text-sm text-muted">No available slots right now.</p>
+          <p className="text-xs text-subtle mt-1">Check back later or contact the mentor directly.</p>
+        </div>
+      )
+    }
+    return (
+      <div className="space-y-2">
+        {slots.map((slot) => {
+          const date = new Date(slot.scheduledAt)
+          const selected = selectedSlotId === slot.id
+          return (
+            <button
+              key={slot.id}
+              onClick={() => setSelectedSlotId(slot.id)}
+              disabled={atLimit}
+              className={slotClassName(selected)}
+            >
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted flex-shrink-0" />
+                <span className="text-sm font-medium text-primary">
+                  {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <Clock className="w-4 h-4 text-muted flex-shrink-0" />
+                <span className="text-xs text-muted">
+                  {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  {' '}· {slot.duration} min
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={onClose}>
-      <div
-        className="bg-surface rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <button
+        type="button"
+        className="fixed inset-0 bg-black/50"
+        onClick={onClose}
+        aria-label="Close modal"
+      />
+      <div className="relative bg-surface rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-primary">Book a session</h2>
-            <p className="text-sm text-muted mt-0.5">
-              {mentorName} · {mentorJobTitle}
-            </p>
+            <h2 className="text-base font-bold text-primary">Book a Session</h2>
+            <p className="text-xs text-muted mt-0.5">{mentorName} · {mentorJobTitle}</p>
           </div>
           <button onClick={onClose} className="text-muted hover:text-primary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="mt-6">
-          {loading ? (
-            <div className="space-y-3">
-              {[0, 1].map((i) => <div key={i} className="animate-pulse bg-border rounded-lg h-16" />)}
-            </div>
-          ) : slots.length === 0 ? (
-            <p className="text-sm text-muted text-center py-8">
-              This mentor has no open slots in the next two weeks. Try joining one of their group sessions instead.
+        {atLimit && (
+          <div className="mb-4 bg-error/5 border border-error/20 rounded-lg px-3 py-2">
+            <p className="text-xs text-error">
+              You have 3 upcoming mentor sessions booked. Complete or cancel one before booking another.
             </p>
-          ) : (
-            <div className="space-y-4">
-              {Object.entries(slotsByDay).map(([day, daySlots]) => (
-                <div key={day}>
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wide flex items-center gap-1 mb-2">
-                    <Calendar className="w-3.5 h-3.5" /> {day}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {daySlots.map((slot) => (
-                      <button
-                        key={slot.start}
-                        onClick={() => setSelectedSlot(slot)}
-                        className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
-                          selectedSlot?.start === slot.start
-                            ? 'bg-accent text-white border-accent'
-                            : 'border-border text-primary hover:border-accent'
-                        }`}
-                      >
-                        {new Date(slot.start).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {selectedSlot && (
-          <div className="mt-4 bg-accent/5 border border-accent/20 rounded-lg p-3 text-sm text-primary">
-            You are booking a 30-minute session with {mentorName} on{' '}
-            {new Date(selectedSlot.start).toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'short',
-              day: 'numeric',
-            })}{' '}
-            at{' '}
-            {new Date(selectedSlot.start).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            .
           </div>
         )}
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 border border-border text-primary py-2.5 rounded-lg text-sm font-semibold hover:bg-background transition-colors"
-          >
-            Cancel
-          </button>
+        {renderBody()}
+
+        {slots.length > 0 && (
           <button
             onClick={handleBook}
-            disabled={!selectedSlot || booking}
-            className="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            disabled={!selectedSlotId || booking || atLimit}
+            className="w-full mt-4 bg-accent text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {booking ? 'Booking...' : 'Confirm Booking'}
+            {booking ? 'Booking…' : 'Confirm Booking'}
           </button>
-        </div>
+        )}
       </div>
     </div>
   )

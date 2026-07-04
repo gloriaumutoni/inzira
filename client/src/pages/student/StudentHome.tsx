@@ -1,102 +1,187 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
-import useProfessionals from '@/hooks/useProfessionals'
-import GroupSessionCard, { GroupSessionData } from '@/components/sessions/GroupSessionCard'
-import BookSessionModal from '@/components/sessions/BookSessionModal'
 import { api } from '@/api/axios'
 
-const useUpcomingGroupSessions = (limit: number) => {
-  const [sessions, setSessions] = useState<GroupSessionData[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api
-      .get(`/group-sessions?limit=${limit}`)
-      .then(({ data }) => {
-        const raw = data.data.sessions ?? data.data
-        setSessions(
-          raw.map((s: {
-            id: string
-            title: string
-            sector: string
-            scheduledAt: string
-            duration?: number
-            maxStudents: number
-            _count?: { enrolments: number }
-            professional?: { firstName: string; lastName: string; sector: string }
-          }) => ({
-            ...s,
-            currentEnrollment: s._count?.enrolments ?? 0,
-            isRegistered: false,
-          })),
-        )
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [limit])
-
-  return { sessions, loading }
+interface MentorSlot {
+  id: string
+  scheduledAt: string
+  durationMins: number
+  meetLink: string | null
+  Professional: { id: string; firstName: string; lastName: string; jobTitle: string }
 }
 
-const SkeletonCard = () => (
-  <div className="animate-pulse bg-border rounded-xl h-24" />
+const TABS = ['Group Sessions', '1-on-1 Sessions'] as const
+type Tab = typeof TABS[number]
+
+const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+
+const TabBar = ({ tabs, active, onChange }: {
+  tabs: readonly string[]
+  active: string
+  onChange: (t: string) => void
+}) => (
+  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+    {tabs.map(t => (
+      <button
+        key={t}
+        onClick={() => onChange(t)}
+        className={active === t
+          ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
+          : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
+        }
+      >
+        {t}
+      </button>
+    ))}
+  </div>
 )
 
 const StudentHome = () => {
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const { dashboard, loading: dashLoading, error: dashError, refetch: refetchDashboard } = useStudentDashboard()
-  const { professionals, loading: prosLoading } = useProfessionals({ limit: 3 })
-  const { sessions: groupSessions, loading: gsLoading } = useUpcomingGroupSessions(2)
+  const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
+  const [tab, setTab] = useState<Tab>('Group Sessions')
+  const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(true)
 
-  const [bookingPro, setBookingPro] = useState<{
-    id: string; firstName: string; lastName: string; jobTitle: string;
-    profilePhoto?: string | null; offersFreeIntro: boolean; offersProTier: boolean; proRate: number
-  } | null>(null)
+  useEffect(() => {
+    api.get('/students/me/mentor-slots')
+      .then(({ data }) => setMentorSlots(data.data.slots ?? []))
+      .catch(() => {})
+      .finally(() => setSlotsLoading(false))
+  }, [])
 
   const firstName = user?.student?.firstName ?? 'there'
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', year: 'numeric' })
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    year: 'numeric',
-  })
+  const upcomingOneOnOne = dashboard?.upcomingSessions.length ?? 0
+  const upcomingGroup = dashboard?.groupSessions.length ?? 0
+  const confidenceScore = dashboard?.latestConfidence?.score ?? null
+  const enrolledSessions = dashboard?.groupSessions ?? []
 
-  const now = new Date()
-  const upcomingGroupCount = (dashboard?.groupSessions ?? []).filter(
-    (e) => new Date(e.groupSession.scheduledAt) > now,
-  ).length
-  const upcomingCount = (dashboard?.upcomingSessions.length ?? 0) + upcomingGroupCount
-  const confidenceScore = dashboard?.latestConfidence ?? null
+  const renderGroupSessions = () => {
+    if (dashLoading) {
+      return (
+        <div className={GRID}>
+          {['a', 'b', 'c', 'd'].map(k => (
+            <div key={k} className="animate-pulse bg-border rounded-xl h-32" />
+          ))}
+        </div>
+      )
+    }
+    if (enrolledSessions.length === 0) {
+      return (
+        <div className="space-y-2">
+          <p className="text-sm text-muted">Your upcoming enrolled group sessions will appear here.</p>
+          <p className="text-sm text-muted">Visit the Sessions page to browse and enroll.</p>
+        </div>
+      )
+    }
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted">Your upcoming enrolled group sessions.</p>
+        <div className={GRID}>
+        {enrolledSessions.map(enr => {
+          const gs = enr.groupSession
+          const date = new Date(gs.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          const time = new Date(gs.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          return (
+            <div key={enr.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+              <p className="text-sm font-semibold text-primary truncate">{gs.title}</p>
+              <p className="text-xs text-muted">{gs.professional.firstName} {gs.professional.lastName}</p>
+              <p className="text-xs text-muted">{date} · {time}</p>
+              {gs.sector && (
+                <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{gs.sector}</span>
+              )}
+              <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Enrolled</span>
+            </div>
+          )
+        })}
+        </div>
+      </div>
+    )
+  }
+
+  const renderMentorSlots = () => {
+    if (slotsLoading) {
+      return (
+        <div className={GRID}>
+          {['a', 'b', 'c', 'd'].map(k => (
+            <div key={k} className="animate-pulse bg-border rounded-xl h-32" />
+          ))}
+        </div>
+      )
+    }
+    if (mentorSlots.length === 0) {
+      return (
+        <div className="space-y-2">
+          <p className="text-sm text-muted">Your confirmed upcoming 1-on-1 sessions with mentors will appear here.</p>
+          <p className="text-sm text-muted">Browse professionals in Sessions to book a slot.</p>
+        </div>
+      )
+    }
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted">Your confirmed upcoming 1-on-1 sessions with mentors.</p>
+        <div className={GRID}>
+        {mentorSlots.map(slot => {
+          const pro = slot.Professional
+          const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
+          const date = new Date(slot.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          const time = new Date(slot.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          return (
+            <div key={slot.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center flex-shrink-0">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-primary truncate">{pro.firstName} {pro.lastName}</p>
+                  <p className="text-xs text-muted truncate">{pro.jobTitle}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted">{date} · {time} · {slot.durationMins} min</p>
+              {slot.meetLink && (
+                <a href={slot.meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
+                  Join session ↗
+                </a>
+              )}
+              <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Confirmed</span>
+            </div>
+          )
+        })}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-4 md:p-6 space-y-8">
-      {/* Greeting */}
+    <div className="p-6 space-y-8">
       <div>
         <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
         <p className="text-sm text-muted mt-0.5">{today}</p>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {dashLoading ? (
           <>
-            <SkeletonCard />
-            <SkeletonCard />
+            <div className="animate-pulse bg-border rounded-xl h-24" />
+            <div className="animate-pulse bg-border rounded-xl h-24" />
+            <div className="animate-pulse bg-border rounded-xl h-24" />
           </>
         ) : (
           <>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">
-                {dashError ? '—' : upcomingCount}
-              </p>
-              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Upcoming Sessions</p>
+              <p className="text-2xl font-bold text-primary">{dashError ? '—' : upcomingOneOnOne}</p>
+              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Upcoming 1-on-1 Sessions</p>
+            </div>
+            <div className="bg-surface rounded-xl border border-border p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{dashError ? '—' : upcomingGroup}</p>
+              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Upcoming Group Sessions</p>
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">
-                {dashError || confidenceScore === null ? '— / 5' : `${confidenceScore} / 5`}
+                {dashError || confidenceScore === null ? '—' : `${confidenceScore}/5`}
               </p>
               <p className="text-xs text-muted mt-1 uppercase tracking-wide">Career Confidence</p>
             </div>
@@ -104,106 +189,14 @@ const StudentHome = () => {
         )}
       </div>
 
-      {/* Professionals you might like */}
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-semibold text-primary">Professionals you might like</h2>
-          <Link to="/student/discover" className="text-sm text-accent hover:underline">
-            View all
-          </Link>
+      <div>
+        <div className="mb-6">
+          <TabBar tabs={TABS} active={tab} onChange={(t) => setTab(t as Tab)} />
         </div>
 
-        {prosLoading ? (
-          <div className="space-y-3">
-            <div className="animate-pulse bg-border rounded-xl h-20" />
-            <div className="animate-pulse bg-border rounded-xl h-20" />
-            <div className="animate-pulse bg-border rounded-xl h-20" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {professionals.map((pro) => {
-              const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
-              return (
-                <div
-                  key={pro.id}
-                  className="bg-surface rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-accent/10 text-accent font-semibold flex items-center justify-center text-sm flex-shrink-0">
-                      {initials}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-primary">
-                        {pro.firstName} {pro.lastName}
-                      </p>
-                      <p className="text-xs text-muted">{pro.jobTitle} · {pro.employer}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => navigate(`/student/professional/${pro.id}`)}
-                      className="border border-border text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-background transition-colors"
-                    >
-                      View Profile
-                    </button>
-                    <button
-                      onClick={() => setBookingPro({
-                        id: pro.id,
-                        firstName: pro.firstName,
-                        lastName: pro.lastName,
-                        jobTitle: pro.jobTitle,
-                        profilePhoto: pro.profilePhoto ?? null,
-                        offersFreeIntro: pro.offersFreeIntro ?? true,
-                        offersProTier: pro.offersProTier ?? true,
-                        proRate: pro.proRate ?? 5000,
-                      })}
-                      className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      Book Session
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-            {!prosLoading && professionals.length === 0 && (
-              <p className="text-sm text-muted">No professionals available yet.</p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Upcoming group sessions */}
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-semibold text-primary">Upcoming group sessions</h2>
-          <Link to="/student/sessions" className="text-sm text-accent hover:underline">
-            View all sessions
-          </Link>
-        </div>
-
-        {gsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="animate-pulse bg-border rounded-xl h-44" />
-            <div className="animate-pulse bg-border rounded-xl h-44" />
-          </div>
-        ) : groupSessions.length === 0 ? (
-          <p className="text-sm text-muted">No upcoming group sessions right now.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {groupSessions.map((gs) => (
-              <GroupSessionCard key={gs.id} session={gs} onRegisterSuccess={() => refetchDashboard()} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {bookingPro && (
-        <BookSessionModal
-          professional={bookingPro}
-          defaultType={bookingPro.offersFreeIntro ? 'FREE_INTRO' : 'PRO'}
-          onClose={() => setBookingPro(null)}
-        />
-      )}
+        {tab === 'Group Sessions' && renderGroupSessions()}
+        {tab === '1-on-1 Sessions' && renderMentorSlots()}
+      </div>
     </div>
   )
 }
