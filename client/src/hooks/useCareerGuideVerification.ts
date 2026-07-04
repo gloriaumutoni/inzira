@@ -1,49 +1,69 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
 
 export interface PendingCareerGuide {
   id: string
   firstName: string
   lastName: string
   email: string
-  school: string
+  school: string | null
   linkedinUrl: string | null
   submittedAt: string
+  rejectionCount: number
+  rejectionReason: string | null
 }
 
 interface UseCareerGuideVerificationResult {
   careerGuides: PendingCareerGuide[]
   loading: boolean
-  error: boolean
   refetch: () => void
 }
 
 const useCareerGuideVerification = (): UseCareerGuideVerificationResult => {
   const [careerGuides, setCareerGuides] = useState<PendingCareerGuide[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetch = async () => {
       setLoading(true)
-      setError(false)
       try {
         const { data } = await api.get('/admin/verification/career-guides')
-        setCareerGuides(data.data.careerGuides)
+        const raw = data.data as Array<{
+          id: string
+          firstName: string
+          lastName: string
+          linkedinUrl: string | null
+          createdAt: string
+          rejectionCount: number
+          rejectionReason: string | null
+          school: { name: string } | null
+          user: { email: string }
+        }>
+        setCareerGuides(
+          raw.map((cg) => ({
+            id: cg.id,
+            firstName: cg.firstName,
+            lastName: cg.lastName,
+            email: cg.user.email,
+            school: cg.school?.name ?? null,
+            linkedinUrl: cg.linkedinUrl,
+            submittedAt: cg.createdAt,
+            rejectionCount: cg.rejectionCount ?? 0,
+            rejectionReason: cg.rejectionReason ?? null,
+          })),
+        )
       } catch (err) {
         console.error('useCareerGuideVerification fetch error:', err)
-        setError(true)
-        toast.error('Unable to load career guide verification queue.')
+        setCareerGuides([])
       } finally {
         setLoading(false)
       }
     }
-    fetchData()
+    fetch()
   }, [tick])
 
-  return { careerGuides, loading, error, refetch: () => setTick((t) => t + 1) }
+  return { careerGuides, loading, refetch: () => setTick((t) => t + 1) }
 }
 
 export default useCareerGuideVerification
