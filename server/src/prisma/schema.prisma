@@ -3,9 +3,351 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  passwordHash     String
+  role             Role
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  careerGuide      CareerGuide?
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  sentMessages     Message[]      @relation("SentMessages")
+  notifications    Notification[]
+  professional     Professional?
+  refreshTokens    RefreshToken[]
+  student          Student?
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Student {
+  id              String                  @id @default(cuid())
+  userId          String                  @unique
+  firstName       String
+  lastName        String
+  schoolId        String?
+  level           Level
+  schoolYear      String
+  combination     String?
+  confidenceLevel Int?
+  mentorPlan      MentorPlan              @default(FREE)
+  interests       String[]
+  profilePhoto    String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  confidenceLogs  ConfidenceLog[]
+  groupEnrolments GroupSessionEnrolment[]
+  MentorSlot      MentorSlot[]
+  mentorship      Mentorship?
+  reviewsGiven    Review[]
+  sessions        Session[]
+  SessionFeedback SessionFeedback[]
+  school          School?                 @relation(fields: [schoolId], references: [id])
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Professional {
+  id                         String                             @id @default(cuid())
+  userId                     String                             @unique
+  firstName                  String
+  lastName                   String
+  jobTitle                   String
+  employer                   String
+  sector                     String
+  linkedinUrl                String?
+  bio                        String
+  profilePhoto               String?
+  isVerified                 Boolean                            @default(false)
+  isActive                   Boolean                            @default(true)
+  sessionQuota               Int                                @default(20)
+  sessionsUsedThisMonth      Int                                @default(0)
+  offersFreeIntro            Boolean                            @default(true)
+  offersProTier              Boolean                            @default(true)
+  offersPremiumTier          Boolean                            @default(false)
+  proRate                    Int                                @default(5000)
+  premiumRate                Int                                @default(10000)
+  premiumSessionsPerMonth    Int                                @default(2)
+  createdAt                  DateTime                           @default(now())
+  updatedAt                  DateTime                           @updatedAt
+  verificationStatus         String                             @default("PENDING")
+  rejectionReason            String?
+  isMentor                   Boolean                            @default(false)
+  mentorApplicationStatus    String?
+  mentorRejectionReason      String?
+  mentorAppliedAt            DateTime?
+  mentorApplicationAttempts  Int                                @default(0)
+  mentorBio                  String?
+  verificationAttempts       Int                                @default(0)
+  availability               Availability[]
+  groupSessions              GroupSession[]
+  interviewBooking           MentorApplicationInterviewBooking?
+  MentorAvailabilityTemplate MentorAvailabilityTemplate[]
+  MentorSlot                 MentorSlot[]
+  mentorships                Mentorship[]
+  user                       User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ProfessionalCareer         ProfessionalCareer[]
+  reviews                    Review[]
+  sessions                   Session[]
+}
+
+model CareerGuide {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  firstName          String
+  lastName           String
+  schoolId           String?  @unique
+  profilePhoto       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  isVerified         Boolean  @default(false)
+  linkedinUrl        String?
+  verificationStatus String   @default("PENDING")
+  rejectionReason    String?
+  rejectionCount     Int      @default(0)
+  school             School?  @relation(fields: [schoolId], references: [id])
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model School {
+  id          String       @id @default(cuid())
+  name        String
+  district    String
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  careerGuide CareerGuide?
+  students    Student[]
+}
+
+model Career {
+  id                 String               @id @default(cuid())
+  title              String
+  description        String
+  sector             String
+  combinations       String[]
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  ProfessionalCareer ProfessionalCareer[]
+}
+
+model Availability {
+  id             String       @id @default(cuid())
+  professionalId String
+  dayOfWeek      Int
+  startHour      Int
+  isPremiumOnly  Boolean      @default(false)
+  isBooked       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id               String           @id @default(cuid())
+  studentId        String
+  professionalId   String
+  type             SessionType
+  status           SessionStatus    @default(PENDING)
+  scheduledAt      DateTime
+  duration         Int
+  grossAmount      Int              @default(0)
+  commissionAmount Int              @default(0)
+  netAmount        Int              @default(0)
+  notes            String?
+  cancelReason     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  review           Review?
+  professional     Professional     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  SessionFeedback  SessionFeedback?
+}
+
+model GroupSession {
+  id              String                  @id @default(cuid())
+  professionalId  String
+  title           String
+  description     String
+  sector          String
+  combinations    String[]
+  scheduledAt     DateTime
+  duration        Int
+  maxStudents     Int                     @default(30)
+  isRecurring     Boolean                 @default(true)
+  recurringDays   Int                     @default(14)
+  isCancelled     Boolean                 @default(false)
+  parentSessionId String?
+  joinLink        String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  professional    Professional            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  enrolments      GroupSessionEnrolment[]
+
+  @@unique([professionalId, scheduledAt])
+}
+
+model GroupSessionEnrolment {
+  id             String       @id @default(cuid())
+  groupSessionId String
+  studentId      String
+  joinedAt       DateTime     @default(now())
+  groupSession   GroupSession @relation(fields: [groupSessionId], references: [id], onDelete: Cascade)
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([groupSessionId, studentId])
+}
+
+model Mentorship {
+  id              String           @id @default(cuid())
+  studentId       String           @unique
+  professionalId  String
+  status          MentorshipStatus @default(ACTIVE)
+  startDate       DateTime         @default(now())
+  nextBillingDate DateTime
+  sessionsUsed    Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  professional    Professional     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  sessionId      String       @unique
+  studentId      String
+  professionalId String
+  rating         Int
+  comment        String?
+  createdAt      DateTime     @default(now())
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  session        Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model ConfidenceLog {
+  id        String   @id @default(cuid())
+  studentId String
+  score     Int
+  note      String?
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model AdminInterviewSlot {
+  id          String                              @id @default(cuid())
+  dayOfWeek   Int
+  startHour   Int
+  startMinute Int
+  endHour     Int
+  endMinute   Int
+  meetLink    String
+  isActive    Boolean                             @default(true)
+  createdAt   DateTime                            @default(now())
+  bookings    MentorApplicationInterviewBooking[]
+
+  @@unique([dayOfWeek, startHour, startMinute])
+}
+
+model MentorApplicationInterviewBooking {
+  id             String             @id @default(cuid())
+  professionalId String             @unique
+  adminSlotId    String
+  scheduledAt    DateTime
+  meetLink       String
+  createdAt      DateTime           @default(now())
+  adminSlot      AdminInterviewSlot @relation(fields: [adminSlotId], references: [id])
+  professional   Professional       @relation(fields: [professionalId], references: [id])
+}
+
+model MentorAvailabilityTemplate {
+  id             String       @id
+  professionalId String
+  dayOfWeek      Int
+  startHour      Int
+  startMinute    Int
+  endHour        Int
+  endMinute      Int
+  createdAt      DateTime     @default(now())
+  Professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, dayOfWeek, startHour, startMinute])
+}
+
+model MentorSlot {
+  id                String       @id
+  professionalId    String
+  scheduledAt       DateTime
+  durationMins      Int          @default(30)
+  isBooked          Boolean      @default(false)
+  bookedByStudentId String?
+  sessionId         String?
+  createdAt         DateTime     @default(now())
+  meetLink          String?
+  Student           Student?     @relation(fields: [bookedByStudentId], references: [id])
+  Professional      Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, scheduledAt])
+}
+
+model ProfessionalCareer {
+  id             String       @id
+  professionalId String
+  careerId       String
+  createdAt      DateTime     @default(now())
+  Career         Career       @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  Professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, careerId])
+}
+
+model SessionFeedback {
+  id                   String   @id
+  sessionId            String   @unique
+  studentId            String
+  confidenceBefore     Int
+  confidenceAfter      Int
+  wasHelpful           Boolean
+  professionalFeedback String?
+  createdAt            DateTime @default(now())
+  Session              Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Student              Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 enum Role {
@@ -44,357 +386,4 @@ enum MentorshipStatus {
   ACTIVE
   CANCELLED
   PAUSED
-}
-
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         Role
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  student          Student?
-  professional     Professional?
-  careerGuide      CareerGuide?
-  notifications    Notification[]
-  sentMessages     Message[]      @relation("SentMessages")
-  receivedMessages Message[]      @relation("ReceivedMessages")
-  refreshTokens    RefreshToken[]
-}
-
-model RefreshToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Student {
-  id              String     @id @default(cuid())
-  userId          String     @unique
-  firstName       String
-  lastName        String
-  schoolId        String?
-  level           Level
-  schoolYear      String
-  combination     String?
-  confidenceLevel Int?
-  mentorPlan      MentorPlan @default(FREE)
-  interests       String[]
-  profilePhoto    String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school          School?                 @relation(fields: [schoolId], references: [id])
-  sessions        Session[]
-  groupEnrolments GroupSessionEnrolment[]
-  confidenceLogs  ConfidenceLog[]
-  mentorship      Mentorship?
-  reviewsGiven    Review[]
-  sessionFeedback SessionFeedback[]
-  bookedMentorSlots      MentorSlot[]
-}
-
-model Professional {
-  id                      String    @id @default(cuid())
-  userId                  String    @unique
-  firstName               String
-  lastName                String
-  jobTitle                String
-  employer                String
-  sector                  String
-  linkedinUrl             String?
-  bio                     String
-  profilePhoto            String?
-  isVerified              Boolean   @default(false)
-  verificationStatus      String    @default("PENDING")
-  isActive                Boolean   @default(true)
-  sessionQuota            Int       @default(20)
-  sessionsUsedThisMonth   Int       @default(0)
-  offersFreeIntro         Boolean   @default(true)
-  offersProTier           Boolean   @default(true)
-  offersPremiumTier       Boolean   @default(false)
-  proRate                 Int       @default(5000)
-  premiumRate             Int       @default(10000)
-  premiumSessionsPerMonth Int       @default(2)
-  isMentor                Boolean   @default(false)
-  mentorApplicationStatus String?
-  mentorAppliedAt         DateTime?
-  mentorBio               String?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  availability  Availability[]
-  sessions      Session[]
-  groupSessions GroupSession[]
-  mentorships   Mentorship[]
-  reviews       Review[]
-  careers       ProfessionalCareer[]
-  availabilityTemplates  MentorAvailabilityTemplate[]
-  mentorSlots            MentorSlot[]
-  interviewBooking       MentorApplicationInterviewBooking?
-}
-
-model CareerGuide {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  firstName          String
-  lastName           String
-  schoolId           String?  @unique
-  linkedinUrl        String?
-  profilePhoto       String?
-  isVerified         Boolean  @default(false)
-  verificationStatus String   @default("PENDING")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school School? @relation(fields: [schoolId], references: [id])
-}
-
-model School {
-  id        String   @id @default(cuid())
-  name      String
-  district  String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  students    Student[]
-  careerGuide CareerGuide?
-}
-
-model Career {
-  id           String   @id @default(cuid())
-  title        String
-  description  String
-  sector       String
-  combinations String[]
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  professionals ProfessionalCareer[]
-}
-
-model Availability {
-  id             String   @id @default(cuid())
-  professionalId String
-  dayOfWeek      Int
-  startHour      Int
-  isPremiumOnly  Boolean  @default(false)
-  isBooked       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-}
-
-model MentorAvailabilityTemplate {
-  id             String       @id @default(cuid())
-  professionalId String
-  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  dayOfWeek      Int
-  startHour      Int
-  startMinute    Int
-  endHour        Int
-  endMinute      Int
-  createdAt      DateTime     @default(now())
-
-  @@unique([professionalId, dayOfWeek, startHour, startMinute])
-}
-
-model MentorSlot {
-  id                String       @id @default(cuid())
-  professionalId    String
-  professional      Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  scheduledAt       DateTime
-  durationMins      Int          @default(30)
-  isBooked          Boolean      @default(false)
-  bookedByStudentId String?
-  student           Student?     @relation(fields: [bookedByStudentId], references: [id])
-  sessionId         String?
-  meetLink          String?
-  createdAt         DateTime     @default(now())
-
-  @@unique([professionalId, scheduledAt])
-}
-
-model AdminInterviewSlot {
-  id          String    @id @default(cuid())
-  dayOfWeek   Int
-  startHour   Int
-  startMinute Int
-  endHour     Int
-  endMinute   Int
-  meetLink    String
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-
-  bookings    MentorApplicationInterviewBooking[]
-
-  @@unique([dayOfWeek, startHour, startMinute])
-}
-
-model MentorApplicationInterviewBooking {
-  id             String              @id @default(cuid())
-  professionalId String              @unique
-  professional   Professional        @relation(fields: [professionalId], references: [id])
-  adminSlotId    String
-  adminSlot      AdminInterviewSlot  @relation(fields: [adminSlotId], references: [id])
-  scheduledAt    DateTime
-  meetLink       String
-  createdAt      DateTime            @default(now())
-}
-
-model Session {
-  id               String        @id @default(cuid())
-  studentId        String
-  professionalId   String
-  type             SessionType
-  status           SessionStatus @default(PENDING)
-  scheduledAt      DateTime
-  duration         Int
-  grossAmount      Int           @default(0)
-  commissionAmount Int           @default(0)
-  netAmount        Int           @default(0)
-  notes            String?
-  cancelReason     String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  student      Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  professional Professional    @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  review       Review?
-  feedback     SessionFeedback?
-}
-
-model GroupSession {
-  id              String   @id @default(cuid())
-  professionalId  String
-  title           String
-  description     String
-  sector          String
-  scheduledAt     DateTime
-  duration        Int
-  maxStudents     Int      @default(30)
-  isRecurring     Boolean  @default(true)
-  recurringDays   Int      @default(14)
-  isCancelled     Boolean  @default(false)
-  parentSessionId String?
-  joinLink        String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  professional Professional            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  enrolments   GroupSessionEnrolment[]
-
-  @@unique([professionalId, scheduledAt])
-}
-
-model GroupSessionEnrolment {
-  id             String   @id @default(cuid())
-  groupSessionId String
-  studentId      String
-  joinedAt       DateTime @default(now())
-
-  groupSession GroupSession @relation(fields: [groupSessionId], references: [id], onDelete: Cascade)
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([groupSessionId, studentId])
-}
-
-model Mentorship {
-  id              String           @id @default(cuid())
-  studentId       String           @unique
-  professionalId  String
-  status          MentorshipStatus @default(ACTIVE)
-  startDate       DateTime         @default(now())
-  nextBillingDate DateTime
-  sessionsUsed    Int              @default(0)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-}
-
-model Message {
-  id         String   @id @default(cuid())
-  senderId   String
-  receiverId String
-  content    String
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-
-  sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String
-  title     String
-  body      String
-  isRead    Boolean  @default(false)
-  link      String?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Review {
-  id             String   @id @default(cuid())
-  sessionId      String   @unique
-  studentId      String
-  professionalId String
-  rating         Int
-  comment        String?
-  createdAt      DateTime @default(now())
-
-  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-}
-
-model ConfidenceLog {
-  id        String   @id @default(cuid())
-  studentId String
-  score     Int
-  note      String?
-  createdAt DateTime @default(now())
-
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-}
-
-model SessionFeedback {
-  id                   String   @id @default(cuid())
-  sessionId            String   @unique
-  studentId            String
-  confidenceBefore     Int
-  confidenceAfter      Int
-  wasHelpful           Boolean
-  professionalFeedback String?
-  createdAt            DateTime @default(now())
-
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-}
-
-model ProfessionalCareer {
-  id             String       @id @default(cuid())
-  professionalId String
-  careerId       String
-  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  career         Career       @relation(fields: [careerId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
-
-  @@unique([professionalId, careerId])
 }
