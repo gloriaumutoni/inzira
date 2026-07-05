@@ -23,6 +23,9 @@ jobs:
       - name: TypeScript check
         working-directory: server
         run: npx tsc --noEmit
+      - name: Run tests
+        working-directory: server
+        run: npm test
 
   client:
     name: Client — typecheck + build
@@ -40,6 +43,9 @@ jobs:
       - name: TypeScript check
         working-directory: client
         run: npx tsc --noEmit
+      - name: Run tests
+        working-directory: client
+        run: npm test
       - name: Build
         working-directory: client
         run: npm run build
