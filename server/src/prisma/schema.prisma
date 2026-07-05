@@ -15,6 +15,7 @@ model User {
   role             Role
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  lastLoginAt      DateTime?
   careerGuide      CareerGuide?
   receivedMessages Message[]      @relation("ReceivedMessages")
   sentMessages     Message[]      @relation("SentMessages")
@@ -22,6 +23,7 @@ model User {
   professional     Professional?
   refreshTokens    RefreshToken[]
   student          Student?
+  sessionReports   SessionReport[]
 }
 
 model RefreshToken {
@@ -87,12 +89,15 @@ model Professional {
   updatedAt                  DateTime                           @updatedAt
   verificationStatus         String                             @default("PENDING")
   rejectionReason            String?
+  rejectionCount             Int                                @default(0)
   isMentor                   Boolean                            @default(false)
   mentorApplicationStatus    String?
   mentorRejectionReason      String?
+  mentorRejectionCount       Int                                @default(0)
   mentorAppliedAt            DateTime?
   mentorApplicationAttempts  Int                                @default(0)
   mentorBio                  String?
+  relevantCombinations       String[]
   verificationAttempts       Int                                @default(0)
   availability               Availability[]
   groupSessions              GroupSession[]
@@ -104,6 +109,7 @@ model Professional {
   ProfessionalCareer         ProfessionalCareer[]
   reviews                    Review[]
   sessions                   Session[]
+  careerStories              CareerStory[]
 }
 
 model CareerGuide {
@@ -120,6 +126,7 @@ model CareerGuide {
   verificationStatus String   @default("PENDING")
   rejectionReason    String?
   rejectionCount     Int      @default(0)
+  verificationAttempts Int    @default(0)
   school             School?  @relation(fields: [schoolId], references: [id])
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -178,6 +185,7 @@ model Session {
   professional     Professional     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
   SessionFeedback  SessionFeedback?
+  reports          SessionReport[]
 }
 
 model GroupSession {
@@ -199,6 +207,7 @@ model GroupSession {
   updatedAt       DateTime                @updatedAt
   professional    Professional            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   enrolments      GroupSessionEnrolment[]
+  reports         SessionReport[]
 
   @@unique([professionalId, scheduledAt])
 }
@@ -265,12 +274,15 @@ model Review {
 }
 
 model ConfidenceLog {
-  id        String   @id @default(cuid())
-  studentId String
-  score     Int
-  note      String?
-  createdAt DateTime @default(now())
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  studentId       String
+  score           Int
+  note            String?
+  combination     String?
+  sessionId       String?
+  changedThinking Boolean?
+  createdAt       DateTime @default(now())
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 model AdminInterviewSlot {
@@ -282,6 +294,7 @@ model AdminInterviewSlot {
   endMinute   Int
   meetLink    String
   isActive    Boolean                             @default(true)
+  endDate     DateTime?
   createdAt   DateTime                            @default(now())
   bookings    MentorApplicationInterviewBooking[]
 
@@ -340,6 +353,23 @@ model ProfessionalCareer {
   @@unique([professionalId, careerId])
 }
 
+model CareerStory {
+  id                String            @id @default(cuid())
+  professionalId    String
+  professional      Professional      @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  jobTitle          String
+  sector            String
+  combinations      String[]
+  myPath            String
+  whatIDo           String
+  adviceForStudents String
+  status            CareerStoryStatus @default(PENDING_REVIEW)
+  rejectionReason   String?
+  publishedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
 model SessionFeedback {
   id                   String   @id
   sessionId            String   @unique
@@ -389,4 +419,42 @@ enum MentorshipStatus {
   ACTIVE
   CANCELLED
   PAUSED
+}
+
+enum CareerStoryStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+model SessionReport {
+  id             String              @id @default(cuid())
+  sessionId      String?
+  groupSessionId String?
+  reportedBy     String
+  reason         SessionReportReason
+  description    String?
+  status         SessionReportStatus @default(PENDING)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  session      Session?      @relation(fields: [sessionId], references: [id])
+  groupSession GroupSession? @relation(fields: [groupSessionId], references: [id])
+  reporter     User          @relation(fields: [reportedBy], references: [id])
+}
+
+enum SessionReportReason {
+  INAPPROPRIATE_BEHAVIOUR
+  UNCOMFORTABLE_CONTENT
+  NO_SHOW
+  HARASSMENT
+  OTHER
+}
+
+enum SessionReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
 }
