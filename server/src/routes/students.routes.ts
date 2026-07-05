@@ -1,18 +1,18 @@
 import { Router } from 'express'
 import * as studentsController from '../controllers/students.controller'
-import { authMiddleware, roleGuard } from '../middleware'
+import { authMiddleware, roleGuard, cacheMiddleware } from '../middleware'
 
 const router = Router()
 
 router.use(authMiddleware, roleGuard('STUDENT'))
 
-router.get('/me', studentsController.getMe)
+router.get('/me', cacheMiddleware(20), studentsController.getMe)
 router.patch('/me', studentsController.updateMe)
-router.get('/me/dashboard', studentsController.getDashboard)
+router.get('/me/dashboard', cacheMiddleware(20), studentsController.getDashboard)
 router.post('/me/confidence', studentsController.logConfidence)
-router.get('/me/confidence', studentsController.getConfidenceLogs)
-router.get('/me/group-sessions', studentsController.getGroupSessions)
-router.get('/me/mentor-slots', studentsController.getBookedMentorSlots)
-router.get('/me/pending-reflections', studentsController.getPendingReflections)
+router.get('/me/confidence', cacheMiddleware(20), studentsController.getConfidenceLogs)
+router.get('/me/group-sessions', cacheMiddleware(20), studentsController.getGroupSessions)
+router.get('/me/mentor-slots', cacheMiddleware(20), studentsController.getBookedMentorSlots)
+router.get('/me/pending-reflections', cacheMiddleware(15), studentsController.getPendingReflections)
 
 export default router

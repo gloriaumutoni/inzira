@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import * as sessionsController from '../controllers/sessions.controller'
 import * as sessionReportsController from '../controllers/sessionReports.controller'
-import { authMiddleware, roleGuard } from '../middleware'
+import { authMiddleware, roleGuard, cacheMiddleware } from '../middleware'
 
 const router = Router()
 
@@ -9,6 +9,7 @@ router.get(
   '/',
   authMiddleware,
   roleGuard('STUDENT', 'PROFESSIONAL'),
+  cacheMiddleware(15),
   sessionsController.list
 )
 
@@ -23,6 +24,7 @@ router.get(
   '/:id',
   authMiddleware,
   roleGuard('STUDENT', 'PROFESSIONAL', 'ADMIN'),
+  cacheMiddleware(15),
   sessionsController.getOne
 )
 

@@ -1,15 +1,15 @@
 import { Router } from 'express'
 import * as careerGuidesController from '../controllers/careerGuides.controller'
-import { authMiddleware, roleGuard } from '../middleware'
+import { authMiddleware, roleGuard, cacheMiddleware } from '../middleware'
 
 const router = Router()
 
 router.use(authMiddleware, roleGuard('CAREER_GUIDE'))
 
-router.get('/me', careerGuidesController.getMe)
-router.get('/me/dashboard', careerGuidesController.getDashboard)
-router.get('/me/students', careerGuidesController.getMySchoolStudents)
-router.get('/me/students/:studentId', careerGuidesController.getStudentDetail)
+router.get('/me', cacheMiddleware(20), careerGuidesController.getMe)
+router.get('/me/dashboard', cacheMiddleware(20), careerGuidesController.getDashboard)
+router.get('/me/students', cacheMiddleware(20), careerGuidesController.getMySchoolStudents)
+router.get('/me/students/:studentId', cacheMiddleware(20), careerGuidesController.getStudentDetail)
 router.post('/me/reapply', careerGuidesController.reapplyVerification)
 
 export default router

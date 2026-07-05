@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as groupSessionsController from "../controllers/groupSessions.controller";
 import * as sessionReportsController from "../controllers/sessionReports.controller";
-import { authMiddleware, roleGuard } from "../middleware";
+import { authMiddleware, roleGuard, cacheMiddleware } from "../middleware";
 
 const router = Router();
 
@@ -9,11 +9,12 @@ router.get(
   "/me",
   authMiddleware,
   roleGuard("PROFESSIONAL"),
+  cacheMiddleware(20),
   groupSessionsController.getOwn,
 );
 
-router.get("/", authMiddleware, groupSessionsController.list);
-router.get("/:id", authMiddleware, groupSessionsController.getOne);
+router.get("/", authMiddleware, cacheMiddleware(15), groupSessionsController.list);
+router.get("/:id", authMiddleware, cacheMiddleware(15), groupSessionsController.getOne);
 router.post(
   "/",
   authMiddleware,
@@ -48,6 +49,7 @@ router.get(
   "/:id/roster",
   authMiddleware,
   roleGuard("PROFESSIONAL", "ADMIN"),
+  cacheMiddleware(20),
   groupSessionsController.getRoster,
 );
 

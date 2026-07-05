@@ -12,11 +12,11 @@ import notificationsRouter from './notifications.routes'
 import adminRouter from './admin.routes'
 import careerStoriesRouter from './careerStories.routes'
 import * as adminController from '../controllers/admin.controller'
-import { authMiddleware } from '../middleware'
+import { authMiddleware, cacheMiddleware } from '../middleware'
 
 const router = Router()
 
-router.get('/stats', adminController.getPublicStats)
+router.get('/stats', cacheMiddleware(120), adminController.getPublicStats)
 
 router.use('/auth', authRouter)
 router.use('/students', studentsRouter)
@@ -30,6 +30,6 @@ router.use('/mentorships', mentorshipsRouter)
 router.use('/notifications', notificationsRouter)
 router.use('/admin', adminRouter)
 router.use('/career-stories', careerStoriesRouter)
-router.get('/interview-slots/available', authMiddleware, adminController.getAvailableInterviewSlots)
+router.get('/interview-slots/available', authMiddleware, cacheMiddleware(60), adminController.getAvailableInterviewSlots)
 
 export default router
