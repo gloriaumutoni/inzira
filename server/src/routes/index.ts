@@ -11,6 +11,7 @@ import mentorshipsRouter from './mentorships.routes'
 import paymentsRouter from './payments.routes'
 import notificationsRouter from './notifications.routes'
 import adminRouter from './admin.routes'
+import careerStoriesRouter from './careerStories.routes'
 import * as adminController from '../controllers/admin.controller'
 import { authMiddleware } from '../middleware'
 
@@ -30,6 +31,7 @@ router.use('/mentorships', mentorshipsRouter)
 router.use('/payments', paymentsRouter)
 router.use('/notifications', notificationsRouter)
 router.use('/admin', adminRouter)
+router.use('/career-stories', careerStoriesRouter)
 router.get('/interview-slots/available', authMiddleware, adminController.getAvailableInterviewSlots)
 
 export default router
