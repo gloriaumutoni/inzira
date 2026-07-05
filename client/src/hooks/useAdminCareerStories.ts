@@ -9,7 +9,7 @@ import {
   type AdminCareerStoryPayload,
 } from '@/api/careerStories.api'
 
-type Tab = 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED'
+export type Tab = 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED'
 
 interface UseAdminCareerStoriesResult {
   stories: CareerStory[]

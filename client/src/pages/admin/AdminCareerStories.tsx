@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, BookOpen, AlertCircle, EyeOff, PenLine, X, ChevronDown } from 'lucide-react'
 import { type CareerStory, adminListVerifiedProfessionals, type VerifiedProfessional } from '@/api/careerStories.api'
-import useAdminCareerStories from '@/hooks/useAdminCareerStories'
+import useAdminCareerStories, { type Tab } from '@/hooks/useAdminCareerStories'
 import { COMBINATIONS } from '@/constants/combinations'
 
 const SECTORS = [

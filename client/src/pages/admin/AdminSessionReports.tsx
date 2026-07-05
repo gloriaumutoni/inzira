@@ -170,7 +170,7 @@ function ReportRow({ report, onStatusChange, onSuspendToggle }: Readonly<{
               className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-primary focus:outline-none focus:border-primary disabled:opacity-50"
             >
               {STATUS_OPTIONS.map(s => (
-                <option key={s} value={s}>{s.replaceAll('_', ' ')}</option>
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
               ))}
             </select>
 

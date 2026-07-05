@@ -118,7 +118,7 @@ const StudentHome = () => {
 
   const upcomingOneOnOne = dashboard?.upcomingSessions.length ?? 0
   const upcomingGroup = dashboard?.groupSessions.length ?? 0
-  const confidenceScore = dashboard?.latestConfidence?.score ?? null
+  const confidenceScore = dashboard?.latestConfidence ?? null
 
   const combinationsConsidering = user?.student?.combinationsConsidering ?? []
   const showQuizPrompt =

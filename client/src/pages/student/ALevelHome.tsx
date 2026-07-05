@@ -119,7 +119,7 @@ const ALevelHome = () => {
 
   const upcomingGroup = dashboard?.groupSessions.length ?? 0
   const upcomingMentor = mentorSlots.length
-  const confidenceScore = dashboard?.latestConfidence?.score ?? null
+  const confidenceScore = dashboard?.latestConfidence ?? null
 
   const renderDiscoverySessions = () => {
     if (discoveryLoading) {
