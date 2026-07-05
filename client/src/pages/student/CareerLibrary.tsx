@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Search, BookOpen, Briefcase, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   listCareerStories,
+  getCareerStory,
   getCombinations,
   type CareerStory,
 } from '@/api/careerStories.api'
@@ -151,18 +153,38 @@ function Section({ icon, title, children }: Readonly<{ icon: React.ReactNode; ti
 
 const CareerLibrary = () => {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [stories, setStories] = useState<CareerStory[]>([])
   const [total, setTotal] = useState(0)
   const [combinations, setCombinations] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedStory, setSelectedStory] = useState<CareerStory | null>(null)
+  const [deepLinkLoading, setDeepLinkLoading] = useState(false)
+
+  const storyIdParam = searchParams.get('story')
+
+  useEffect(() => {
+    if (!storyIdParam) return
+    setDeepLinkLoading(true)
+    getCareerStory(storyIdParam)
+      .then(setSelectedStory)
+      .catch(() => {})
+      .finally(() => setDeepLinkLoading(false))
+  }, [storyIdParam])
+
+  const handleBack = () => {
+    setSelectedStory(null)
+    if (storyIdParam) setSearchParams(prev => { prev.delete('story'); return prev })
+  }
 
   const studentCombos = user?.student?.combinationsConsidering ?? []
   const defaultCombo = studentCombos[0] ?? ''
+  const studentInterests = user?.student?.careerInterests ?? []
 
   const [search, setSearch] = useState('')
   const [combo, setCombo] = useState(defaultCombo)
   const [sector, setSector] = useState('')
+  const [matchInterests, setMatchInterests] = useState(false)
   const [page, setPage] = useState(1)
   const LIMIT = 12
 
@@ -173,6 +195,9 @@ const CareerLibrary = () => {
         search: search || undefined,
         combination: combo || undefined,
         sector: sector || undefined,
+        interests: !search && matchInterests && studentInterests.length > 0
+          ? studentInterests.join(',')
+          : undefined,
         page,
         limit: LIMIT,
       })
@@ -183,7 +208,7 @@ const CareerLibrary = () => {
     } finally {
       setLoading(false)
     }
-  }, [search, combo, sector, page])
+  }, [search, combo, sector, matchInterests, studentInterests, page])
 
   useEffect(() => {
     getCombinations().then(setCombinations).catch(() => {})
@@ -191,16 +216,24 @@ const CareerLibrary = () => {
 
   useEffect(() => {
     setPage(1)
-  }, [search, combo, sector])
+  }, [search, combo, sector, matchInterests])
 
   useEffect(() => {
     fetchStories()
   }, [fetchStories])
 
+  if (deepLinkLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse bg-border rounded-xl h-64" />
+      </div>
+    )
+  }
+
   if (selectedStory) {
     return (
       <div className="p-6">
-        <StoryDetail story={selectedStory} onBack={() => setSelectedStory(null)} />
+        <StoryDetail story={selectedStory} onBack={handleBack} />
       </div>
     )
   }
@@ -250,11 +283,25 @@ const CareerLibrary = () => {
           onChange={e => setSector(e.target.value)}
           className="text-sm bg-surface border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
         >
-          <option value="">All sectors</option>
+          <option value="">All careers</option>
           {SECTORS.map(s => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+
+        {studentInterests.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMatchInterests(v => !v)}
+            className={`text-sm px-3 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+              matchInterests
+                ? 'bg-primary text-white border-primary'
+                : 'bg-surface border-border hover:border-primary'
+            }`}
+          >
+            Match my interests
+          </button>
+        )}
       </div>
 
       {/* Results count */}
@@ -276,9 +323,9 @@ const CareerLibrary = () => {
         <div className="text-center py-16">
           <BookOpen className="w-10 h-10 text-muted mx-auto mb-3" />
           <p className="text-sm text-muted">No stories match your filters.</p>
-          {(search || combo || sector) && (
+          {(search || combo || sector || matchInterests) && (
             <button
-              onClick={() => { setSearch(''); setCombo(''); setSector('') }}
+              onClick={() => { setSearch(''); setCombo(''); setSector(''); setMatchInterests(false) }}
               className="mt-3 text-xs text-accent hover:underline"
             >
               Clear filters

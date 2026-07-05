@@ -26,6 +26,7 @@ export const list = async (filters: {
   combination?: string
   sector?: string
   search?: string
+  interests?: string
   page?: number
   limit?: number
 }) => {
@@ -48,6 +49,14 @@ export const list = async (filters: {
       { sector: { contains: filters.search, mode: 'insensitive' } },
       { myPath: { contains: filters.search, mode: 'insensitive' } },
     ]
+  } else if (filters.interests) {
+    const interests = filters.interests.split(',').map(i => i.trim()).filter(Boolean)
+    if (interests.length > 0) {
+      where.OR = interests.flatMap(interest => [
+        { jobTitle: { contains: interest, mode: 'insensitive' } },
+        { sector: { contains: interest, mode: 'insensitive' } },
+      ])
+    }
   }
 
   const [stories, total] = await Promise.all([

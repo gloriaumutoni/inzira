@@ -6,7 +6,6 @@ import useConfidenceLogs from '@/hooks/useConfidenceLogs'
 import ManualConfidenceModal from '@/components/student/ManualConfidenceModal'
 import CombinationConfidenceChart from '@/components/student/CombinationConfidenceChart'
 import { api } from '@/api/axios'
-import { listCareerStories, CareerStory } from '@/api/careerStories.api'
 
 interface MentorSlot {
   id: string
@@ -48,7 +47,6 @@ const StudentHome = () => {
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
 
   const [relevantSessions, setRelevantSessions] = useState<GroupSession[]>([])
-  const [relevantStories, setRelevantStories] = useState<CareerStory[]>([])
   const [discoveryLoading, setDiscoveryLoading] = useState(true)
 
   const careerInterests = user?.student?.careerInterests ?? []
@@ -70,21 +68,6 @@ const StudentHome = () => {
 
       const gsRes = await api.get(`/group-sessions?sectors=${encodeURIComponent(sectors)}&limit=3`)
       setRelevantSessions(gsRes.data.data.sessions ?? [])
-
-      const storyResults = await Promise.all(
-        careerInterests.map(interest => listCareerStories({ sector: interest, limit: 3 }))
-      )
-      const seen = new Set<string>()
-      const deduped: CareerStory[] = []
-      for (const result of storyResults) {
-        for (const story of result.stories) {
-          if (!seen.has(story.id)) {
-            seen.add(story.id)
-            deduped.push(story)
-          }
-        }
-      }
-      setRelevantStories(deduped.slice(0, 3))
     } catch {
       // fail silently — discovery sections are non-critical
     } finally {
@@ -118,7 +101,7 @@ const StudentHome = () => {
 
   const upcomingOneOnOne = dashboard?.upcomingSessions.length ?? 0
   const upcomingGroup = dashboard?.groupSessions.length ?? 0
-  const confidenceScore = dashboard?.latestConfidence ?? null
+  const confidenceScore = dashboard?.latestConfidence?.score ?? null
 
   const combinationsConsidering = user?.student?.combinationsConsidering ?? []
   const showQuizPrompt =
@@ -315,26 +298,6 @@ const StudentHome = () => {
             <Link to="/student/sessions" className="text-xs text-accent hover:underline">View all →</Link>
           </div>
           {renderDiscoverySessions()}
-        </section>
-      )}
-
-      {careerInterests.length > 0 && !discoveryLoading && relevantStories.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-primary">Career stories from professionals in your field</h2>
-            <Link to="/student/career-library" className="text-xs text-accent hover:underline">View all →</Link>
-          </div>
-          <div className={GRID}>
-            {relevantStories.map(story => (
-              <div key={story.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
-                <p className="text-sm font-semibold text-primary leading-tight">{story.jobTitle}</p>
-                <p className="text-xs text-muted">{story.professional.firstName} {story.professional.lastName} · {story.professional.employer}</p>
-                <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{story.sector}</span>
-                <p className="text-xs text-muted line-clamp-3 mt-1">{story.myPath}</p>
-                <Link to="/student/career-library" className="text-xs text-accent hover:underline mt-auto">Read more →</Link>
-              </div>
-            ))}
-          </div>
         </section>
       )}
 

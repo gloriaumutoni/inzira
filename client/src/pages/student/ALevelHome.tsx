@@ -119,7 +119,7 @@ const ALevelHome = () => {
 
   const upcomingGroup = dashboard?.groupSessions.length ?? 0
   const upcomingMentor = mentorSlots.length
-  const confidenceScore = dashboard?.latestConfidence ?? null
+  const confidenceScore = dashboard?.latestConfidence?.score ?? null
 
   const renderDiscoverySessions = () => {
     if (discoveryLoading) {
@@ -316,7 +316,7 @@ const ALevelHome = () => {
                   </div>
                 )}
                 <p className="text-xs text-muted line-clamp-3 mt-1">{story.myPath}</p>
-                <Link to="/student/career-library" className="text-xs text-accent hover:underline mt-auto">Read more →</Link>
+                <Link to={`/student/career-library?story=${story.id}`} className="text-xs text-accent hover:underline mt-auto">Read more →</Link>
               </div>
             ))}
           </div>

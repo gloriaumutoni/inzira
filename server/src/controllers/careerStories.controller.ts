@@ -4,11 +4,12 @@ import { ok, created, badRequest } from '../utils/response'
 
 export const list = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { combination, sector, search, page, limit } = req.query
+    const { combination, sector, search, interests, page, limit } = req.query
     ok(res, await careerStoriesService.list({
       combination: combination as string,
       sector: sector as string,
       search: search as string,
+      interests: interests as string,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
     }))

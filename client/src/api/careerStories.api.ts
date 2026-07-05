@@ -47,6 +47,7 @@ export const listCareerStories = async (params?: {
   combination?: string
   sector?: string
   search?: string
+  interests?: string
   page?: number
   limit?: number
 }): Promise<CareerStoryListResponse> => {

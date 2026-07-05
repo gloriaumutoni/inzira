@@ -28,10 +28,17 @@ interface GroupSessionEnrolment {
   }
 }
 
+interface ConfidenceLogEntry {
+  id: string
+  score: number
+  note: string | null
+  createdAt: string
+}
+
 interface StudentDashboardData {
   upcomingSessions: UpcomingSession[]
   groupSessions: GroupSessionEnrolment[]
-  latestConfidence: number | null
+  latestConfidence: ConfidenceLogEntry | null
 }
 
 interface UseStudentDashboardResult {
