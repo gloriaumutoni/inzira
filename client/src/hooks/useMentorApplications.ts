@@ -12,7 +12,7 @@ export interface MentorApplication {
   linkedinUrl: string
   mentorBio: string
   appliedAt: string
-  mentorApplicationAttempts: number
+  mentorRejectionCount: number
   mentorRejectionReason: string | null
   interview: {
     scheduledAt: string
@@ -45,7 +45,7 @@ const useMentorApplications = (): UseMentorApplicationsResult => {
           sector: string
           linkedinUrl: string
           mentorBio: string
-          mentorApplicationAttempts: number
+          mentorRejectionCount: number
           mentorRejectionReason: string | null
           createdAt: string
           interviewBooking: { scheduledAt: string; meetLink: string } | null
@@ -66,7 +66,7 @@ const useMentorApplications = (): UseMentorApplicationsResult => {
             interview: m.interviewBooking
               ? { scheduledAt: m.interviewBooking.scheduledAt, meetLink: m.interviewBooking.meetLink }
               : null,
-            mentorApplicationAttempts: m.mentorApplicationAttempts ?? 0,
+            mentorRejectionCount: m.mentorRejectionCount ?? 0,
             mentorRejectionReason: m.mentorRejectionReason ?? null,
           })),
         )

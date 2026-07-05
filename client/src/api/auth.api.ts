@@ -16,6 +16,7 @@ export interface SignupPayload {
   bio?: string
   schoolId?: string
   linkedinUrl?: string
+  careerInterests?: string[]
 }
 
 export const loginUser = async (

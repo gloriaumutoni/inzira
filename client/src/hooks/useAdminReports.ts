@@ -125,6 +125,25 @@ export const useReportCareerGuides = (page: number, status: 'approved' | 'reject
     [page, status],
   )
 
+export const fetchAllReportStudents = async (level: 'A_LEVEL' | 'O_LEVEL'): Promise<ReportStudent[]> => {
+  const { data } = await api.get(`/admin/reports/students?level=${level}&all=true`)
+  return data.data.students
+}
+
+export const fetchAllReportProfessionals = async (
+  type: 'professional' | 'mentor' | 'rejected' | 'mentor-rejected',
+): Promise<ReportProfessional[]> => {
+  const { data } = await api.get(`/admin/reports/professionals?type=${type}&all=true`)
+  return data.data.professionals
+}
+
+export const fetchAllReportCareerGuides = async (
+  status: 'approved' | 'rejected' = 'approved',
+): Promise<ReportCareerGuide[]> => {
+  const { data } = await api.get(`/admin/reports/career-guides?status=${status}&all=true`)
+  return data.data.careerGuides
+}
+
 export const useReportSummary = () => {
   const [summary, setSummary] = useState<ReportSummary | null>(null)
   const [loading, setLoading] = useState(true)

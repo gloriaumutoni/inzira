@@ -17,6 +17,7 @@ export interface Professional {
   linkedinUrl: string | null
   averageRating: number | null
   reviewCount: number
+  relevantCombinations: string[]
 }
 
 interface UseProfessionalsResult {
@@ -28,6 +29,7 @@ interface UseProfessionalsResult {
 const useProfessionals = (params?: {
   limit?: number
   sector?: string
+  sectors?: string
   isMentor?: boolean
   combination?: string
 }): UseProfessionalsResult => {
@@ -46,6 +48,7 @@ const useProfessionals = (params?: {
         })
         if (params?.isMentor !== undefined) query.set('isMentor', String(params.isMentor))
         if (params?.combination) query.set('combination', params.combination)
+        if (params?.sectors) query.set('sectors', params.sectors)
         const { data } = await api.get(`/professionals?${query}`)
         setProfessionals(data.data.professionals ?? data.data)
       } catch {
@@ -55,7 +58,7 @@ const useProfessionals = (params?: {
       }
     }
     fetch()
-  }, [params?.sector, params?.limit, params?.isMentor, params?.combination])
+  }, [params?.sector, params?.sectors, params?.limit, params?.isMentor, params?.combination])
 
   return { professionals, loading, error }
 }

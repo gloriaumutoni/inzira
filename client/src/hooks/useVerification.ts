@@ -12,7 +12,7 @@ export interface PendingProfessional {
   bio: string
   linkedinUrl?: string
   submittedAt: string
-  verificationAttempts: number
+  rejectionCount: number
   rejectionReason: string | null
 }
 
@@ -42,7 +42,7 @@ const useVerification = (): UseVerificationResult => {
           bio: string
           linkedinUrl?: string
           createdAt: string
-          verificationAttempts: number
+          rejectionCount: number
           rejectionReason: string | null
           user: { email: string }
         }>
@@ -58,7 +58,7 @@ const useVerification = (): UseVerificationResult => {
             bio: p.bio,
             linkedinUrl: p.linkedinUrl,
             submittedAt: p.createdAt,
-            verificationAttempts: p.verificationAttempts ?? 0,
+            rejectionCount: p.rejectionCount ?? 0,
             rejectionReason: p.rejectionReason ?? null,
           })),
         )

@@ -1,7 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
-import { GroupSessionData } from '@/components/sessions/GroupSessionCard'
+
+export interface GroupSessionData {
+  id: string
+  title: string
+  sector: string
+  scheduledAt: string
+  duration?: number
+  maxStudents: number
+  currentEnrollment: number
+  isRegistered: boolean
+  professional?: {
+    firstName: string
+    lastName: string
+    jobTitle?: string
+    sector: string
+  }
+}
 
 interface BackendGroupSession {
   id: string
@@ -10,13 +25,11 @@ interface BackendGroupSession {
   scheduledAt: string
   duration: number
   maxStudents: number
-  joinLink?: string | null
   _count: { enrolments: number }
   professional?: {
     id: string
     firstName: string
     lastName: string
-    jobTitle?: string
     sector: string
     profilePhoto?: string | null
   }
@@ -28,17 +41,25 @@ interface UseGroupSessionsResult {
   error: boolean
 }
 
-const useGroupSessions = (limit?: number): UseGroupSessionsResult => {
+interface UseGroupSessionsOptions {
+  limit?: number
+  professionalId?: string
+}
+
+const useGroupSessions = (options?: UseGroupSessionsOptions): UseGroupSessionsResult => {
+  const { limit, professionalId } = options ?? {}
   const [sessions, setSessions] = useState<GroupSessionData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   useEffect(() => {
     const fetch = async () => {
+      setLoading(true)
       try {
-        const query = new URLSearchParams(
-          limit ? { limit: String(limit) } : {},
-        )
+        const params: Record<string, string> = {}
+        if (limit) params.limit = String(limit)
+        if (professionalId) params.professionalId = professionalId
+        const query = new URLSearchParams(params)
         const { data } = await api.get(`/group-sessions?${query}`)
         const raw: BackendGroupSession[] = data.data.sessions ?? data.data
         setSessions(
@@ -51,12 +72,10 @@ const useGroupSessions = (limit?: number): UseGroupSessionsResult => {
             maxStudents: s.maxStudents,
             currentEnrollment: s._count.enrolments,
             isRegistered: false,
-            joinLink: s.joinLink ?? undefined,
             professional: s.professional
               ? {
                   firstName: s.professional.firstName,
                   lastName: s.professional.lastName,
-                  jobTitle: s.professional.jobTitle,
                   sector: s.professional.sector,
                 }
               : undefined,
@@ -64,13 +83,12 @@ const useGroupSessions = (limit?: number): UseGroupSessionsResult => {
         )
       } catch {
         setError(true)
-        toast.error('Unable to load group sessions.')
       } finally {
         setLoading(false)
       }
     }
     fetch()
-  }, [limit])
+  }, [limit, professionalId])
 
   return { sessions, loading, error }
 }

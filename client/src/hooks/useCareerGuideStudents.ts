@@ -7,7 +7,9 @@ export interface SchoolStudent {
   firstName: string
   lastName: string
   level: string
+  schoolYear: string
   combination: string | null
+  combinationsConsidering: string[]
   confidenceLevel: number | null
   joinedAt: string
   mentorEnrolled: number
@@ -16,6 +18,14 @@ export interface SchoolStudent {
   groupCompleted: number
   initialConfidence: number | null
   professionals: { name: string; sector: string }[]
+  // engagement fields
+  totalSessions: number
+  lastSessionDate: string | null
+  baselineConfidence: number | null
+  currentConfidence: number | null
+  confidenceDelta: number | null
+  lastActiveDate: string | null
+  needsAttention: boolean
 }
 
 const useCareerGuideStudents = () => {

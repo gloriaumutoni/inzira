@@ -27,6 +27,7 @@ export interface AdminInterviewSlot {
   endMinute: number
   meetLink: string
   isActive: boolean
+  endDate: string | null
   bookings: SlotBooking[]
 }
 
