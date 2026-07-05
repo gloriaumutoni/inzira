@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
+import useConfidenceLogs from '@/hooks/useConfidenceLogs'
+import ManualConfidenceModal from '@/components/student/ManualConfidenceModal'
+import CombinationConfidenceChart from '@/components/student/CombinationConfidenceChart'
 import { api } from '@/api/axios'
+import { listCareerStories, CareerStory } from '@/api/careerStories.api'
 
 interface MentorSlot {
   id: string
@@ -11,38 +16,81 @@ interface MentorSlot {
   Professional: { id: string; firstName: string; lastName: string; jobTitle: string }
 }
 
-const TABS = ['Group Sessions', 'Mentor Sessions'] as const
-type Tab = typeof TABS[number]
+interface GroupSession {
+  id: string
+  title: string
+  description?: string
+  scheduledAt: string
+  duration: number
+  sector: string
+  combinations: string[]
+  maxStudents: number
+  joinLink?: string
+  professional: { id: string; firstName: string; lastName: string; jobTitle?: string }
+  _count: { enrolments: number }
+}
 
-const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
 
-const TabBar = ({ tabs, active, onChange }: {
-  tabs: readonly string[]
-  active: string
-  onChange: (t: string) => void
-}) => (
-  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
-    {tabs.map(t => (
-      <button
-        key={t}
-        onClick={() => onChange(t)}
-        className={active === t
-          ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
-          : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
-        }
-      >
-        {t}
-      </button>
-    ))}
-  </div>
-)
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+const fmtTime = (d: string) =>
+  new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 
 const ALevelHome = () => {
   const { user } = useAuth()
   const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
-  const [tab, setTab] = useState<Tab>('Group Sessions')
+  const { byCombo, refetch: refetchLogs } = useConfidenceLogs()
+  const [showManualLog, setShowManualLog] = useState(false)
   const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(true)
+  const [enrolling, setEnrolling] = useState<string | null>(null)
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
+
+  const [relevantSessions, setRelevantSessions] = useState<GroupSession[]>([])
+  const [relevantStories, setRelevantStories] = useState<CareerStory[]>([])
+  const [discoveryLoading, setDiscoveryLoading] = useState(true)
+
+  const studentCombos = user?.student?.combinationsConsidering ?? []
+
+  useEffect(() => {
+    if (dashboard?.groupSessions) {
+      setEnrolledIds(new Set(dashboard.groupSessions.map((e: { groupSession: { id: string } }) => e.groupSession.id)))
+    }
+  }, [dashboard])
+
+  const fetchDiscovery = useCallback(async () => {
+    if (studentCombos.length === 0) {
+      setDiscoveryLoading(false)
+      return
+    }
+    setDiscoveryLoading(true)
+    try {
+      const combination = studentCombos.join(',')
+
+      const gsRes = await api.get(`/group-sessions?combination=${encodeURIComponent(combination)}&limit=3`)
+      setRelevantSessions(gsRes.data.data.sessions ?? [])
+
+      const storyResults = await Promise.all(
+        studentCombos.map(c => listCareerStories({ combination: c, limit: 3 }))
+      )
+      const seen = new Set<string>()
+      const deduped: CareerStory[] = []
+      for (const result of storyResults) {
+        for (const story of result.stories) {
+          if (!seen.has(story.id)) {
+            seen.add(story.id)
+            deduped.push(story)
+          }
+        }
+      }
+      setRelevantStories(deduped.slice(0, 3))
+    } catch {
+      // fail silently — discovery sections are non-critical
+    } finally {
+      setDiscoveryLoading(false)
+    }
+  }, [studentCombos.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api.get('/students/me/mentor-slots')
@@ -51,6 +99,20 @@ const ALevelHome = () => {
       .finally(() => setSlotsLoading(false))
   }, [])
 
+  useEffect(() => { fetchDiscovery() }, [fetchDiscovery])
+
+  const handleEnrol = async (sessionId: string) => {
+    setEnrolling(sessionId)
+    try {
+      await api.post(`/group-sessions/${sessionId}/enrol`)
+      setEnrolledIds(prev => new Set([...prev, sessionId]))
+    } catch {
+      // fail silently
+    } finally {
+      setEnrolling(null)
+    }
+  }
+
   const firstName = user?.student?.firstName ?? 'there'
   const combination = user?.student?.combination ?? 'A-Level'
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', year: 'numeric' })
@@ -58,56 +120,71 @@ const ALevelHome = () => {
   const upcomingGroup = dashboard?.groupSessions.length ?? 0
   const upcomingMentor = mentorSlots.length
   const confidenceScore = dashboard?.latestConfidence?.score ?? null
-  const enrolledSessions = dashboard?.groupSessions ?? []
 
-  const renderGroupSessions = () => {
-    if (dashLoading) {
+  const renderDiscoverySessions = () => {
+    if (discoveryLoading) {
       return (
         <div className={GRID}>
-          {['a', 'b', 'c', 'd'].map(k => (
-            <div key={k} className="animate-pulse bg-border rounded-xl h-32" />
+          {['a', 'b', 'c'].map(k => (
+            <div key={k} className="animate-pulse bg-border rounded-xl h-40" />
           ))}
         </div>
       )
     }
-    if (enrolledSessions.length === 0) {
+    if (relevantSessions.length === 0) {
       return (
-        <div className="space-y-2">
-          <p className="text-sm text-muted">Your upcoming enrolled group sessions will appear here.</p>
-          <p className="text-sm text-muted">Visit the Sessions page to browse and enroll.</p>
-        </div>
+        <p className="text-sm text-muted">
+          No upcoming sessions for your combinations yet.{' '}
+          <Link to="/student/sessions" className="text-accent hover:underline">Browse all sessions →</Link>
+        </p>
       )
     }
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted">Your upcoming enrolled group sessions.</p>
-        <div className={GRID}>
-          {enrolledSessions.map(enr => {
-            const gs = enr.groupSession
-            const date = new Date(gs.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-            const time = new Date(gs.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            return (
-              <div key={enr.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
-                <p className="text-sm font-semibold text-primary truncate">{gs.title}</p>
-                <p className="text-xs text-muted">{gs.professional.firstName} {gs.professional.lastName}</p>
-                <p className="text-xs text-muted">{date} · {time}</p>
-                {gs.sector && (
-                  <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{gs.sector}</span>
-                )}
+      <div className={GRID}>
+        {relevantSessions.map(gs => {
+          const isEnrolled = enrolledIds.has(gs.id)
+          const isPending = enrolling === gs.id
+          return (
+            <div key={gs.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+              <p className="text-sm font-semibold text-primary leading-tight">{gs.title}</p>
+              {gs.description && <p className="text-xs text-muted line-clamp-2">{gs.description}</p>}
+              <p className="text-xs text-muted">
+                {gs.professional.firstName} {gs.professional.lastName}
+                {gs.professional.jobTitle && ` · ${gs.professional.jobTitle}`}
+              </p>
+              <p className="text-xs text-muted">{fmtDate(gs.scheduledAt)} · {fmtTime(gs.scheduledAt)}</p>
+              <p className="text-xs text-muted">{gs._count.enrolments}/{gs.maxStudents} enrolled</p>
+              {gs.combinations?.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {gs.combinations.slice(0, 3).map(c => (
+                    <span key={c} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{c}</span>
+                  ))}
+                </div>
+              )}
+              {isEnrolled ? (
                 <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Enrolled</span>
-              </div>
-            )
-          })}
-        </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleEnrol(gs.id)}
+                  disabled={isPending}
+                  className="mt-auto w-full bg-accent text-white text-xs px-3 py-1.5 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+                >
+                  {isPending ? 'Joining...' : 'Join for free'}
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     )
   }
 
-  const renderMentorSessions = () => {
+  const renderOneOnOneSessions = () => {
     if (slotsLoading) {
       return (
         <div className={GRID}>
-          {['a', 'b', 'c', 'd'].map(k => (
+          {['a', 'b', 'c'].map(k => (
             <div key={k} className="animate-pulse bg-border rounded-xl h-32" />
           ))}
         </div>
@@ -115,57 +192,71 @@ const ALevelHome = () => {
     }
     if (mentorSlots.length === 0) {
       return (
-        <div className="space-y-2">
-          <p className="text-sm text-muted">Your confirmed upcoming 1-on-1 sessions with mentors will appear here.</p>
-          <p className="text-sm text-muted">Browse professionals in Sessions to book a slot.</p>
-        </div>
+        <p className="text-sm text-muted">
+          No upcoming 1-on-1 sessions.{' '}
+          <Link to="/student/get-mentor" className="text-accent hover:underline">Get a mentor →</Link>
+        </p>
       )
     }
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted">Your confirmed upcoming 1-on-1 sessions with mentors.</p>
-        <div className={GRID}>
-          {mentorSlots.map(slot => {
-            const pro = slot.Professional
-            const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
-            const date = new Date(slot.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-            const time = new Date(slot.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            return (
-              <div key={slot.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center flex-shrink-0">
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-primary truncate">{pro.firstName} {pro.lastName}</p>
-                    <p className="text-xs text-muted truncate">{pro.jobTitle}</p>
-                  </div>
+      <div className={GRID}>
+        {mentorSlots.map(slot => {
+          const pro = slot.Professional
+          const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
+          const date = new Date(slot.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          const time = new Date(slot.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          return (
+            <div key={slot.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center flex-shrink-0">
+                  {initials}
                 </div>
-                <p className="text-xs text-muted">{date} · {time} · {slot.durationMins} min</p>
-                {slot.meetLink && (
-                  <a href={slot.meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
-                    Join session ↗
-                  </a>
-                )}
-                <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Confirmed</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-primary truncate">{pro.firstName} {pro.lastName}</p>
+                  <p className="text-xs text-muted truncate">{pro.jobTitle}</p>
+                </div>
               </div>
-            )
-          })}
-        </div>
+              <p className="text-xs text-muted">{date} · {time} · {slot.durationMins} min</p>
+              {slot.meetLink && (
+                <a href={slot.meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
+                  Join session ↗
+                </a>
+              )}
+              <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Confirmed</span>
+            </div>
+          )
+        })}
       </div>
     )
   }
 
   return (
     <div className="p-6 space-y-8">
-      <div className="flex items-start gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
-          <p className="text-sm text-muted mt-0.5">{today}</p>
+      {showManualLog && (
+        <ManualConfidenceModal
+          combinations={user?.student?.combinationsConsidering ?? []}
+          onDone={() => { setShowManualLog(false); refetchLogs() }}
+          onClose={() => setShowManualLog(false)}
+        />
+      )}
+
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="flex items-start gap-3 flex-wrap">
+          <div>
+            <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
+            <p className="text-sm text-muted mt-0.5">{today}</p>
+          </div>
+          <span className="bg-accent/10 text-accent text-xs font-semibold px-3 py-1 rounded-full mt-1">
+            {combination}
+          </span>
         </div>
-        <span className="bg-accent/10 text-accent text-xs font-semibold px-3 py-1 rounded-full mt-1">
-          {combination}
-        </span>
+        <button
+          type="button"
+          onClick={() => setShowManualLog(true)}
+          className="text-xs px-3 py-2 rounded-lg bg-surface border border-border text-muted hover:text-primary transition-colors"
+        >
+          Log confidence
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -187,7 +278,7 @@ const ALevelHome = () => {
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">
-                {dashError || confidenceScore === null ? '—' : `${confidenceScore}/5`}
+                {dashError || confidenceScore === null ? '—' : `${confidenceScore}/10`}
               </p>
               <p className="text-xs text-muted mt-1 uppercase tracking-wide">Career Confidence</p>
             </div>
@@ -195,14 +286,49 @@ const ALevelHome = () => {
         )}
       </div>
 
-      <div>
-        <div className="mb-6">
-          <TabBar tabs={TABS} active={tab} onChange={(t) => setTab(t as Tab)} />
-        </div>
+      {studentCombos.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-primary">Upcoming sessions for your combinations</h2>
+            <Link to="/student/sessions" className="text-xs text-accent hover:underline">View all →</Link>
+          </div>
+          {renderDiscoverySessions()}
+        </section>
+      )}
 
-        {tab === 'Group Sessions' && renderGroupSessions()}
-        {tab === 'Mentor Sessions' && renderMentorSessions()}
-      </div>
+      {studentCombos.length > 0 && !discoveryLoading && relevantStories.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-primary">Career stories from professionals in your field</h2>
+            <Link to="/student/career-library" className="text-xs text-accent hover:underline">View all →</Link>
+          </div>
+          <div className={GRID}>
+            {relevantStories.map(story => (
+              <div key={story.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+                <p className="text-sm font-semibold text-primary leading-tight">{story.jobTitle}</p>
+                <p className="text-xs text-muted">{story.professional.firstName} {story.professional.lastName} · {story.professional.employer}</p>
+                <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{story.sector}</span>
+                {story.combinations?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {story.combinations.slice(0, 3).map(c => (
+                      <span key={c} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{c}</span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted line-clamp-3 mt-1">{story.myPath}</p>
+                <Link to="/student/career-library" className="text-xs text-accent hover:underline mt-auto">Read more →</Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-primary">Upcoming 1-on-1 sessions</h2>
+        {renderOneOnOneSessions()}
+      </section>
+
+      {byCombo.length > 0 && <CombinationConfidenceChart trends={byCombo} />}
     </div>
   )
 }
