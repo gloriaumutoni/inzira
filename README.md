@@ -8,26 +8,9 @@ Inzira ("the path") connects Rwandan O-level and A-level students with verified 
 
 ## Video Demo
 
-> 5–10 minute walkthrough of all role flows — student, professional, company, counselor, admin.
+> 5–10 minute walkthrough of all role flows — student, professional, mentor, counselor, admin.
 
-_[Demo link — coming soon]_
-
----
-
-## Designs
-
-**Figma mockups:** _[Figma link — coming soon]_
-
-### App screenshots
-
-| Screen                                 | Preview                      |
-| -------------------------------------- | ---------------------------- |
-| Landing page                           | _[screenshot — coming soon]_ |
-| Student dashboard                      | _[screenshot — coming soon]_ |
-| Career explorer                        | _[screenshot — coming soon]_ |
-| Professional profile + session booking | _[screenshot — coming soon]_ |
-| Company workshop management            | _[screenshot — coming soon]_ |
-| counselor's cohort dashboard           | _[screenshot — coming soon]_ |
+[Demon Link](https://drive.google.com/drive/folders/1d1e1IUXN6L-Y7lwfnKcf8_p5PUPNpAfH?usp=drive_link)
 
 ---
 
@@ -56,13 +39,10 @@ Create `.env` files from the table below.
 **`server/.env`**
 
 ```
-DATABASE_URL=postgresql://...          # Supabase connection string
+DATABASE_URL=postgresql://...          
 CLERK_SECRET_KEY=sk_...
 CORS_ORIGIN=http://localhost:5173
-CLOUDINARY_CLOUD_NAME=                 # Sprint 2
-CLOUDINARY_API_KEY=                    # Sprint 2
-CLOUDINARY_API_SECRET=                 # Sprint 2
-RESEND_API_KEY=                        # Sprint 3
+RESEND_API_KEY=                       
 ```
 
 **`client/.env`**
@@ -99,13 +79,64 @@ curl http://localhost:3001/api/health
 
 ---
 
-## Deployment
+## Testing Strategy & Results
+
+Testing is layered across four strategies, each targeting a different class of bug:
+
+| Layer                     | What it covers                                                                                   | Where                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Static typing (build gate) | TypeScript strict mode across client and server catches type-level bugs before runtime            | `tsc --noEmit`, run in CI on every push/PR                                          |
+| Pure unit tests             | Deterministic logic with no external dependencies                                                 | `server/src/utils/slots.test.ts` — recurring slot expansion                        |
+| Service-level tests         | Business rules and edge cases, with Prisma mocked so no live database is needed                   | `sessions.service`, `professionals.service`, `careerGuides.service`, `students.service`, `admin.service` |
+| Controller-level tests      | Multi-step state-machine guards (order of checks matters)                                         | `professionals.controller.test.ts` — mentor application flow                       |
+| Data-integrity tests        | Seeded reference data matches domain requirements                                                 | `client/src/constants/combinations.test.ts` — the 15 A-Level combinations          |
+
+**Edge cases exercised** include: booking capacity limits (max 3 upcoming sessions), duplicate free-intro prevention, professional monthly-quota exhaustion, already-booked slot conflicts, a `premiumSessionsPerMonth: 0` divide-by-zero case (documented rather than silently hidden), confidence-log fallback when a student has no logged history yet, null-confidence students in career-guide averages, pagination/export-cap math on admin reports, and the full 6-guard mentor-application state machine (unverified → already-mentor → attempt limit → pending application → existing interview → slot already taken).
+
+**Run the tests:**
+
+```bash
+cd server && npm test
+cd client && npm test
+```
+
+**Environments exercised:** Node.js 20 on macOS (local development) and Ubuntu (GitHub Actions CI runner) for the automated suite; manual functional and responsive testing across Chrome and Firefox desktop plus a mobile viewport for the UI, since browser-automation end-to-end testing was out of scope for this pilot.
+
+---
+
+## Analysis of Results
+
+Mapping delivered functionality back to the project proposal's objectives:
+
+| Proposal objective                                                              | Delivered                                                                                                                       | Status      |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| Two-stage verification (LinkedIn check, then admin interview for mentors)        | `Professional.isVerified` gates a separate `isMentor` / `mentorApplicationStatus` flow with its own interview-booking model      | Delivered   |
+| Career library mapped to the 15 A-Level combinations                             | `COMBINATIONS` seeds exactly 15 codes (`client/src/constants/combinations.ts`), used by the quiz and mentor search               | Delivered   |
+| School-scoped visibility for career guides                                      | `careerGuides.service.getDashboard` filters students by the guide's `schoolId`                                                   | Delivered   |
+| Free group sessions + bookable 1-on-1 mentorship                                 | `groupSessions.service` and `sessions.service` implement enrolment/booking with capacity and quota guards                        | Delivered   |
+| Confidence tracking to measure decision-quality improvement                      | `ConfidenceLog` per session/manual entry, surfaced as deltas on the career-guide engagement table                                | Delivered   |
+| Pilot scope: Gasabo & Nyarugenge districts, 100–150 students, 15–20 professionals, 5–10 mentors | `School.district` field supports scoping; no load-testing has been run at full pilot scale yet                                  | Partial     |
+| Recurring mentor availability                                                    | `expandWeeklyTemplate` generates a full weekly-recurring series (1–12 weeks)                                                     | Delivered   |
+| Recurring group sessions                                                        | Currently generates only the single next occurrence (`parentSessionId`-linked), not a full N-week series like mentor slots       | Partial     |
+
+Overall, core functionality is implemented and technically aligned with the proposal's scope. The two gaps noted above (load-testing at full pilot scale, and full recurring-series generation for group sessions) are scoped as follow-up work rather than blockers — both are additive and don't require re-architecting existing data models.
+
+---
+
+## Deployment Plan & Execution
 
 | Service  | Host                             | Trigger                                         |
 | -------- | -------------------------------- | ----------------------------------------------- |
 | Frontend | [Vercel](https://vercel.com)     | Push to `main` → auto-deploy via GitHub Actions |
 | Backend  | [Render](https://render.com)     | Push to `main` → deploy hook via GitHub Actions |
 | Database | [Supabase](https://supabase.com) | Managed PostgreSQL — no deploy step             |
+
+### Deployment steps
+
+1. **Migrate the database** — `npx prisma migrate deploy` against the Supabase `DATABASE_URL` (run once per schema change, before the backend that depends on it goes live).
+2. **Deploy the backend** — push to `main` triggers the `deploy-server` GitHub Actions workflow, which calls the Render deploy hook.
+3. **Deploy the frontend** — push to `main` triggers the `deploy-client` GitHub Actions workflow, which builds and deploys to Vercel.
+4. **Verify** — hit the backend's `/api/health` endpoint in production and confirm the frontend loads and can reach the API (see Production URLs below).
 
 ### GitHub secrets required
 
@@ -120,10 +151,10 @@ Add these in **GitHub → Settings → Secrets and variables → Actions**:
 
 ### Production URLs
 
-|        | URL                          |
-| ------ | ---------------------------- |
-| Client | _[Vercel URL — coming soon]_ |
-| API    | _[Render URL — coming soon]_ |
+|        | URL                                                  |
+| ------ | ---------------------------------------------------- |
+| Client | [Vercel](https://inzira-q8viddwpt-inzira.vercel.app/)|
+| API    | [Render](https://inzira-ptwy.onrender.com)           |
 
 ---
 
@@ -133,7 +164,8 @@ Add these in **GitHub → Settings → Secrets and variables → Actions**:
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Student (O-Level) | Take combination quiz, explore careers by interest, book 1-on-1 sessions, enrol in group sessions, browse career stories, log confidence |
 | Student (A-Level) | Browse professionals by combination, filter group sessions and career stories by subject area, report session concerns, log confidence |
-| Professional      | Write career stories, host 1-on-1 and group sessions (single or recurring), tag relevant subject combinations on profile              |
+| Professional      | Write career stories, host group sessions , tag relevant subject combinations on profile              |
+| Mentor      | Write career stories, host 1-on-1 and group sessions , tag relevant subject combinations on profile              |
 | Career Guide      | View student engagement table with confidence trends and session history, submit students for verification                            |
 | Admin             | Manage verifications, create interview slots, export reports as PDF, oversee career stories and session safety reports                |
 
