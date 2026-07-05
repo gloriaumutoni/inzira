@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import * as sessionsController from '../controllers/sessions.controller'
+import * as sessionReportsController from '../controllers/sessionReports.controller'
 import { authMiddleware, roleGuard } from '../middleware'
 
 const router = Router()
@@ -16,13 +17,6 @@ router.post(
   authMiddleware,
   roleGuard('STUDENT'),
   sessionsController.create
-)
-
-router.post(
-  '/book-slot',
-  authMiddleware,
-  roleGuard('STUDENT'),
-  sessionsController.bookMentorSlot
 )
 
 router.get(
@@ -75,10 +69,10 @@ router.post(
 )
 
 router.post(
-  '/:id/feedback',
+  '/:id/report',
   authMiddleware,
   roleGuard('STUDENT'),
-  sessionsController.submitFeedback
+  sessionReportsController.reportSession
 )
 
 export default router

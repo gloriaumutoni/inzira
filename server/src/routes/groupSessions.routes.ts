@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as groupSessionsController from "../controllers/groupSessions.controller";
+import * as sessionReportsController from "../controllers/sessionReports.controller";
 import { authMiddleware, roleGuard } from "../middleware";
 
 const router = Router();
@@ -48,6 +49,13 @@ router.get(
   authMiddleware,
   roleGuard("PROFESSIONAL", "ADMIN"),
   groupSessionsController.getRoster,
+);
+
+router.post(
+  "/:id/report",
+  authMiddleware,
+  roleGuard("STUDENT"),
+  sessionReportsController.reportGroupSession,
 );
 
 export default router;
