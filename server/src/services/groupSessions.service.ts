@@ -1,8 +1,11 @@
 import { prisma } from '../prisma/client'
+import * as emailService from './email.service'
 
 export const list = async (filters: {
   sector?: string
+  sectors?: string
   combination?: string
+  professionalId?: string
   page?: number
   limit?: number
 }) => {
@@ -15,7 +18,15 @@ export const list = async (filters: {
     scheduledAt: { gte: new Date() },
   }
   if (filters.sector) where.sector = filters.sector
-  if (filters.combination) where.combinations = { has: filters.combination }
+  if (filters.sectors) {
+    const list = filters.sectors.split(',').map(s => s.trim()).filter(Boolean)
+    if (list.length > 0) where.sector = { in: list }
+  }
+  if (filters.combination) {
+    const combos = filters.combination.split(',').map(c => c.trim()).filter(Boolean)
+    where.combinations = combos.length > 1 ? { hasSome: combos } : { has: combos[0] }
+  }
+  if (filters.professionalId) where.professionalId = filters.professionalId
 
   const sessions = await prisma.groupSession.findMany({
     where,
@@ -107,7 +118,7 @@ export const create = async (
       scheduledAt: new Date(data.scheduledAt),
       duration: data.duration,
       maxStudents: data.maxStudents ?? 30,
-      isRecurring: data.isRecurring ?? true,
+      isRecurring: data.isRecurring ?? false,
       recurringDays: data.recurringDays ?? 14,
       joinLink: data.joinLink,
     },
@@ -181,24 +192,49 @@ export const cancel = async (
   if (!session) throw new Error('Group session not found')
   if (session.professionalId !== professional.id) throw new Error('Access denied')
 
+  let affectedSessions: { id: string; title: string; scheduledAt: Date }[]
+
   if (scope === 'all') {
     const parentId = session.parentSessionId ?? session.id
+    affectedSessions = await prisma.groupSession.findMany({
+      where: {
+        OR: [{ id: parentId }, { parentSessionId: parentId }],
+        scheduledAt: { gte: new Date() },
+        isCancelled: false,
+      },
+      select: { id: true, title: true, scheduledAt: true },
+    })
     await prisma.groupSession.updateMany({
       where: {
-        OR: [
-          { id: parentId },
-          { parentSessionId: parentId },
-        ],
+        OR: [{ id: parentId }, { parentSessionId: parentId }],
         scheduledAt: { gte: new Date() },
       },
       data: { isCancelled: true },
     })
   } else {
+    affectedSessions = [{ id: session.id, title: session.title, scheduledAt: session.scheduledAt }]
     await prisma.groupSession.update({
       where: { id },
       data: { isCancelled: true },
     })
   }
+
+  ;(async () => {
+    for (const gs of affectedSessions) {
+      const enrolments = await prisma.groupSessionEnrolment.findMany({
+        where: { groupSessionId: gs.id },
+        include: {
+          student: { include: { user: { select: { email: true } } } },
+        },
+      })
+      for (const e of enrolments) {
+        await emailService.notifyStudentGroupSessionCancelled(
+          { firstName: e.student.firstName, email: e.student.user.email },
+          { title: gs.title, scheduledAt: gs.scheduledAt },
+        )
+      }
+    }
+  })().catch(console.error)
 
   return { cancelled: true, scope }
 }
@@ -233,9 +269,36 @@ export const enrol = async (groupSessionId: string, studentUserId: string) => {
     throw new Error('You can only be enrolled in 3 upcoming group sessions at a time')
   }
 
-  return prisma.groupSessionEnrolment.create({
+  const enrolment = await prisma.groupSessionEnrolment.create({
     data: { groupSessionId, studentId: student.id },
   })
+
+  ;(async () => {
+    const [studentUser, professional, newCount] = await Promise.all([
+      prisma.user.findUnique({ where: { id: student.userId }, select: { email: true } }),
+      prisma.professional.findUnique({
+        where: { id: session.professionalId },
+        include: { user: { select: { email: true } } },
+      }),
+      prisma.groupSessionEnrolment.count({ where: { groupSessionId } }),
+    ])
+
+    if (studentUser) {
+      await emailService.notifyStudentGroupEnrolmentConfirmed(
+        { firstName: student.firstName, email: studentUser.email },
+        { title: session.title, scheduledAt: session.scheduledAt, joinLink: session.joinLink },
+      )
+    }
+
+    if (professional?.user && newCount >= session.maxStudents) {
+      await emailService.notifyProfessionalGroupSessionFull(
+        { firstName: professional.firstName, email: professional.user.email },
+        { title: session.title, scheduledAt: session.scheduledAt },
+      )
+    }
+  })().catch(console.error)
+
+  return enrolment
 }
 
 export const leave = async (groupSessionId: string, studentUserId: string) => {

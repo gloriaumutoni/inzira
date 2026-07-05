@@ -6,6 +6,7 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 import { Role } from "../types";
+import * as emailService from "./email.service";
 
 export const COMMISSION_RATE = 0.15;
 
@@ -26,11 +27,14 @@ interface SignupData {
   schoolId?: string;
   linkedinUrl?: string;
   confidence?: number;
+  careerInterests?: string[];
 }
 
 export const signup = async (data: SignupData) => {
+  const email = data.email.trim().toLowerCase();
+
   const existing = await prisma.user.findFirst({
-    where: { email: data.email },
+    where: { email },
   });
 
   if (existing) {
@@ -42,23 +46,28 @@ export const signup = async (data: SignupData) => {
   const user = await prisma.$transaction(async (tx) => {
     const newUser = await tx.user.create({
       data: {
-        email: data.email,
+        email,
         passwordHash,
         role: data.role,
       },
     });
 
     if (data.role === "STUDENT") {
+      const level = (data.level as "O_LEVEL" | "A_LEVEL") ?? "O_LEVEL";
       await tx.student.create({
         data: {
           userId: newUser.id,
           firstName: data.firstName,
           lastName: data.lastName,
-          level: (data.level as "O_LEVEL" | "A_LEVEL") ?? "O_LEVEL",
+          level,
           schoolYear: data.schoolYear ?? "S1",
           confidenceLevel: data.confidence ?? null,
           schoolId: data.schoolId ?? null,
           combination: data.combination ?? null,
+          careerInterests: data.careerInterests ?? [],
+          // A-Level students provide combination, confidence, and career interests at signup,
+          // so there's nothing left to collect in the post-signup onboarding flow.
+          onboardingCompleted: level === "A_LEVEL",
         },
       });
     }
@@ -74,6 +83,7 @@ export const signup = async (data: SignupData) => {
           sector: data.sector ?? "",
           bio: data.bio ?? "",
           linkedinUrl: data.linkedinUrl ?? null,
+          verificationAttempts: 1,
         },
       });
     }
@@ -86,12 +96,33 @@ export const signup = async (data: SignupData) => {
           lastName: data.lastName,
           schoolId: data.schoolId ?? null,
           linkedinUrl: data.linkedinUrl ?? null,
+          verificationAttempts: 1,
         },
       });
     }
 
     return newUser;
   });
+
+  if (data.role === "PROFESSIONAL") {
+    emailService.notifyAdminNewProfessionalVerification({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email,
+    }).catch(console.error)
+    emailService.notifyProfessionalApplicationReceived({
+      firstName: data.firstName,
+      email,
+    }).catch(console.error)
+  }
+
+  if (data.role === "CAREER_GUIDE") {
+    emailService.notifyAdminNewCareerGuideVerification({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email,
+    }).catch(console.error)
+  }
 
   const payload = { userId: user.id, role: user.role };
   const accessToken = signAccessToken(payload);
@@ -117,7 +148,9 @@ export const signup = async (data: SignupData) => {
 };
 
 export const login = async (email: string, password: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+  });
 
   if (!user) throw new Error('No account found with this email. Please check your email or sign up.');
 
@@ -128,13 +161,19 @@ export const login = async (email: string, password: string) => {
   const accessToken = signAccessToken(payload);
   const refreshToken = signRefreshToken(payload);
 
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+  await prisma.$transaction([
+    prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }),
+  ]);
 
   return {
     accessToken,

@@ -43,7 +43,7 @@ export const update = async (
 
 export const assignCareerGuide = async (schoolId: string, email: string) => {
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: email.trim().toLowerCase() },
     include: { careerGuide: true },
   });
 

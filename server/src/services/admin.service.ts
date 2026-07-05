@@ -1,5 +1,6 @@
 import { prisma } from '../prisma/client'
 import { createNotification } from './notifications.service'
+import * as emailService from './email.service'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -202,10 +203,18 @@ export const getPendingMentorApplications = async () => {
 }
 
 export const approveCareerGuide = async (id: string) => {
-  return prisma.careerGuide.update({
+  const guide = await prisma.careerGuide.update({
     where: { id },
     data: { isVerified: true, verificationStatus: 'APPROVED' },
+    include: { user: { select: { email: true } } },
   })
+
+  emailService.notifyCareerGuideVerificationApproved({
+    firstName: guide.firstName,
+    email: guide.user.email,
+  }).catch(console.error)
+
+  return guide
 }
 
 export const rejectCareerGuide = async (id: string, reason: string) => {
@@ -221,6 +230,12 @@ export const rejectCareerGuide = async (id: string, reason: string) => {
     `Your career guide application was not approved. Reason: ${reason || 'Does not meet current requirements'}`,
     '/career-guide/home',
   )
+
+  emailService.notifyCareerGuideVerificationRejected({
+    firstName: guide.firstName,
+    email: guide.user.email,
+  }, reason).catch(console.error)
+
   return { rejected: true, id }
 }
 
@@ -229,11 +244,18 @@ export const approveMentorApplication = async (id: string) => {
     prisma.professional.update({
       where: { id },
       data: { isMentor: true, mentorApplicationStatus: 'APPROVED' },
+      include: { user: { select: { email: true } } },
     }),
     prisma.mentorApplicationInterviewBooking.deleteMany({
       where: { professionalId: id },
     }),
   ])
+
+  emailService.notifyProfessionalMentorApproved({
+    firstName: professional.firstName,
+    email: professional.user.email,
+  }).catch(console.error)
+
   return professional
 }
 
@@ -241,7 +263,7 @@ export const rejectMentorApplication = async (id: string, reason: string) => {
   const [professional] = await prisma.$transaction([
     prisma.professional.update({
       where: { id },
-      data: { mentorApplicationStatus: 'REJECTED', mentorRejectionReason: reason || null, mentorApplicationAttempts: { increment: 1 } },
+      data: { mentorApplicationStatus: 'REJECTED', mentorRejectionReason: reason || null, mentorRejectionCount: { increment: 1 } },
       include: { user: true },
     }),
     prisma.mentorApplicationInterviewBooking.deleteMany({
@@ -255,6 +277,12 @@ export const rejectMentorApplication = async (id: string, reason: string) => {
     `Your mentor application was not approved. Reason: ${reason || 'Does not meet current requirements'}`,
     '/professional/home',
   )
+
+  emailService.notifyProfessionalMentorRejected({
+    firstName: professional.firstName,
+    email: professional.user.email,
+  }, reason).catch(console.error)
+
   return { rejected: true, id }
 }
 
@@ -273,13 +301,18 @@ export const approveProfessional = async (id: string) => {
     '/professional/profile',
   )
 
+  emailService.notifyProfessionalVerificationApproved({
+    firstName: professional.firstName,
+    email: professional.user.email,
+  }).catch(console.error)
+
   return professional
 }
 
 export const rejectProfessional = async (id: string, reason: string) => {
   const professional = await prisma.professional.update({
     where: { id },
-    data: { verificationStatus: 'REJECTED', rejectionReason: reason || null, verificationAttempts: { increment: 1 } },
+    data: { verificationStatus: 'REJECTED', rejectionReason: reason || null, rejectionCount: { increment: 1 } },
     include: { user: true },
   })
 
@@ -290,6 +323,11 @@ export const rejectProfessional = async (id: string, reason: string) => {
     `Your profile was not approved. Reason: ${reason || 'Does not meet current requirements'}`,
     '/professional/profile',
   )
+
+  emailService.notifyProfessionalVerificationRejected({
+    firstName: professional.firstName,
+    email: professional.user.email,
+  }, reason).catch(console.error)
 
   return { rejected: true, id }
 }
@@ -310,9 +348,11 @@ export const updateQuota = async (professionalId: string, quota: number) => {
 }
 
 const REPORT_PAGE_SIZE = 25
+const REPORT_EXPORT_CAP = 5000
 
-export const getReportStudents = async (level: 'A_LEVEL' | 'O_LEVEL', page: number) => {
-  const skip = (page - 1) * REPORT_PAGE_SIZE
+export const getReportStudents = async (level: 'A_LEVEL' | 'O_LEVEL', page: number, all = false) => {
+  const skip = all ? 0 : (page - 1) * REPORT_PAGE_SIZE
+  const take = all ? REPORT_EXPORT_CAP : REPORT_PAGE_SIZE
   const where = { level } as const
 
   const [total, students] = await Promise.all([
@@ -320,7 +360,7 @@ export const getReportStudents = async (level: 'A_LEVEL' | 'O_LEVEL', page: numb
     prisma.student.findMany({
       where,
       skip,
-      take: REPORT_PAGE_SIZE,
+      take,
       orderBy: { createdAt: 'desc' },
       include: {
         school: { select: { name: true } },
@@ -347,8 +387,9 @@ export const getReportStudents = async (level: 'A_LEVEL' | 'O_LEVEL', page: numb
   }
 }
 
-export const getReportProfessionals = async (type: 'professional' | 'mentor' | 'rejected' | 'mentor-rejected', page: number) => {
-  const skip = (page - 1) * REPORT_PAGE_SIZE
+export const getReportProfessionals = async (type: 'professional' | 'mentor' | 'rejected' | 'mentor-rejected', page: number, all = false) => {
+  const skip = all ? 0 : (page - 1) * REPORT_PAGE_SIZE
+  const take = all ? REPORT_EXPORT_CAP : REPORT_PAGE_SIZE
   let where: object
   if (type === 'rejected') {
     where = { verificationStatus: 'REJECTED' }
@@ -366,7 +407,7 @@ export const getReportProfessionals = async (type: 'professional' | 'mentor' | '
     prisma.professional.findMany({
       where,
       skip,
-      take: REPORT_PAGE_SIZE,
+      take,
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { email: true } },
@@ -396,8 +437,9 @@ export const getReportProfessionals = async (type: 'professional' | 'mentor' | '
   }
 }
 
-export const getReportCareerGuides = async (page: number, status: 'approved' | 'rejected' = 'approved') => {
-  const skip = (page - 1) * REPORT_PAGE_SIZE
+export const getReportCareerGuides = async (page: number, status: 'approved' | 'rejected' = 'approved', all = false) => {
+  const skip = all ? 0 : (page - 1) * REPORT_PAGE_SIZE
+  const take = all ? REPORT_EXPORT_CAP : REPORT_PAGE_SIZE
   const where = status === 'rejected' ? { verificationStatus: 'REJECTED' } : { isVerified: true }
 
   const [total, guides] = await Promise.all([
@@ -405,7 +447,7 @@ export const getReportCareerGuides = async (page: number, status: 'approved' | '
     prisma.careerGuide.findMany({
       where,
       skip,
-      take: REPORT_PAGE_SIZE,
+      take,
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { email: true } },

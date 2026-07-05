@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import * as professionalsService from '../services/professionals.service'
 import { ok, badRequest } from '../utils/response'
 import { prisma } from '../prisma/client'
+import * as emailService from '../services/email.service'
 
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -61,12 +62,14 @@ export const getQuota = async (req: Request, res: Response): Promise<void> => {
 
 export const browse = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sector, hasFreeIntro, isMentor, page, limit } = req.query
+    const { sector, sectors, hasFreeIntro, isMentor, combination, page, limit } = req.query
     const isMentorFilter = isMentor === 'true' ? true : isMentor === 'false' ? false : undefined
     ok(res, await professionalsService.browse({
       sector: sector as string,
+      sectors: sectors as string | undefined,
       hasFreeIntro: hasFreeIntro === 'true',
       isMentor: isMentorFilter,
+      combination: combination as string | undefined,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
     }))
@@ -87,7 +90,7 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
   try {
     const professional = await prisma.professional.findUnique({
       where: { userId: req.auth!.userId },
-      include: { interviewBooking: true },
+      include: { interviewBooking: true, user: { select: { email: true } } },
     })
 
     if (!professional) {
@@ -144,6 +147,12 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
       }),
     ])
 
+    emailService.notifyAdminNewMentorApplication({
+      firstName: professional.firstName,
+      lastName: professional.lastName,
+      email: professional.user.email,
+    }).catch(console.error)
+
     ok(res, { mentorApplicationStatus: 'PENDING' })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
@@ -152,20 +161,25 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
 
 export const reapplyVerification = async (req: Request, res: Response): Promise<void> => {
   try {
-    const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
+    const professional = await prisma.professional.findUnique({
+      where: { userId: req.auth!.userId },
+      include: { user: { select: { email: true } } },
+    })
     if (!professional) { badRequest(res, 'Not found'); return }
     if (professional.verificationAttempts >= 3) {
-      res.status(403).json({ success: false, error: 'You have reached the maximum number of verification resubmissions (3).' })
+      res.status(403).json({ success: false, error: 'You have reached the maximum number of verification submissions (3).' })
       return
     }
-    const { bio, jobTitle, employer, sector, linkedinUrl } = req.body as {
-      bio?: string; jobTitle?: string; employer?: string; sector?: string; linkedinUrl?: string
+    const { firstName, lastName, bio, jobTitle, employer, sector, linkedinUrl } = req.body as {
+      firstName?: string; lastName?: string; bio?: string; jobTitle?: string; employer?: string; sector?: string; linkedinUrl?: string
     }
     await prisma.professional.update({
       where: { id: professional.id },
       data: {
         verificationStatus: 'PENDING',
         verificationAttempts: { increment: 1 },
+        ...(firstName ? { firstName } : {}),
+        ...(lastName ? { lastName } : {}),
         ...(bio ? { bio } : {}),
         ...(jobTitle ? { jobTitle } : {}),
         ...(employer ? { employer } : {}),
@@ -173,6 +187,12 @@ export const reapplyVerification = async (req: Request, res: Response): Promise<
         ...(linkedinUrl === undefined ? {} : { linkedinUrl }),
       },
     })
+    emailService.notifyAdminNewProfessionalVerification({
+      firstName: professional.firstName,
+      lastName: professional.lastName,
+      email: professional.user.email,
+    }).catch(console.error)
+
     ok(res, { reapplied: true })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
@@ -265,6 +285,29 @@ export const updateMentorSlot = async (req: Request, res: Response): Promise<voi
       res.status(409).json({ success: false, error: 'A slot already exists at that time.' })
       return
     }
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const createRecurringMentorSlots = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const professional = await prisma.professional.findUnique({ where: { userId: req.auth!.userId } })
+    if (!professional) { badRequest(res, 'Professional not found'); return }
+    if (!professional.isMentor) { res.status(403).json({ success: false, error: 'Only mentors can create slots.' }); return }
+    const { daysOfWeek, startHour, startMinute, endHour, endMinute, meetLink, weeks } = req.body as {
+      daysOfWeek: number[]
+      startHour: number
+      startMinute: number
+      endHour: number
+      endMinute: number
+      meetLink: string
+      weeks: number
+    }
+    const result = await professionalsService.createRecurringMentorSlots(professional.id, {
+      daysOfWeek, startHour, startMinute, endHour, endMinute, meetLink, weeks,
+    })
+    ok(res, result)
+  } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
 }

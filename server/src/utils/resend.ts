@@ -1,9 +1,5 @@
-import { Resend } from 'resend'
+import { Resend } from "resend";
 
-let _resend: Resend | null = null
+const resend = new Resend(process.env.RESEND_API_KEY ?? "re_placeholder");
 
-export const getResend = (): Resend | null => {
-  if (!process.env.RESEND_API_KEY) return null
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
-  return _resend
-}
+export default resend;

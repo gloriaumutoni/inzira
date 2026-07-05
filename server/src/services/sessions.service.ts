@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client'
 import { COMMISSION_RATE } from './auth.service'
 import { createNotification } from './notifications.service'
+import * as emailService from './email.service'
 
 export const list = async (userId: string, role: string, filters: {
   status?: string
@@ -85,7 +86,10 @@ export const create = async (studentUserId: string, data: {
 
   const { professionalId, scheduledAt, duration } = await resolveSlotData(data)
 
-  const professional = await prisma.professional.findUnique({ where: { id: professionalId } })
+  const professional = await prisma.professional.findUnique({
+    where: { id: professionalId },
+    include: { user: { select: { email: true } } },
+  })
   if (!professional) throw new Error('Professional not found')
   if (!professional.isVerified || !professional.isActive) throw new Error('Professional is not available')
 
@@ -131,6 +135,12 @@ export const create = async (studentUserId: string, data: {
       data: { isBooked: true, bookedByStudentId: student.id, sessionId: session.id },
     })
   }
+
+  emailService.notifyProfessionalNewSessionRequest(
+    { firstName: professional.firstName, email: professional.user.email },
+    { firstName: student.firstName, lastName: student.lastName },
+    { scheduledAt: session.scheduledAt, type: session.type },
+  ).catch(console.error)
 
   return session
 }
@@ -186,6 +196,7 @@ export const confirm = async (id: string, professionalUserId: string) => {
 
   const studentUser = await prisma.user.findFirst({
     where: { student: { id: session.studentId } },
+    include: { student: { select: { firstName: true } } },
   })
   if (studentUser) {
     await createNotification(
@@ -195,6 +206,11 @@ export const confirm = async (id: string, professionalUserId: string) => {
       'Your session has been confirmed.',
       `/sessions/${id}`
     )
+    emailService.notifyStudentSessionConfirmed(
+      { firstName: studentUser.student!.firstName, email: studentUser.email },
+      { firstName: professional.firstName, lastName: professional.lastName },
+      { scheduledAt: session.scheduledAt, type: session.type },
+    ).catch(console.error)
   }
 
   return updated
@@ -218,6 +234,7 @@ export const decline = async (id: string, professionalUserId: string, reason: st
 
   const studentUser = await prisma.user.findFirst({
     where: { student: { id: session.studentId } },
+    include: { student: { select: { firstName: true } } },
   })
   if (studentUser) {
     await createNotification(
@@ -227,6 +244,12 @@ export const decline = async (id: string, professionalUserId: string, reason: st
       `Your session request was declined. Reason: ${reason}`,
       '/sessions'
     )
+    emailService.notifyStudentSessionDeclined(
+      { firstName: studentUser.student!.firstName, email: studentUser.email },
+      { firstName: professional.firstName, lastName: professional.lastName },
+      { scheduledAt: session.scheduledAt },
+      reason,
+    ).catch(console.error)
   }
 
   return updated
@@ -250,10 +273,52 @@ export const cancel = async (id: string, userId: string, role: string, reason: s
     throw new Error('Session cannot be cancelled')
   }
 
-  return prisma.session.update({
+  const cancelled = await prisma.session.update({
     where: { id },
     data: { status: 'CANCELLED', cancelReason: reason },
   })
+
+  ;(async () => {
+    if (role === 'STUDENT') {
+      const [proUser, student] = await Promise.all([
+        prisma.user.findFirst({
+          where: { professional: { id: session.professionalId } },
+          select: { email: true, professional: { select: { firstName: true, lastName: true } } },
+        }),
+        prisma.student.findUnique({
+          where: { id: session.studentId },
+          select: { firstName: true, lastName: true },
+        }),
+      ])
+      if (proUser?.professional && student) {
+        await emailService.notifyProfessionalSessionCancelled(
+          { firstName: proUser.professional.firstName, email: proUser.email },
+          { firstName: student.firstName, lastName: student.lastName },
+          { scheduledAt: session.scheduledAt },
+        )
+      }
+    } else if (role === 'PROFESSIONAL') {
+      const [studentUser, professional] = await Promise.all([
+        prisma.user.findFirst({
+          where: { student: { id: session.studentId } },
+          include: { student: { select: { firstName: true } } },
+        }),
+        prisma.professional.findUnique({
+          where: { id: session.professionalId },
+          select: { firstName: true, lastName: true },
+        }),
+      ])
+      if (studentUser?.student && professional) {
+        await emailService.notifyStudentSessionCancelled(
+          { firstName: studentUser.student.firstName, email: studentUser.email },
+          { firstName: professional.firstName, lastName: professional.lastName },
+          { scheduledAt: session.scheduledAt },
+        )
+      }
+    }
+  })().catch(console.error)
+
+  return cancelled
 }
 
 export const complete = async (id: string, professionalUserId: string) => {

@@ -1,4 +1,5 @@
 import { prisma } from '../prisma/client'
+import { expandWeeklyTemplate } from '../utils/slots'
 
 export const getMe = async (userId: string) => {
   return prisma.professional.findUnique({
@@ -16,6 +17,7 @@ export const updateMe = async (userId: string, data: {
   linkedinUrl?: string
   bio?: string
   profilePhoto?: string
+  relevantCombinations?: string[]
 }) => {
   return prisma.professional.update({
     where: { userId },
@@ -125,8 +127,10 @@ export const getQuota = async (userId: string) => {
 
 export const browse = async (filters: {
   sector?: string
+  sectors?: string
   hasFreeIntro?: boolean
   isMentor?: boolean
+  combination?: string
   page?: number
   limit?: number
 }) => {
@@ -140,8 +144,16 @@ export const browse = async (filters: {
   }
 
   if (filters.sector) where.sector = filters.sector
+  if (filters.sectors) {
+    const list = filters.sectors.split(',').map(s => s.trim()).filter(Boolean)
+    if (list.length > 0) where.sector = { in: list }
+  }
   if (filters.hasFreeIntro) where.offersFreeIntro = true
   if (filters.isMentor !== undefined) where.isMentor = filters.isMentor
+  if (filters.combination) {
+    const combos = filters.combination.split(',').map(c => c.trim()).filter(Boolean)
+    where.relevantCombinations = combos.length > 1 ? { hasSome: combos } : { has: combos[0] }
+  }
 
   const [professionals, total] = await Promise.all([
     prisma.professional.findMany({
@@ -204,28 +216,55 @@ export const getPublicProfile = async (id: string) => {
   }
 }
 
-export const getRecommended = async (userId: string) => {
-  const student = await prisma.student.findUnique({ where: { userId } })
+export const createRecurringMentorSlots = async (professionalId: string, data: {
+  daysOfWeek: number[]
+  startHour: number
+  startMinute: number
+  endHour: number
+  endMinute: number
+  meetLink: string
+  weeks: number
+}) => {
+  const { daysOfWeek, startHour, startMinute, endHour, endMinute, meetLink, weeks } = data
 
-  if (!student?.combination) return []
+  if (!Array.isArray(daysOfWeek) || daysOfWeek.length === 0) {
+    throw new Error('Select at least one day of the week.')
+  }
+  if (endHour < startHour || (endHour === startHour && endMinute <= startMinute)) {
+    throw new Error('End time must be after start time.')
+  }
+  if (!meetLink?.trim()) {
+    throw new Error('A Google Meet link is required.')
+  }
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 12) {
+    throw new Error('Weeks must be between 1 and 12.')
+  }
 
-  const combinationCode = student.combination.split(' ')[0].trim()
+  const durationMins = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
 
-  const matchingCareers = await prisma.career.findMany({
-    where: { combinations: { has: combinationCode }, isActive: true },
-    select: { id: true },
+  const templates = daysOfWeek.map((dayOfWeek) => ({ dayOfWeek, startHour, startMinute, endHour, endMinute }))
+  const occurrences = expandWeeklyTemplate(templates, weeks * 7)
+  const scheduledDates = occurrences.map((o) => o.start)
+
+  if (scheduledDates.length === 0) {
+    return { created: 0, skipped: 0, slots: [] }
+  }
+
+  const result = await prisma.mentorSlot.createMany({
+    data: scheduledDates.map((scheduledAt) => ({
+      id: crypto.randomUUID(),
+      professionalId,
+      scheduledAt,
+      durationMins,
+      meetLink: meetLink.trim(),
+    })),
+    skipDuplicates: true,
   })
 
-  const careerIds = matchingCareers.map((c) => c.id)
-  if (careerIds.length === 0) return []
-
-  return prisma.professional.findMany({
-    where: {
-      isVerified: true,
-      isMentor: true,
-      isActive: true,
-      careers: { some: { careerId: { in: careerIds } } },
-    },
-    take: 6,
+  const slots = await prisma.mentorSlot.findMany({
+    where: { professionalId, scheduledAt: { in: scheduledDates } },
+    orderBy: { scheduledAt: 'asc' },
   })
+
+  return { created: result.count, skipped: scheduledDates.length - result.count, slots }
 }
