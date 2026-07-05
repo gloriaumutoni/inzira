@@ -16,6 +16,7 @@ router.post('/me/apply-mentor', authMiddleware, roleGuard('PROFESSIONAL'), profe
 router.post('/me/reapply', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.reapplyVerification)
 router.get('/me/mentor-slots', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.getMentorSlots)
 router.post('/me/mentor-slots', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.createMentorSlot)
+router.post('/me/mentor-slots/recurring', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.createRecurringMentorSlots)
 router.put('/me/mentor-slots/:slotId', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.updateMentorSlot)
 router.delete('/me/mentor-slots/:slotId', authMiddleware, roleGuard('PROFESSIONAL'), professionalsController.deleteMentorSlot)
 

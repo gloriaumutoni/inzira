@@ -4,10 +4,12 @@ import { ok, created, badRequest, conflict } from '../utils/response'
 
 export const list = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sector, combination, page, limit } = req.query
+    const { sector, sectors, combination, professionalId, page, limit } = req.query
     ok(res, await groupSessionsService.list({
       sector: sector as string,
+      sectors: sectors as string | undefined,
       combination: combination as string,
+      professionalId: professionalId as string | undefined,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
     }))

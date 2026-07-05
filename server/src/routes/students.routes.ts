@@ -13,5 +13,6 @@ router.post('/me/confidence', studentsController.logConfidence)
 router.get('/me/confidence', studentsController.getConfidenceLogs)
 router.get('/me/group-sessions', studentsController.getGroupSessions)
 router.get('/me/mentor-slots', studentsController.getBookedMentorSlots)
+router.get('/me/pending-reflections', studentsController.getPendingReflections)
 
 export default router

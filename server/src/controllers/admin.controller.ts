@@ -174,17 +174,18 @@ export const updateAdminInterviewSlot = async (req: Request, res: Response): Pro
       badRequest(res, 'Cannot edit a slot that has already been booked.')
       return
     }
-    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink } = req.body as {
+    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink, endDate } = req.body as {
       dayOfWeek: number
       startHour: number
       startMinute: number
       endHour: number
       endMinute: number
       meetLink: string
+      endDate?: string | null
     }
     const updated = await prisma.adminInterviewSlot.update({
       where: { id },
-      data: { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink },
+      data: { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink, endDate: endDate ? new Date(endDate) : null },
     })
     ok(res, updated)
   } catch (err) {
@@ -198,16 +199,17 @@ export const updateAdminInterviewSlot = async (req: Request, res: Response): Pro
 
 export const createAdminInterviewSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink } = req.body as {
+    const { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink, endDate } = req.body as {
       dayOfWeek: number
       startHour: number
       startMinute: number
       endHour: number
       endMinute: number
       meetLink: string
+      endDate?: string | null
     }
     const slot = await prisma.adminInterviewSlot.create({
-      data: { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink },
+      data: { dayOfWeek, startHour, startMinute, endHour, endMinute, meetLink, endDate: endDate ? new Date(endDate) : null },
     })
     ok(res, slot)
   } catch (err) {
@@ -235,7 +237,8 @@ export const getReportStudents = async (req: Request, res: Response): Promise<vo
   try {
     const level = req.query.level === 'A_LEVEL' ? 'A_LEVEL' : 'O_LEVEL'
     const page = Math.max(1, Number.parseInt(req.query.page as string) || 1)
-    ok(res, await adminService.getReportStudents(level, page))
+    const all = req.query.all === 'true'
+    ok(res, await adminService.getReportStudents(level, page, all))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -249,7 +252,8 @@ export const getReportProfessionals = async (req: Request, res: Response): Promi
     else if (q === 'rejected') type = 'rejected'
     else if (q === 'mentor-rejected') type = 'mentor-rejected'
     const page = Math.max(1, Number.parseInt(req.query.page as string) || 1)
-    ok(res, await adminService.getReportProfessionals(type, page))
+    const all = req.query.all === 'true'
+    ok(res, await adminService.getReportProfessionals(type, page, all))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -259,7 +263,8 @@ export const getReportCareerGuides = async (req: Request, res: Response): Promis
   try {
     const page = Math.max(1, Number.parseInt(req.query.page as string) || 1)
     const status = req.query.status === 'rejected' ? 'rejected' : 'approved'
-    ok(res, await adminService.getReportCareerGuides(page, status))
+    const all = req.query.all === 'true'
+    ok(res, await adminService.getReportCareerGuides(page, status, all))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
@@ -295,8 +300,10 @@ export const getAvailableInterviewSlots = async (req: Request, res: Response): P
           start: slot.start,
           end: slot.end,
           meetLink: matchingTemplate?.meetLink ?? '',
+          endDate: matchingTemplate?.endDate ?? null,
         }
       })
+      .filter((slot) => !slot.endDate || slot.start <= slot.endDate)
     ok(res, { slots: available })
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')

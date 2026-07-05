@@ -9,6 +9,7 @@ router.use(authMiddleware, roleGuard('CAREER_GUIDE'))
 router.get('/me', careerGuidesController.getMe)
 router.get('/me/dashboard', careerGuidesController.getDashboard)
 router.get('/me/students', careerGuidesController.getMySchoolStudents)
+router.get('/me/students/:studentId', careerGuidesController.getStudentDetail)
 router.post('/me/reapply', careerGuidesController.reapplyVerification)
 
 export default router

@@ -31,8 +31,10 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
 
 export const logConfidence = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { score, note } = req.body
-    const data = await studentsService.logConfidence(req.auth!.userId, score, note)
+    const { score, note, combination, sessionId, changedThinking } = req.body
+    const data = await studentsService.logConfidence(
+      req.auth!.userId, score, note, combination, sessionId, changedThinking
+    )
     ok(res, data)
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
@@ -42,6 +44,15 @@ export const logConfidence = async (req: Request, res: Response): Promise<void> 
 export const getConfidenceLogs = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await studentsService.getConfidenceLogs(req.auth!.userId)
+    ok(res, data)
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getPendingReflections = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await studentsService.getPendingReflections(req.auth!.userId)
     ok(res, data)
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')

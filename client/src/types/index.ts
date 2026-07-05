@@ -45,11 +45,14 @@ export interface ProfessionalProfile {
   isMentor?: boolean
   mentorApplicationStatus?: string | null
   mentorRejectionReason?: string | null
+  mentorRejectionCount?: number
   mentorBio?: string | null
   mentorApplicationAttempts?: number
   verificationStatus?: string
   rejectionReason?: string | null
+  rejectionCount?: number
   verificationAttempts?: number
+  relevantCombinations?: string[]
   interviewBooking?: {
     scheduledAt: string
     meetLink: string
@@ -66,6 +69,7 @@ export interface CareerGuideProfile {
   verificationStatus?: string
   rejectionReason?: string | null
   rejectionCount?: number
+  verificationAttempts?: number
   schoolId?: string | null
 }
 
