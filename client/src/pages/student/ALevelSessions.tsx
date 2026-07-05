@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 import useStudentSessions, { StudentSession } from '@/hooks/useStudentSessions'
+import { getTrackCode, TrackOptgroups } from '@/utils/studentTrack'
 
 type ReportReason = 'INAPPROPRIATE_BEHAVIOUR' | 'UNCOMFORTABLE_CONTENT' | 'NO_SHOW' | 'HARASSMENT' | 'OTHER'
 
@@ -129,12 +130,6 @@ interface MentorSlot {
   Professional: { id: string; firstName: string; lastName: string; jobTitle: string }
 }
 
-const COMBINATIONS = [
-  'MPC', 'MPG', 'MEG', 'MHE', 'MCE',
-  'PCB', 'BCG', 'HEG', 'HEL', 'HGL',
-  'KEG', 'KEL', 'KGL', 'AEG', 'PCG',
-]
-
 const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
 const SKELETON_KEYS = ['sk1', 'sk2', 'sk3', 'sk4']
 
@@ -201,8 +196,9 @@ const ALevelSessions = () => {
   const [reportTarget, setReportTarget] = useState<{ id: string; type: 'session' | 'group-session' } | null>(null)
 
   useEffect(() => {
-    if (user?.student?.combination) {
-      setSelectedCombination(user.student.combination.split(' ')[0])
+    const trackCode = getTrackCode(user?.student)
+    if (trackCode) {
+      setSelectedCombination(trackCode)
     }
   }, [user])
 
@@ -482,8 +478,7 @@ const ALevelSessions = () => {
             onChange={(e) => setSelectedCombination(e.target.value || undefined)}
             className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
           >
-            <option value="">All combinations</option>
-            {COMBINATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            <TrackOptgroups />
           </select>
         )}
         {(!relevantOnly && selectedCombination) && (

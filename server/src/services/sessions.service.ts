@@ -136,11 +136,19 @@ export const create = async (studentUserId: string, data: {
     })
   }
 
-  emailService.notifyProfessionalNewSessionRequest(
-    { firstName: professional.firstName, email: professional.user.email },
-    { firstName: student.firstName, lastName: student.lastName },
-    { scheduledAt: session.scheduledAt, type: session.type },
-  ).catch(console.error)
+  if (data.slotId) {
+    emailService.notifyProfessionalMentorSlotBooked(
+      { firstName: professional.firstName, email: professional.user.email },
+      { firstName: student.firstName, lastName: student.lastName },
+      { scheduledAt: session.scheduledAt, duration: session.duration },
+    ).catch(console.error)
+  } else {
+    emailService.notifyProfessionalNewSessionRequest(
+      { firstName: professional.firstName, email: professional.user.email },
+      { firstName: student.firstName, lastName: student.lastName },
+      { scheduledAt: session.scheduledAt, type: session.type },
+    ).catch(console.error)
+  }
 
   return session
 }

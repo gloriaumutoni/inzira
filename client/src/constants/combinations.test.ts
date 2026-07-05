@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { COMBINATIONS } from './combinations'
 
 describe('COMBINATIONS data integrity', () => {
-  it('seeds exactly 15 combinations, matching Rwanda\'s 15 prescribed A-Level combinations', () => {
-    expect(COMBINATIONS).toHaveLength(15)
+  it('seeds exactly 10 combinations, matching Rwanda\'s 10 prescribed A-Level combinations', () => {
+    expect(COMBINATIONS).toHaveLength(10)
   })
 
   it('has a unique code for every combination', () => {

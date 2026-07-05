@@ -24,7 +24,14 @@ export const list = async (filters: {
   }
   if (filters.combination) {
     const combos = filters.combination.split(',').map(c => c.trim()).filter(Boolean)
-    where.combinations = combos.length > 1 ? { hasSome: combos } : { has: combos[0] }
+    if (combos.length > 0) {
+      // Untagged sessions (no combination/pathway set) are meant for all students,
+      // so they must still show up under any combination filter.
+      where.OR = [
+        { combinations: combos.length > 1 ? { hasSome: combos } : { has: combos[0] } },
+        { combinations: { isEmpty: true } },
+      ]
+    }
   }
   if (filters.professionalId) where.professionalId = filters.professionalId
 

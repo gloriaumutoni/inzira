@@ -44,6 +44,7 @@ model Student {
   level           Level
   schoolYear      String
   combination     String?
+  pathway         String?
   confidenceLevel          Int?
   mentorPlan               MentorPlan              @default(FREE)
   interests                String[]

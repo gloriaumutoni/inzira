@@ -1,10 +1,16 @@
 import resend from '../utils/resend'
+import { prisma } from '../prisma/client'
 
-const FROM = 'Inzira <noreply@inzira.rw>'
-const BASE = 'https://inzira.rw'
+const FROM = 'Inzira <onboarding@resend.dev>'
+const BASE = 'https://inzira-self.vercel.app'
 
-function adminEmail(): string | undefined {
-  return process.env.ADMIN_EMAIL
+async function adminEmails(): Promise<string[]> {
+  const admins = await prisma.user.findMany({
+    where: { role: 'ADMIN' },
+    select: { email: true },
+  })
+  const emails = admins.map(a => a.email).filter(Boolean)
+  return emails.length > 0 ? emails : [process.env.ADMIN_EMAIL].filter(Boolean) as string[]
 }
 
 function layout(title: string, body: string): string {
@@ -78,8 +84,8 @@ export async function notifyAdminNewProfessionalVerification(prof: {
   lastName: string
   email: string
 }) {
-  const to = adminEmail()
-  if (!to) return
+  const to = await adminEmails()
+  if (to.length === 0) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -88,7 +94,7 @@ export async function notifyAdminNewProfessionalVerification(prof: {
       'New Professional Verification Request',
       h2('New Verification Request') +
       p(`<strong>${prof.firstName} ${prof.lastName}</strong> (${prof.email}) has submitted a professional verification request and is awaiting review.`) +
-      btn('Review in Dashboard', `${BASE}/admin/professionals`)
+      btn('Review Request', `${BASE}`)
     ),
   })
 }
@@ -98,8 +104,8 @@ export async function notifyAdminNewCareerGuideVerification(guide: {
   lastName: string
   email: string
 }) {
-  const to = adminEmail()
-  if (!to) return
+  const to = await adminEmails()
+  if (to.length === 0) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -108,7 +114,7 @@ export async function notifyAdminNewCareerGuideVerification(guide: {
       'New Career Guide Verification Request',
       h2('New Career Guide Application') +
       p(`<strong>${guide.firstName} ${guide.lastName}</strong> (${guide.email}) has submitted a career guide verification request and is awaiting review.`) +
-      btn('Review in Dashboard', `${BASE}/admin/career-guides`)
+      btn('Review Request', `${BASE}`)
     ),
   })
 }
@@ -117,18 +123,20 @@ export async function notifyAdminNewMentorApplication(prof: {
   firstName: string
   lastName: string
   email: string
-}) {
-  const to = adminEmail()
-  if (!to) return
+}, slot: { scheduledAt: Date; meetLink: string }) {
+  const to = await adminEmails()
+  if (to.length === 0) return
   await resend.emails.send({
     from: FROM,
     to,
-    subject: 'New Mentor Application',
+    subject: 'New Mentor Application — Interview Slot Booked',
     html: layout(
       'New Mentor Application',
       h2('New Mentor Application') +
-      p(`<strong>${prof.firstName} ${prof.lastName}</strong> (${prof.email}) has applied to become a mentor on Inzira.`) +
-      btn('Review Applications', `${BASE}/admin/mentors`)
+      p(`<strong>${prof.firstName} ${prof.lastName}</strong> (${prof.email}) has applied to become a mentor on Inzira and booked an interview slot.`) +
+      p(`<strong>Interview time:</strong> ${fmt(slot.scheduledAt)}`) +
+      p(`<strong>Meet link:</strong> <a href="${slot.meetLink}" style="color:#0f172a;">${slot.meetLink}</a>`) +
+      btn('Review Request', `${BASE}`)
     ),
   })
 }
@@ -137,8 +145,8 @@ export async function notifyAdminNewCareerStory(prof: {
   firstName: string
   lastName: string
 }, storyTitle: string) {
-  const to = adminEmail()
-  if (!to) return
+  const to = await adminEmails()
+  if (to.length === 0) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -147,7 +155,7 @@ export async function notifyAdminNewCareerStory(prof: {
       'New Career Story Pending Review',
       h2('New Career Story Submitted') +
       p(`<strong>${prof.firstName} ${prof.lastName}</strong> submitted a career story <em>&ldquo;${storyTitle}&rdquo;</em> for review.`) +
-      btn('Review Stories', `${BASE}/admin/career-stories`)
+      btn('Review Request', `${BASE}`)
     ),
   })
 }
@@ -167,7 +175,7 @@ export async function notifyProfessionalApplicationReceived(prof: {
       h2(`Thanks for applying, ${prof.firstName}!`) +
       p('We received your professional profile and it is now awaiting review by our team.') +
       p('We will email you as soon as a decision has been made.') +
-      btn('View Your Dashboard', `${BASE}/professional/home`)
+      btn('View Your Dashboard', `${BASE}`)
     ),
   })
 }
@@ -184,7 +192,7 @@ export async function notifyProfessionalVerificationApproved(prof: {
       'Profile Verified',
       h2(`Congratulations, ${prof.firstName}!`) +
       p('Your professional profile has been reviewed and verified. Students can now discover and book sessions with you on Inzira.') +
-      btn('View Your Profile', `${BASE}/professional/profile`)
+      btn('View Your Profile', `${BASE}`)
     ),
   })
 }
@@ -203,7 +211,7 @@ export async function notifyProfessionalVerificationRejected(prof: {
       p('We reviewed your professional profile and were unable to approve it at this time.') +
       p(`<strong>Reason:</strong> ${reason || 'Does not meet current requirements.'}`) +
       p('You may update your profile information and reapply.') +
-      btn('Update Your Profile', `${BASE}/professional/home`)
+      btn('Update Your Profile', `${BASE}`)
     ),
   })
 }
@@ -220,7 +228,7 @@ export async function notifyProfessionalMentorApproved(prof: {
       'Mentor Application Approved',
       h2(`Welcome to the mentor programme, ${prof.firstName}!`) +
       p('Your mentor application has been approved. You can now create mentor slots and guide students on their career journeys.') +
-      btn('Set Up Mentor Slots', `${BASE}/professional/mentor`)
+      btn('Set Up Mentor Slots', `${BASE}`)
     ),
   })
 }
@@ -239,7 +247,7 @@ export async function notifyProfessionalMentorRejected(prof: {
       p('We reviewed your mentor application and were unable to approve it at this time.') +
       p(`<strong>Reason:</strong> ${reason || 'Does not meet current requirements.'}`) +
       p('You may reapply once you have addressed the feedback above.') +
-      btn('View Dashboard', `${BASE}/professional/home`)
+      btn('View Dashboard', `${BASE}`)
     ),
   })
 }
@@ -260,7 +268,28 @@ export async function notifyProfessionalNewSessionRequest(
       p(`<strong>${student.firstName} ${student.lastName}</strong> has requested a <strong>${typeLabel}</strong> session with you.`) +
       p(`<strong>Proposed time:</strong> ${fmt(session.scheduledAt)}`) +
       p('Please confirm or decline this request from your dashboard.') +
-      btn('Review Request', `${BASE}/professional/sessions`)
+      btn('Review Request', `${BASE}`)
+    ),
+  })
+}
+
+export async function notifyProfessionalMentorSlotBooked(
+  prof: { firstName: string; email: string },
+  student: { firstName: string; lastName: string },
+  slot: { scheduledAt: Date; duration: number }
+) {
+  await resend.emails.send({
+    from: FROM,
+    to: prof.email,
+    subject: 'A student booked your mentor slot',
+    html: layout(
+      'Mentor Slot Booked',
+      h2(`Your slot was booked, ${prof.firstName}!`) +
+      p(`<strong>${student.firstName} ${student.lastName}</strong> has booked one of your mentor slots.`) +
+      p(`<strong>When:</strong> ${fmt(slot.scheduledAt)}`) +
+      p(`<strong>Duration:</strong> ${slot.duration} minutes`) +
+      p('Please confirm this session from your dashboard.') +
+      btn('View Sessions', `${BASE}`)
     ),
   })
 }
@@ -278,7 +307,7 @@ export async function notifyProfessionalSessionCancelled(
       'Session Cancelled',
       h2(`Hi ${prof.firstName},`) +
       p(`<strong>${student.firstName} ${student.lastName}</strong> has cancelled their session scheduled for <strong>${fmt(session.scheduledAt)}</strong>.`) +
-      btn('View Sessions', `${BASE}/professional/sessions`)
+      btn('View Sessions', `${BASE}`)
     ),
   })
 }
@@ -295,7 +324,7 @@ export async function notifyProfessionalGroupSessionFull(
       'Group Session Full',
       h2(`Your session is full, ${prof.firstName}!`) +
       p(`Your group session <strong>&ldquo;${gs.title}&rdquo;</strong> scheduled for <strong>${fmt(gs.scheduledAt)}</strong> has reached maximum capacity.`) +
-      btn('View Group Sessions', `${BASE}/professional/group-sessions`)
+      btn('View Group Sessions', `${BASE}`)
     ),
   })
 }
@@ -312,7 +341,7 @@ export async function notifyProfessionalCareerStoryPublished(
       'Career Story Published',
       h2(`Your story is live, ${prof.firstName}!`) +
       p(`Your career story <strong>&ldquo;${storyTitle}&rdquo;</strong> has been approved and is now visible to students in the Inzira Career Library.`) +
-      btn('View Career Library', `${BASE}/career-library`)
+      btn('View Career Library', `${BASE}`)
     ),
   })
 }
@@ -332,7 +361,7 @@ export async function notifyProfessionalCareerStoryRejected(
       p(`Your career story <strong>&ldquo;${storyTitle}&rdquo;</strong> could not be published at this time.`) +
       p(`<strong>Reason:</strong> ${reason}`) +
       p('You can edit and resubmit your story from your dashboard.') +
-      btn('Edit Your Story', `${BASE}/professional/career-stories`)
+      btn('Edit Your Story', `${BASE}`)
     ),
   })
 }
@@ -354,7 +383,7 @@ export async function notifyStudentSessionConfirmed(
       h2(`Session confirmed, ${student.firstName}!`) +
       p(`Your <strong>${typeLabel}</strong> session with <strong>${prof.firstName} ${prof.lastName}</strong> is confirmed.`) +
       p(`<strong>When:</strong> ${fmt(session.scheduledAt)}`) +
-      btn('View Session Details', `${BASE}/sessions`)
+      btn('View Session Details', `${BASE}`)
     ),
   })
 }
@@ -375,7 +404,7 @@ export async function notifyStudentSessionDeclined(
       p(`<strong>${prof.firstName} ${prof.lastName}</strong> was unable to accept your session request for <strong>${fmt(session.scheduledAt)}</strong>.`) +
       (reason ? p(`<strong>Reason:</strong> ${reason}`) : '') +
       p('You can book with another professional or choose a different time.') +
-      btn('Find a Professional', `${BASE}/professionals`)
+      btn('Find a Professional', `${BASE}`)
     ),
   })
 }
@@ -394,7 +423,7 @@ export async function notifyStudentSessionCancelled(
       h2(`Hi ${student.firstName},`) +
       p(`<strong>${prof.firstName} ${prof.lastName}</strong> has cancelled your session scheduled for <strong>${fmt(session.scheduledAt)}</strong>.`) +
       p('You can book a new session from your dashboard.') +
-      btn('Book a Session', `${BASE}/professionals`)
+      btn('Book a Session', `${BASE}`)
     ),
   })
 }
@@ -415,7 +444,7 @@ export async function notifyStudentGroupEnrolmentConfirmed(
       (gs.joinLink
         ? p(`<strong>Join link:</strong> <a href="${gs.joinLink}" style="color:#0f172a;">${gs.joinLink}</a>`)
         : '') +
-      btn('View My Sessions', `${BASE}/sessions`)
+      btn('View My Sessions', `${BASE}`)
     ),
   })
 }
@@ -433,7 +462,7 @@ export async function notifyStudentGroupSessionCancelled(
       h2(`Hi ${student.firstName},`) +
       p(`The group session <strong>&ldquo;${gs.title}&rdquo;</strong> scheduled for <strong>${fmt(gs.scheduledAt)}</strong> has been cancelled.`) +
       p('Browse other upcoming sessions on Inzira.') +
-      btn('Browse Group Sessions', `${BASE}/sessions`)
+      btn('Browse Group Sessions', `${BASE}`)
     ),
   })
 }
@@ -452,7 +481,7 @@ export async function notifyCareerGuideVerificationApproved(guide: {
       'Career Guide Verified',
       h2(`Welcome to Inzira, ${guide.firstName}!`) +
       p('Your career guide account has been verified. You can now support students in their career discovery journey.') +
-      btn('Go to Dashboard', `${BASE}/career-guide/home`)
+      btn('Go to Dashboard', `${BASE}`)
     ),
   })
 }
@@ -470,7 +499,7 @@ export async function notifyCareerGuideVerificationRejected(guide: {
       h2(`Hi ${guide.firstName},`) +
       p('We reviewed your career guide application and were unable to approve it at this time.') +
       p(`<strong>Reason:</strong> ${reason || 'Does not meet current requirements.'}`) +
-      btn('Contact Support', `${BASE}/support`)
+      btn('Contact Support', `${BASE}`)
     ),
   })
 }
@@ -481,8 +510,8 @@ export async function notifyAdminSessionReported(
   student: { firstName: string; lastName: string },
   professional: { firstName: string; lastName: string }
 ) {
-  const to = adminEmail()
-  if (!to) return
+  const to = await adminEmails()
+  if (to.length === 0) return
   const reasonLabel = report.reason.replaceAll('_', ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
   await resend.emails.send({
     from: FROM,
@@ -496,7 +525,7 @@ export async function notifyAdminSessionReported(
       p(`<strong>Session date:</strong> ${fmt(session.scheduledAt)}`) +
       p(`<strong>Reason:</strong> ${reasonLabel}`) +
       (report.description ? p(`<strong>Details:</strong> ${report.description}`) : '') +
-      btn('Review in Dashboard', `${BASE}/admin/session-reports`)
+      btn('Review Request', `${BASE}`)
     ),
   })
 }

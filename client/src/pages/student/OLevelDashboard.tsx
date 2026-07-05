@@ -3,7 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 import StudentHome from '@/pages/student/StudentHome'
 import StudentSessions from '@/pages/student/StudentSessions'
 import StudentGetMentor from '@/pages/student/StudentGetMentor'
-import CombinationQuiz from '@/pages/student/CombinationQuiz'
+import PathwayQuiz from '@/pages/student/PathwayQuiz'
 
 const OLevelDashboard = () => (
   <DashboardLayout role="STUDENT" level="O_LEVEL">
@@ -12,7 +12,7 @@ const OLevelDashboard = () => (
       <Route path="home" element={<StudentHome />} />
       <Route path="sessions" element={<StudentSessions />} />
       <Route path="get-mentor" element={<StudentGetMentor />} />
-      <Route path="quiz" element={<CombinationQuiz />} />
+      <Route path="quiz" element={<PathwayQuiz />} />
       <Route path="*" element={<Navigate to="home" replace />} />
     </Routes>
   </DashboardLayout>

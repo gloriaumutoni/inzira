@@ -20,6 +20,7 @@ interface SignupData {
   level?: string;
   schoolYear?: string;
   combination?: string;
+  pathway?: string;
   jobTitle?: string;
   employer?: string;
   sector?: string;
@@ -28,6 +29,7 @@ interface SignupData {
   linkedinUrl?: string;
   confidence?: number;
   careerInterests?: string[];
+  combinationsConsidering?: string[];
 }
 
 export const signup = async (data: SignupData) => {
@@ -64,10 +66,10 @@ export const signup = async (data: SignupData) => {
           confidenceLevel: data.confidence ?? null,
           schoolId: data.schoolId ?? null,
           combination: data.combination ?? null,
+          pathway: data.pathway ?? null,
           careerInterests: data.careerInterests ?? [],
-          // A-Level students provide combination, confidence, and career interests at signup,
-          // so there's nothing left to collect in the post-signup onboarding flow.
-          onboardingCompleted: level === "A_LEVEL",
+          combinationsConsidering: data.combinationsConsidering ?? [],
+          onboardingCompleted: true,
         },
       });
     }

@@ -14,6 +14,7 @@ export const updateMe = async (userId: string, data: {
   level?: 'O_LEVEL' | 'A_LEVEL'
   schoolYear?: string
   combination?: string
+  pathway?: string
   interests?: string[]
   profilePhoto?: string
   combinationsConsidering?: string[]

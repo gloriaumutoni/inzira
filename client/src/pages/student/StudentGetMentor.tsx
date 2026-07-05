@@ -2,49 +2,40 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useProfessionals, { Professional } from '@/hooks/useProfessionals'
-import { getSectorStyle } from '@/utils/sectorColors'
 import ProfessionalProfileModal from '@/components/professionals/ProfessionalProfileModal'
-import { COMBINATIONS } from '@/constants/combinations'
 import { SECTORS } from '@/constants/sectors'
+import { getTrackCode, TrackOptgroups } from '@/utils/studentTrack'
 
 type FilterMode = 'recommended' | 'combination' | 'career'
 
 const SKELETON_IDS = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6']
 
-const MentorCard = ({ pro, onClick }: { pro: Professional; onClick: () => void }) => {
-  const style = getSectorStyle(pro.sector)
-  const initials = `${pro.firstName[0] ?? ''}${pro.lastName[0] ?? ''}`.toUpperCase()
-  return (
-    <button
-      type="button"
-      className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow text-left w-full"
-      onClick={onClick}
-    >
-      <div className="w-12 h-12 rounded-full bg-accent/10 text-accent font-bold flex items-center justify-center text-sm">
-        {initials}
-      </div>
-      <p className="text-sm font-semibold text-primary mt-3">{pro.firstName} {pro.lastName}</p>
-      <p className="text-xs text-muted">{pro.jobTitle} · {pro.employer}</p>
-      <div className="flex flex-wrap gap-1 mt-2">
-        <span
-          className="inline-block text-xs text-white px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: style.bg }}
-        >
-          {pro.sector}
-        </span>
-        {pro.relevantCombinations?.slice(0, 3).map(c => (
-          <span key={c} className="inline-block text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-            {c}
-          </span>
+const MentorCard = ({ pro, onClick }: { pro: Professional; onClick: () => void }) => (
+  <button
+    type="button"
+    className="bg-surface rounded-xl border border-border p-4 hover:shadow-md transition-shadow text-left w-full flex flex-col gap-2"
+    onClick={onClick}
+  >
+    <p className="text-sm font-semibold text-primary leading-tight">{pro.firstName} {pro.lastName}</p>
+    <p className="text-xs text-muted">{pro.jobTitle} · {pro.employer}</p>
+    {pro.bio && <p className="text-xs text-muted line-clamp-2">{pro.bio}</p>}
+    {pro.sector && (
+      <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{pro.sector}</span>
+    )}
+    {pro.relevantCombinations?.length > 0 && (
+      <div className="flex flex-wrap gap-1">
+        {pro.relevantCombinations.slice(0, 3).map(c => (
+          <span key={c} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{c}</span>
         ))}
       </div>
-      <p className="text-xs text-muted mt-2 line-clamp-2">{pro.bio}</p>
-      <div className="mt-4 w-full bg-primary text-white text-xs py-2 rounded-lg text-center">
+    )}
+    <div className="mt-auto pt-2">
+      <div className="w-full bg-accent text-white text-xs px-3 py-1.5 rounded-lg text-center hover:bg-accent/90 transition-colors">
         View Profile & Book
       </div>
-    </button>
-  )
-}
+    </div>
+  </button>
+)
 
 const isRecommended = (pro: Professional, combos: string[], sectors: string[]) =>
   combos.some(c => pro.relevantCombinations?.includes(c)) || sectors.includes(pro.sector)
@@ -99,7 +90,7 @@ const pillClass = (active: boolean) => active
   : 'text-xs px-3 py-2 rounded-lg font-medium bg-surface border border-border text-muted hover:text-primary transition-colors'
 
 const chipClass = (active: boolean) => active
-  ? 'text-xs px-3 py-1 rounded-full font-medium bg-accent text-white'
+  ? 'text-xs px-3 py-1 rounded-full font-medium bg-primary text-white'
   : 'text-xs px-3 py-1 rounded-full font-medium bg-surface border border-border text-muted hover:text-primary transition-colors'
 
 const StudentGetMentor = () => {
@@ -109,13 +100,15 @@ const StudentGetMentor = () => {
   const careerInterests = user?.student?.careerInterests ?? []
   const hasRecommendations = combinationsConsidering.length > 0 || careerInterests.length > 0
 
-  // A-Level students already picked a combination, so default to browsing mentors
-  // for that combination instead of the quiz-based "recommended" mode meant for
-  // O-Level students who are still deciding.
-  const ownCombination = user?.student?.level === 'A_LEVEL' ? (user?.student?.combination ?? undefined) : undefined
+  // A-Level students already picked a combination/pathway, so default to browsing mentors
+  // for that track instead of the quiz-based "recommended" mode meant for
+  // O-Level students who are still deciding. We don't auto-select their combination
+  // as a filter though: most mentors don't tag relevantCombinations, so a silent
+  // default filter would hide mentors that actually exist.
+  const ownCombination = user?.student?.level === 'A_LEVEL' ? getTrackCode(user?.student) : undefined
 
   const [mode, setMode] = useState<FilterMode>(ownCombination ? 'combination' : (hasRecommendations ? 'recommended' : 'combination'))
-  const [selectedCombination, setSelectedCombination] = useState<string | undefined>(ownCombination)
+  const [selectedCombination, setSelectedCombination] = useState<string | undefined>(undefined)
   const [selectedSector, setSelectedSector] = useState<string | undefined>(undefined)
   const [search, setSearch] = useState('')
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(null)
@@ -169,7 +162,7 @@ const StudentGetMentor = () => {
           </button>
         )}
         <button type="button" onClick={() => setModeAndReset('combination')} className={pillClass(mode === 'combination')}>
-          By Combination
+          By Combination/Pathway
         </button>
         <button type="button" onClick={() => setModeAndReset('career')} className={pillClass(mode === 'career')}>
           By Career
@@ -191,8 +184,7 @@ const StudentGetMentor = () => {
             onChange={(e) => setSelectedCombination(e.target.value || undefined)}
             className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
           >
-            <option value="">All combinations</option>
-            {COMBINATIONS.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+            <TrackOptgroups />
           </select>
           {selectedCombination && (
             <button type="button" onClick={() => setSelectedCombination(undefined)} className="text-xs text-accent hover:underline">

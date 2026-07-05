@@ -6,11 +6,6 @@ const STEPS = [
   },
   {
     number: 2,
-    title: 'Join Workshops',
-    body: 'Attend free interactive sessions led by industry leaders to learn real-world skills and insights.',
-  },
-  {
-    number: 3,
     title: 'One-on-One Sessions',
     body: 'Book direct mentorship calls with professionals to ask personalised questions and get guided advice.',
   },
@@ -21,10 +16,10 @@ const RoadmapSection = () => (
     <div className="max-w-6xl mx-auto">
       <div className="text-center">
         <h2 className="text-2xl md:text-3xl font-bold text-primary">Your Career Roadmap</h2>
-        <p className="text-sm text-muted mt-3">Three simple steps to clarify your professional future.</p>
+        <p className="text-sm text-muted mt-3">Two simple steps to clarify your professional future.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 max-w-3xl mx-auto">
         {STEPS.map(({ number, title, body }) => (
           <div
             key={number}

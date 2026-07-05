@@ -16,6 +16,7 @@ export interface StudentProfile {
   level: 'O_LEVEL' | 'A_LEVEL'
   schoolYear: string
   combination?: string | null
+  pathway?: string | null
   confidenceLevel?: number | null
   mentorPlan: 'FREE' | 'PRO' | 'PREMIUM'
   interests: string[]

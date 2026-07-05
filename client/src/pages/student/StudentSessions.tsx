@@ -4,6 +4,7 @@ import useStudentSessions, { StudentSession } from '@/hooks/useStudentSessions'
 import usePendingReflections from '@/hooks/usePendingReflections'
 import PostSessionReflectionModal from '@/components/student/PostSessionReflectionModal'
 import { api } from '@/api/axios'
+import { PATHWAY_LEAVES } from '@/constants/pathways'
 
 type ReportReason = 'INAPPROPRIATE_BEHAVIOUR' | 'UNCOMFORTABLE_CONTENT' | 'NO_SHOW' | 'HARASSMENT' | 'OTHER'
 
@@ -190,6 +191,7 @@ const StudentSessions = () => {
   const [gsLoading, setGsLoading] = useState(true)
   const [enrolling, setEnrolling] = useState<string | null>(null)
   const [selectedSectors, setSelectedSectors] = useState<Set<string>>(new Set())
+  const [selectedPathways, setSelectedPathways] = useState<Set<string>>(new Set())
 
   const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(true)
@@ -252,6 +254,15 @@ const StudentSessions = () => {
       const next = new Set(prev)
       if (next.has(sector)) next.delete(sector)
       else next.add(sector)
+      return next
+    })
+  }
+
+  const togglePathway = (code: string) => {
+    setSelectedPathways(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
       return next
     })
   }
@@ -408,16 +419,38 @@ const StudentSessions = () => {
     }
 
     const allSectors = [...new Set(upcomingGs.map(g => g.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-    const filtered = selectedSectors.size === 0 || relevantOnly
-      ? upcomingGs
-      : upcomingGs.filter(g => selectedSectors.has(g.sector))
+
+    let filtered = upcomingGs
+    if (!relevantOnly && selectedSectors.size > 0) {
+      filtered = filtered.filter(g => selectedSectors.has(g.sector))
+    }
+    if (selectedPathways.size > 0) {
+      filtered = filtered.filter(g => g.combinations?.some(c => selectedPathways.has(c)))
+    }
+
     let emptyMsg = 'No group sessions available right now.'
     if (relevantOnly) emptyMsg = 'No sessions available for your career interests yet. Try turning off the filter.'
+    else if (selectedPathways.size > 0) emptyMsg = 'No sessions match the selected learning pathway(s).'
     else if (selectedSectors.size > 0) emptyMsg = 'No sessions match the selected careers.'
 
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted">Browse available sessions and enroll to secure your spot. You can be enrolled in up to 3 at a time.</p>
+        <div className="flex flex-wrap gap-2">
+          {PATHWAY_LEAVES.map(leaf => (
+            <button
+              key={leaf.code}
+              type="button"
+              onClick={() => togglePathway(leaf.code)}
+              className={selectedPathways.has(leaf.code)
+                ? 'text-xs px-3 py-1 rounded-full font-medium bg-primary text-white'
+                : 'text-xs px-3 py-1 rounded-full font-medium bg-surface border border-border text-muted hover:text-primary transition-colors'
+              }
+            >
+              {leaf.label}
+            </button>
+          ))}
+        </div>
         {!relevantOnly && allSectors.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {allSectors.map(s => (
@@ -503,6 +536,7 @@ const StudentSessions = () => {
           setCategoryTab(t as typeof categoryTab)
           setTimeTab('Upcoming')
           setSelectedSectors(new Set())
+          setSelectedPathways(new Set())
         }}
       />
 
@@ -512,6 +546,7 @@ const StudentSessions = () => {
         onChange={(t) => {
           setTimeTab(t as typeof timeTab)
           setSelectedSectors(new Set())
+          setSelectedPathways(new Set())
         }}
       />
 

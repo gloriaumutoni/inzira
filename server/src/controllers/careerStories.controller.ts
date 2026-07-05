@@ -125,7 +125,7 @@ export const adminListVerifiedProfessionals = async (_req: Request, res: Respons
 }
 
 export const getCombinations = (_req: Request, res: Response): void => {
-  ok(res, careerStoriesService.RWANDA_COMBINATIONS)
+  ok(res, careerStoriesService.VALID_STUDY_CODES)
 }
 
 async function getProfessionalOrFail(req: Request, res: Response) {

@@ -7,6 +7,7 @@ import ManualConfidenceModal from '@/components/student/ManualConfidenceModal'
 import CombinationConfidenceChart from '@/components/student/CombinationConfidenceChart'
 import { api } from '@/api/axios'
 import { listCareerStories, CareerStory } from '@/api/careerStories.api'
+import { getTrackLabel } from '@/utils/studentTrack'
 
 interface MentorSlot {
   id: string
@@ -114,7 +115,7 @@ const ALevelHome = () => {
   }
 
   const firstName = user?.student?.firstName ?? 'there'
-  const combination = user?.student?.combination ?? 'A-Level'
+  const combination = getTrackLabel(user?.student) ?? 'A-Level'
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', year: 'numeric' })
 
   const upcomingGroup = dashboard?.groupSessions.length ?? 0

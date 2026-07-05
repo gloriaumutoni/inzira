@@ -8,22 +8,12 @@ import StudentDashboard from '@/pages/dashboards/StudentDashboard'
 import ProfessionalDashboard from '@/pages/dashboards/ProfessionalDashboard'
 import CareerGuideDashboard from '@/pages/dashboards/CareerGuideDashboard'
 import AdminDashboard from '@/pages/dashboards/AdminDashboard'
-import StudentOnboarding from '@/pages/student/StudentOnboarding'
 
 const AppRouter = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
     <Route path="/login" element={<Login />} />
     <Route path="/signup" element={<Signup />} />
-
-    <Route
-      path="/student/onboarding"
-      element={
-        <ProtectedRoute allowedRole="STUDENT" skipOnboarding>
-          <StudentOnboarding />
-        </ProtectedRoute>
-      }
-    />
 
     <Route
       path="/student/*"

@@ -35,16 +35,24 @@ export const getDashboard = async (userId: string) => {
     code: `S${s.id.slice(0, 6).toUpperCase()}`,
     level: s.level,
     combination: s.combination,
+    pathway: s.pathway,
     sessionsCompleted: s.sessions.length,
     groupSessionsJoined: s.groupEnrolments.length,
     confidence: s.confidenceLevel,
   }))
+
+  const systemBreakdown = {
+    legacy: students.filter((s) => s.combination && !s.pathway).length,
+    pathway: students.filter((s) => s.pathway).length,
+    undecided: students.filter((s) => !s.combination && !s.pathway).length,
+  }
 
   return {
     school: guide.school,
     totalStudents,
     avgConfidence,
     totalSessions,
+    systemBreakdown,
     cohort,
   }
 }

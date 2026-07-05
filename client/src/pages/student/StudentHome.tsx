@@ -6,6 +6,7 @@ import useConfidenceLogs from '@/hooks/useConfidenceLogs'
 import ManualConfidenceModal from '@/components/student/ManualConfidenceModal'
 import CombinationConfidenceChart from '@/components/student/CombinationConfidenceChart'
 import { api } from '@/api/axios'
+import { PATHWAY_LEAF_MAP } from '@/constants/pathways'
 
 interface MentorSlot {
   id: string
@@ -31,6 +32,27 @@ interface GroupSession {
 
 const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
 
+const TabBar = ({ tabs, active, onChange }: {
+  tabs: string[]
+  active: string
+  onChange: (t: string) => void
+}) => (
+  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+    {tabs.map(t => (
+      <button
+        key={t}
+        onClick={() => onChange(t)}
+        className={active === t
+          ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
+          : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
+        }
+      >
+        {t}
+      </button>
+    ))}
+  </div>
+)
+
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 const fmtTime = (d: string) =>
@@ -41,6 +63,7 @@ const StudentHome = () => {
   const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
   const { byCombo, refetch: refetchLogs } = useConfidenceLogs()
   const [showManualLog, setShowManualLog] = useState(false)
+  const [activeSessionTab, setActiveSessionTab] = useState<'Booked group sessions' | 'Booked mentor sessions'>('Booked group sessions')
   const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(true)
   const [enrolling, setEnrolling] = useState<string | null>(null)
@@ -103,11 +126,8 @@ const StudentHome = () => {
   const upcomingGroup = dashboard?.groupSessions.length ?? 0
   const confidenceScore = dashboard?.latestConfidence?.score ?? null
 
-  const combinationsConsidering = user?.student?.combinationsConsidering ?? []
-  const showQuizPrompt =
-    combinationsConsidering.length === 0 ||
-    user?.student?.confidenceLevel == null ||
-    (user?.student?.confidenceLevel ?? 10) < 5
+  const pathwayResult = user?.student?.pathway ? PATHWAY_LEAF_MAP[user.student.pathway] : undefined
+  const showQuizPrompt = !pathwayResult
 
   const renderDiscoverySessions = () => {
     if (discoveryLoading) {
@@ -161,6 +181,51 @@ const StudentHome = () => {
                   {isPending ? 'Joining...' : 'Join for free'}
                 </button>
               )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const renderGroupSessions = () => {
+    if (dashLoading) {
+      return (
+        <div className={GRID}>
+          {['a', 'b', 'c'].map(k => (
+            <div key={k} className="animate-pulse bg-border rounded-xl h-32" />
+          ))}
+        </div>
+      )
+    }
+    const enrolments = dashboard?.groupSessions ?? []
+    if (enrolments.length === 0) {
+      return (
+        <p className="text-sm text-muted">
+          No upcoming group sessions.{' '}
+          <Link to="/student/sessions" className="text-accent hover:underline">Browse sessions →</Link>
+        </p>
+      )
+    }
+    return (
+      <div className={GRID}>
+        {enrolments.map(e => {
+          const gs = e.groupSession
+          const pro = gs.professional
+          return (
+            <div key={e.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+              <p className="text-sm font-semibold text-primary leading-tight">{gs.title}</p>
+              <p className="text-xs text-muted">
+                {pro.firstName} {pro.lastName}
+                {pro.jobTitle && ` · ${pro.jobTitle}`}
+              </p>
+              <p className="text-xs text-muted">{fmtDate(gs.scheduledAt)} · {fmtTime(gs.scheduledAt)}</p>
+              {gs.joinLink && (
+                <a href={gs.joinLink} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
+                  Join session ↗
+                </a>
+              )}
+              <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Enrolled</span>
             </div>
           )
         })}
@@ -253,11 +318,11 @@ const StudentHome = () => {
           <>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">{dashError ? '—' : upcomingOneOnOne}</p>
-              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Upcoming 1-on-1 Sessions</p>
+              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Booked Mentor Sessions</p>
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">{dashError ? '—' : upcomingGroup}</p>
-              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Upcoming Group Sessions</p>
+              <p className="text-xs text-muted mt-1 uppercase tracking-wide">Booked Group Sessions</p>
             </div>
             <div className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className="text-2xl font-bold text-primary">
@@ -269,16 +334,46 @@ const StudentHome = () => {
         )}
       </div>
 
+      {pathwayResult && (
+        <section className="bg-surface rounded-xl border border-accent/30 p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-xs font-semibold text-accent uppercase tracking-wide">Your quiz result</p>
+              <h2 className="text-base font-bold text-primary mt-1">{pathwayResult.label}</h2>
+              <p className="text-xs text-muted mt-1 leading-relaxed">{pathwayResult.description}</p>
+            </div>
+            <Link
+              to="/student/quiz"
+              className="shrink-0 text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors whitespace-nowrap"
+            >
+              Retake quiz →
+            </Link>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Subjects</p>
+            <div className="flex flex-wrap gap-1.5">
+              {pathwayResult.subjects.map(s => (
+                <span key={s} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{s}</span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Example careers</p>
+            <div className="flex flex-wrap gap-1.5">
+              {pathwayResult.careerAreas.map(c => (
+                <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {showQuizPrompt && (
         <div className="bg-surface rounded-xl border border-accent/30 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1 space-y-1">
-            <p className="text-sm font-semibold text-primary">
-              {combinationsConsidering.length === 0
-                ? "Not sure which combination to pick?"
-                : "Want to double-check your combination choice?"}
-            </p>
+            <p className="text-sm font-semibold text-primary">Not sure which pathway to pick?</p>
             <p className="text-xs text-muted leading-relaxed">
-              Take our 10-question quiz to get personalised A-Level combination recommendations based on your
+              Take our 9-question quiz to get personalised pathway recommendations based on your
               interests and career goals.
             </p>
           </div>
@@ -302,8 +397,12 @@ const StudentHome = () => {
       )}
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-primary">Upcoming 1-on-1 sessions</h2>
-        {renderOneOnOneSessions()}
+        <TabBar
+          tabs={['Booked group sessions', 'Booked mentor sessions']}
+          active={activeSessionTab}
+          onChange={(t) => setActiveSessionTab(t as typeof activeSessionTab)}
+        />
+        {activeSessionTab === 'Booked group sessions' ? renderGroupSessions() : renderOneOnOneSessions()}
       </section>
 
       {byCombo.length > 0 && <CombinationConfidenceChart trends={byCombo} />}

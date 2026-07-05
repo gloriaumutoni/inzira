@@ -13,12 +13,7 @@ import {
   type CareerStoryPayload,
 } from '@/api/careerStories.api'
 import { SECTORS } from '@/constants/sectors'
-
-const A_LEVEL_COMBINATIONS = [
-  'MPC', 'MPG', 'MCE', 'MCB', 'MEG',
-  'PCB', 'PCE', 'HEG', 'HGL', 'HGK',
-  'HLE', 'BCG', 'MEd', 'AGL', 'MPE',
-]
+import { CombinationPathwayPicker } from '@/components/shared/CombinationPathwayPicker'
 
 interface GroupSession {
   id: string
@@ -62,9 +57,6 @@ const ProfessionalHome = () => {
   const [showCombosEdit, setShowCombosEdit] = useState(false)
   const [selectedCombos, setSelectedCombos] = useState<string[]>(user?.professional?.relevantCombinations ?? [])
   const [combosLoading, setCombosLoading] = useState(false)
-
-  const toggleCombo = (c: string) =>
-    setSelectedCombos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
 
   const saveCombos = async () => {
     setCombosLoading(true)
@@ -487,22 +479,11 @@ const ProfessionalHome = () => {
 
         {showCombosEdit && (
           <div className="mt-4 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {A_LEVEL_COMBINATIONS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => toggleCombo(c)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    selectedCombos.includes(c)
-                      ? 'bg-accent text-white border-accent'
-                      : 'bg-background text-muted border-border hover:border-accent hover:text-accent'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            <CombinationPathwayPicker
+              value={selectedCombos}
+              onChange={setSelectedCombos}
+              mode="multi"
+            />
             <div className="flex justify-end">
               <button
                 onClick={saveCombos}

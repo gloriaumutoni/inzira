@@ -2,10 +2,9 @@ import { prisma } from '../prisma/client'
 import { CareerStoryStatus } from '@prisma/client'
 import * as emailService from './email.service'
 
-export const RWANDA_COMBINATIONS = [
-  'MPC', 'MPG', 'MCB', 'MEG', 'MEK',
-  'PCB', 'PCK', 'HEG', 'HEK', 'HGK',
-  'BCG', 'LKF', 'BCE', 'GEK', 'MEB',
+export const VALID_STUDY_CODES = [
+  'HGL', 'HLP', 'LFK', 'MCB', 'MCE', 'MEG', 'MPC', 'MPG', 'PCB', 'PCM',
+  'PATH_MS_NATURAL', 'PATH_MS_APPLIED', 'PATH_ARTS_HUMANITIES', 'PATH_LANGUAGES',
 ]
 
 const PUBLIC_INCLUDE = {
@@ -100,7 +99,7 @@ export const create = async (
     adviceForStudents: string
   }
 ) => {
-  const invalid = data.combinations.filter(c => !RWANDA_COMBINATIONS.includes(c))
+  const invalid = data.combinations.filter(c => !VALID_STUDY_CODES.includes(c))
   if (invalid.length > 0) {
     throw new Error(`Invalid combinations: ${invalid.join(', ')}`)
   }
@@ -139,7 +138,7 @@ export const adminCreate = async (
   const pro = await prisma.professional.findUnique({ where: { id: professionalId } })
   if (!pro?.isVerified) throw new Error('Professional not found or not verified')
 
-  const invalid = data.combinations.filter(c => !RWANDA_COMBINATIONS.includes(c))
+  const invalid = data.combinations.filter(c => !VALID_STUDY_CODES.includes(c))
   if (invalid.length > 0) throw new Error(`Invalid combinations: ${invalid.join(', ')}`)
 
   return prisma.careerStory.create({
@@ -181,7 +180,7 @@ export const update = async (
   }
 
   if (data.combinations) {
-    const invalid = data.combinations.filter(c => !RWANDA_COMBINATIONS.includes(c))
+    const invalid = data.combinations.filter(c => !VALID_STUDY_CODES.includes(c))
     if (invalid.length > 0) throw new Error(`Invalid combinations: ${invalid.join(', ')}`)
   }
 

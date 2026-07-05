@@ -13,7 +13,6 @@ export interface CareerGuideDashboard {
   totalStudents: number
   avgConfidence: number
   totalSessions: number
-  totalWorkshops: number
   aLevelCount: number
 }
 
@@ -39,7 +38,6 @@ const useCareerGuideDashboard = (): UseCareerGuideDashboardResult => {
           totalStudents: raw.totalStudents ?? 0,
           avgConfidence: raw.avgConfidence ?? 0,
           totalSessions: raw.totalSessions ?? 0,
-          totalWorkshops: raw.totalWorkshops ?? 0,
           aLevelCount: cohort.filter((s) => s.level === 'A_LEVEL').length,
         })
       } catch {

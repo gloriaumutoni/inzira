@@ -151,7 +151,7 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
       firstName: professional.firstName,
       lastName: professional.lastName,
       email: professional.user.email,
-    }).catch(console.error)
+    }, { scheduledAt: new Date(scheduledAt), meetLink }).catch(console.error)
 
     ok(res, { mentorApplicationStatus: 'PENDING' })
   } catch (err) {

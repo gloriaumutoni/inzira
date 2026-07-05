@@ -245,11 +245,11 @@ const CareerLibrary = () => {
       <div>
         <h1 className="text-xl font-bold text-primary">Career Library</h1>
         <p className="text-sm text-muted mt-0.5">
-          Real stories from professionals who started with Rwanda's A-Level combinations
+          Real stories from professionals who started with a Rwanda A-Level combination or pathway
         </p>
         {studentCombos.length > 0 && (
           <p className="text-xs text-accent mt-1">
-            Showing results for your combinations · change below to explore more
+            Showing results for your combination or pathway · change below to explore more
           </p>
         )}
       </div>
@@ -272,7 +272,7 @@ const CareerLibrary = () => {
           onChange={e => setCombo(e.target.value)}
           className="text-sm bg-surface border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
         >
-          <option value="">All combinations</option>
+          <option value="">All combinations/pathways</option>
           {combinations.map(c => (
             <option key={c} value={c}>{c}</option>
           ))}

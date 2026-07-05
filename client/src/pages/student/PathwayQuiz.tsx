@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/axios'
 import { useAuth } from '@/contexts/AuthContext'
-import { COMBINATIONS } from '@/constants/combinations'
-import type { CombinationData } from '@/constants/combinations'
+import { PATHWAY_LEAVES } from '@/constants/pathways'
+import type { PathwayLeaf } from '@/constants/pathways'
 
 // ---------------------------------------------------------------------------
 // Quiz data
@@ -14,80 +14,61 @@ const SCALE_LABELS = ['Not at all', 'A little', 'Somewhat', 'Very much', 'Extrem
 interface Question {
   text: string
   combos: string[]
-  special?: 'language'
 }
 
 const QUESTIONS: Question[] = [
   {
-    text: 'How much do you enjoy Mathematics?',
-    combos: ['MPC', 'MPG', 'MEG', 'MCE', 'MCB', 'MPE', 'MEd'],
+    text: 'How much do you enjoy Mathematics or quantitative subjects?',
+    combos: ['PATH_MS_APPLIED', 'PATH_MS_NATURAL'],
   },
   {
     text: 'How much do you enjoy Biology or Life Sciences?',
-    combos: ['PCB', 'BCG', 'MCB'],
+    combos: ['PATH_MS_NATURAL'],
   },
   {
     text: 'How much do you enjoy Physics or Chemistry?',
-    combos: ['MPC', 'PCB', 'MCB', 'PCE', 'MPE', 'MPG'],
+    combos: ['PATH_MS_NATURAL'],
   },
   {
-    text: 'How much do you enjoy History or Geography?',
-    combos: ['HEG', 'HGL', 'HGK', 'HLE', 'BCG'],
+    text: 'How much do you enjoy History or the study of society?',
+    combos: ['PATH_ARTS_HUMANITIES'],
   },
   {
-    text: 'How much do you enjoy languages — French or Kinyarwanda?',
-    combos: ['HGL', 'HGK', 'HLE', 'AGL'],
+    text: 'How much do you enjoy languages and communication?',
+    combos: ['PATH_LANGUAGES'],
   },
   {
     text: 'Do you see yourself working in healthcare or science?',
-    combos: ['PCB', 'BCG', 'MCB'],
+    combos: ['PATH_MS_NATURAL'],
   },
   {
     text: 'Do you see yourself working in business, economics, or finance?',
-    combos: ['MEG', 'HEG', 'PCE', 'MPE', 'HLE', 'MEd', 'AGL'],
+    combos: ['PATH_MS_APPLIED'],
   },
   {
-    text: 'Are you interested in engineering or building things?',
-    combos: ['MPC', 'MPG', 'MCE', 'MPE'],
+    text: 'Are you interested in engineering or technology?',
+    combos: ['PATH_MS_NATURAL', 'PATH_MS_APPLIED'],
   },
   {
-    text: 'Do you prefer creative or humanities subjects?',
-    combos: ['HGL', 'HGK', 'AGL', 'HLE'],
-  },
-  {
-    text: 'How important is it to study mainly in English rather than Kinyarwanda or French?',
-    combos: [],
-    special: 'language',
+    text: 'Are you interested in law or politics?',
+    combos: ['PATH_ARTS_HUMANITIES'],
   },
 ]
-
-// English-medium combinations get boosted by the language question score;
-// Kinyarwanda/French-medium combinations get inversely boosted (6 - score).
-const ENGLISH_MEDIUM = ['MPC', 'PCB', 'HEG', 'MEG', 'MPG', 'MCE', 'PCE', 'MPE', 'BCG']
-const LOCAL_MEDIUM = ['HGK', 'AGL', 'HGL']
 
 // ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 
-function computeTopCombinations(answers: Record<number, number>): CombinationData[] {
-  const scores: Record<string, number> = Object.fromEntries(COMBINATIONS.map(c => [c.code, 0]))
+function computeTopPathways(answers: Record<number, number>): PathwayLeaf[] {
+  const scores: Record<string, number> = Object.fromEntries(PATHWAY_LEAVES.map(l => [l.code, 0]))
 
   for (let i = 0; i < QUESTIONS.length; i++) {
     const score = answers[i] ?? 3
     const q = QUESTIONS[i]
-
-    if (q.special === 'language') {
-      for (const code of ENGLISH_MEDIUM) scores[code] += score
-      for (const code of LOCAL_MEDIUM) scores[code] += (6 - score)
-    } else {
-      for (const code of q.combos) scores[code] += score
-    }
+    for (const code of q.combos) scores[code] += score
   }
 
-  return [...COMBINATIONS]
-    .sort((a, b) => (scores[b.code] ?? 0) - (scores[a.code] ?? 0))
-    .slice(0, 5)
+  return [...PATHWAY_LEAVES].sort((a, b) => (scores[b.code] ?? 0) - (scores[a.code] ?? 0))
 }
 
 // ---------------------------------------------------------------------------
@@ -96,16 +77,16 @@ function computeTopCombinations(answers: Record<number, number>): CombinationDat
 
 type View = 'intro' | 'quiz' | 'results'
 
-const RANK_LABELS = ['#1 Match', '#2 Match', '#3 Match']
+const RANK_LABELS = ['#1 Match', '#2 Match']
 
-export default function CombinationQuiz() {
+export default function PathwayQuiz() {
   const { setUser } = useAuth()
   const navigate = useNavigate()
 
   const [view, setView] = useState<View>('intro')
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
-  const [topCombos, setTopCombos] = useState<CombinationData[]>([])
+  const [topPathways, setTopPathways] = useState<PathwayLeaf[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -125,7 +106,7 @@ export default function CombinationQuiz() {
     if (currentQ < QUESTIONS.length - 1) {
       setCurrentQ(q => q + 1)
     } else {
-      setTopCombos(computeTopCombinations(newAnswers))
+      setTopPathways(computeTopPathways(newAnswers))
       setView('results')
     }
   }
@@ -149,8 +130,8 @@ export default function CombinationQuiz() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const codes = topCombos.slice(0, 3).map(c => c.code)
-      await api.patch('/students/me', { combinationsConsidering: codes })
+      const codes = top2.map(p => p.code)
+      await api.patch('/students/me', { combinationsConsidering: codes, pathway: codes[0] })
       const { data } = await api.get('/auth/me')
       setUser(data.data)
       setSaved(true)
@@ -169,18 +150,18 @@ export default function CombinationQuiz() {
     return (
       <div className="p-6 max-w-2xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Find your A-Level combination</h1>
-          <p className="text-sm text-muted mt-1">10 questions · ~3 minutes</p>
+          <h1 className="text-2xl font-bold text-primary">Find your pathway</h1>
+          <p className="text-sm text-muted mt-1">9 questions · ~3 minutes</p>
         </div>
 
         <div className="bg-surface rounded-xl border border-border p-6 space-y-4">
           <p className="text-sm text-primary leading-relaxed">
-            Rwanda's A-Level system has 15 different subject combinations. This quiz uses your subject preferences
-            and career interests to recommend the combinations that suit you best.
+            Rwanda's A-Level system has 4 pathway streams. This quiz uses your subject preferences
+            and career interests to recommend the pathways that suit you best.
           </p>
           <p className="text-sm text-muted leading-relaxed">
             For each question, pick a score from <strong>1</strong> (not at all) to <strong>5</strong> (extremely).
-            Your top matches appear at the end with subject lists, university paths, and example careers.
+            Your top matches appear at the end with subject lists, career areas, and a description.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             {['Mathematics', 'Sciences', 'Humanities', 'Languages', 'Career goals'].map(tag => (
@@ -268,33 +249,32 @@ export default function CombinationQuiz() {
   }
 
   // Results view
-  const top3 = topCombos.slice(0, 3)
+  const top2 = topPathways.slice(0, 2)
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-primary">Your recommended combinations</h1>
+        <h1 className="text-2xl font-bold text-primary">Your recommended pathways</h1>
         <p className="text-sm text-muted mt-1">Based on your answers — tap a card to explore it</p>
       </div>
 
       <div className="space-y-3">
-        {top3.map((combo, idx) => {
-          const isExpanded = expanded === combo.code
+        {top2.map((pathway, idx) => {
+          const isExpanded = expanded === pathway.code
           return (
-            <div key={combo.code} className="bg-surface rounded-xl border border-border overflow-hidden">
+            <div key={pathway.code} className="bg-surface rounded-xl border border-border overflow-hidden">
               {/* Summary row */}
               <button
                 type="button"
                 className="w-full p-4 flex items-start gap-3 text-left hover:bg-border/30 transition-colors"
-                onClick={() => setExpanded(isExpanded ? null : combo.code)}
+                onClick={() => setExpanded(isExpanded ? null : pathway.code)}
               >
                 <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-full shrink-0 mt-0.5 whitespace-nowrap">
                   {RANK_LABELS[idx]}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-primary">{combo.code}</p>
-                  <p className="text-xs text-muted mt-0.5">{combo.name}</p>
-                  <p className="text-xs text-muted mt-1 line-clamp-2 leading-relaxed">{combo.description}</p>
+                  <p className="text-sm font-bold text-primary">{pathway.label}</p>
+                  <p className="text-xs text-muted mt-1 line-clamp-2 leading-relaxed">{pathway.description}</p>
                 </div>
                 <span className="text-muted text-xs shrink-0 mt-1 font-medium">
                   {isExpanded ? '↑ less' : '↓ more'}
@@ -307,22 +287,9 @@ export default function CombinationQuiz() {
                   <div>
                     <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Subjects</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {combo.subjects.map(s => (
+                      {pathway.subjects.map(s => (
                         <span key={s} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                           {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">
-                      University programmes it unlocks
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {combo.universityPaths.map(u => (
-                        <span key={u} className="text-xs bg-surface border border-border text-muted px-2 py-0.5 rounded-full">
-                          {u}
                         </span>
                       ))}
                     </div>
@@ -333,7 +300,7 @@ export default function CombinationQuiz() {
                       Example careers
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {combo.careers.map(c => (
+                      {pathway.careerAreas.map(c => (
                         <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
                           {c}
                         </span>
@@ -343,17 +310,11 @@ export default function CombinationQuiz() {
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Link
-                      to={`/student/career-library?combination=${combo.code}`}
-                      className="text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors"
-                    >
-                      Career stories for {combo.code} →
-                    </Link>
-                    <Link
                       to="/student/get-mentor"
-                      state={{ combination: combo.code }}
+                      state={{ combination: pathway.code }}
                       className="text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors"
                     >
-                      Find a mentor for {combo.code} →
+                      Find a mentor for {pathway.label} →
                     </Link>
                   </div>
                 </div>

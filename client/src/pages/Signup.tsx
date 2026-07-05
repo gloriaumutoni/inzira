@@ -8,26 +8,11 @@ import { getPublicSchools } from '@/api/schools.api'
 import { api } from '@/api/axios'
 import { School, Career } from '@/types'
 import { SECTORS } from '@/constants/sectors'
+import { COMBINATIONS } from '@/constants/combinations'
+import { PATHWAYS } from '@/constants/pathways'
+import { CombinationPathwayPicker } from '@/components/shared/CombinationPathwayPicker'
 
 type SignupRole = 'STUDENT' | 'PROFESSIONAL' | 'CAREER_GUIDE'
-
-const COMBINATIONS = [
-  'MPC — Mathematics, Physics, Computer Science',
-  'MPG — Mathematics, Physics, Geography',
-  'MEG — Mathematics, Economics, Geography',
-  'MHE — Mathematics, History, Economics',
-  'MCE — Mathematics, Chemistry, Economics',
-  'PCB — Physics, Chemistry, Biology',
-  'BCG — Biology, Chemistry, Geography',
-  'HEG — History, Economics, Geography',
-  'HEL — History, Economics, Literature',
-  'HGL — History, Geography, Literature',
-  'KEG — Kinyarwanda, Economics, Geography',
-  'KEL — Kinyarwanda, Economics, Literature',
-  'KGL — Kinyarwanda, Geography, Literature',
-  'AEG — Agriculture, Economics, Geography',
-  'PCG — Physics, Chemistry, Geography',
-]
 
 interface Step1Data {
   firstName: string
@@ -40,6 +25,7 @@ interface Step1Data {
 interface Step3Data {
   level?: 'O_LEVEL' | 'A_LEVEL'
   combination?: string
+  pathway?: string
   confidence?: number
   jobTitle?: string
   employer?: string
@@ -82,6 +68,9 @@ const Signup = () => {
   const [careers, setCareers] = useState<Career[]>([])
   const [careersLoading, setCareersLoading] = useState(false)
   const [selectedCareerIds, setSelectedCareerIds] = useState<string[]>([])
+  const [aLevelSystem, setALevelSystem] = useState<'legacy' | 'pathway'>('legacy')
+  const [combinationsConsidering, setCombinationsConsidering] = useState<string[]>([])
+  const [expandedPathway, setExpandedPathway] = useState<string | null>(null)
 
   useEffect(() => {
     if (step === 3 && (role === 'CAREER_GUIDE' || role === 'STUDENT')) {
@@ -103,6 +92,10 @@ const Signup = () => {
     setSelectedCareerIds(prev =>
       prev.includes(careerId) ? prev.filter(id => id !== careerId) : [...prev, careerId]
     )
+  }
+
+  const toggleItem = (item: string, list: string[], setList: (v: string[]) => void) => {
+    setList(list.includes(item) ? list.filter(x => x !== item) : [...list, item])
   }
 
   const careerInterests = Array.from(
@@ -154,6 +147,10 @@ const Signup = () => {
       setError('Please select your school.')
       return
     }
+    if (role === 'STUDENT' && step3.level === 'A_LEVEL' && !step3.combination && !step3.pathway) {
+      setError(aLevelSystem === 'legacy' ? 'Please select your combinations.' : 'Please select your streams.')
+      return
+    }
 
     setIsLoading(true)
 
@@ -168,6 +165,7 @@ const Signup = () => {
         sector: step3.sector,
         linkedinUrl: step3.linkedinUrl,
         ...(role === 'STUDENT' && step3.level === 'A_LEVEL' ? { careerInterests } : {}),
+        ...(role === 'STUDENT' && step3.level === 'O_LEVEL' ? { combinationsConsidering } : {}),
       }
 
       const { accessToken } = await signupUser(payload)
@@ -375,21 +373,131 @@ const Signup = () => {
                 </div>
               </div>
 
+              {step3.level === 'O_LEVEL' && (
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-2">
+                    Which pathway are you considering? <span className="text-muted font-normal">(optional)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {PATHWAYS.map((pathway) => {
+                      const streams = pathway.streams ?? []
+                      const singleLeaf = streams.length === 1 ? streams[0] : undefined
+                      const isSelected = singleLeaf
+                        ? combinationsConsidering.includes(singleLeaf.code)
+                        : streams.some((s) => combinationsConsidering.includes(s.code))
+                      return (
+                        <button
+                          key={pathway.code}
+                          type="button"
+                          onClick={() => {
+                            if (singleLeaf) {
+                              toggleItem(singleLeaf.code, combinationsConsidering, setCombinationsConsidering)
+                              return
+                            }
+                            setExpandedPathway((prev) => (prev === pathway.code ? null : pathway.code))
+                          }}
+                          className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                            isSelected || expandedPathway === pathway.code
+                              ? 'bg-accent text-white border-accent'
+                              : 'bg-surface text-primary border-border hover:border-accent'
+                          }`}
+                        >
+                          {pathway.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {(() => {
+                    const expandedPathwayData = PATHWAYS.find(
+                      (p) => p.code === expandedPathway && (p.streams?.length ?? 0) > 1
+                    )
+                    return expandedPathwayData ? (
+                      <div className="pl-3 border-l-2 border-border space-y-2 mt-2">
+                        <p className="text-xs font-semibold text-muted uppercase tracking-wide">Choose a stream</p>
+                        <div className="flex flex-wrap gap-2">
+                          {expandedPathwayData.streams!.map((stream) => (
+                            <button
+                              key={stream.code}
+                              type="button"
+                              onClick={() => toggleItem(stream.code, combinationsConsidering, setCombinationsConsidering)}
+                              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                                combinationsConsidering.includes(stream.code)
+                                  ? 'bg-accent text-white border-accent'
+                                  : 'bg-surface text-primary border-border hover:border-accent'
+                              }`}
+                            >
+                              {stream.streamName}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
+
+                  {combinationsConsidering.length === 0 && (
+                    <p className="text-xs text-muted mt-1">You can skip this if you haven't decided yet.</p>
+                  )}
+                </div>
+              )}
+
               {step3.level === 'A_LEVEL' && (
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">
-                    Subject combination <span className="text-muted font-normal">(optional)</span>
-                  </label>
-                  <select
-                    value={step3.combination ?? ''}
-                    onChange={(e) => setStep3({ ...step3, combination: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                  >
-                    <option value="">Select your combination</option>
-                    {COMBINATIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                  <label className="block text-sm font-medium text-primary mb-2">Which system are you under?</label>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    {([
+                      { key: 'legacy' as const, label: 'Combinations' },
+                      { key: 'pathway' as const, label: 'Streams' },
+                    ]).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setALevelSystem(key)
+                          setStep3({
+                            ...step3,
+                            combination: key === 'legacy' ? step3.combination : undefined,
+                            pathway: key === 'pathway' ? step3.pathway : undefined,
+                          })
+                        }}
+                        className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          aLevelSystem === key
+                            ? 'border-accent bg-accent/10 text-accent'
+                            : 'border-border text-primary hover:border-accent'
+                        }`}
+                      >
+                        {label}
+                      </button>
                     ))}
-                  </select>
+                  </div>
+
+                  {aLevelSystem === 'legacy' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-primary mb-1">
+                        Subject combinations <span className="text-error">*</span>
+                      </label>
+                      <select
+                        value={step3.combination ?? ''}
+                        onChange={(e) => setStep3({ ...step3, combination: e.target.value, pathway: undefined })}
+                        className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                      >
+                        <option value="">Select your combinations</option>
+                        {COMBINATIONS.map((c) => (
+                          <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <CombinationPathwayPicker
+                        mode="single"
+                        sections={['pathway']}
+                        required
+                        value={step3.pathway ? [step3.pathway] : []}
+                        onChange={(codes) => setStep3({ ...step3, pathway: codes[0], combination: undefined })}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

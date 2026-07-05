@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, BookOpen, AlertCircle, EyeOff, PenLine, X, ChevronDown } from 'lucide-react'
 import { type CareerStory, adminListVerifiedProfessionals, type VerifiedProfessional } from '@/api/careerStories.api'
 import useAdminCareerStories, { type Tab } from '@/hooks/useAdminCareerStories'
-import { COMBINATIONS } from '@/constants/combinations'
+import { CombinationPathwayPicker } from '@/components/shared/CombinationPathwayPicker'
 
 const SECTORS = [
   'Technology', 'Healthcare', 'Engineering', 'Finance & Banking', 'Education',
   'Agriculture', 'Media & Communications', 'Law', 'Architecture', 'Business & Management',
   'Science & Research', 'Public Service', 'NGO & Development', 'Tourism & Hospitality', 'Other',
 ]
-
-const COMBINATION_CODES = COMBINATIONS.map(c => c.code)
 
 const EMPTY_FORM = {
   professionalId: '',
@@ -47,15 +45,6 @@ function WriteStoryModal({
   const filteredPros = professionals.filter(p =>
     `${p.firstName} ${p.lastName} ${p.jobTitle}`.toLowerCase().includes(proSearch.toLowerCase())
   )
-
-  const toggleCombo = (code: string) => {
-    setForm(prev => ({
-      ...prev,
-      combinations: prev.combinations.includes(code)
-        ? prev.combinations.filter(c => c !== code)
-        : [...prev.combinations, code],
-    }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -177,26 +166,11 @@ function WriteStoryModal({
 
           {/* Combinations */}
           <div>
-            <p className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
-              A-Level Combinations
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {COMBINATION_CODES.map(code => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => toggleCombo(code)}
-                  className={[
-                    'text-xs px-3 py-1 rounded-full border font-medium transition-colors',
-                    form.combinations.includes(code)
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-background border-border text-muted hover:border-primary hover:text-foreground',
-                  ].join(' ')}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
+            <CombinationPathwayPicker
+              value={form.combinations}
+              onChange={codes => setForm(prev => ({ ...prev, combinations: codes }))}
+              mode="multi"
+            />
           </div>
 
           {/* myPath */}

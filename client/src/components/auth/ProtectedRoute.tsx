@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Role } from '@/types'
 import Spinner from '@/components/ui/Spinner'
@@ -13,12 +13,10 @@ const ROLE_HOME: Record<Role, string> = {
 interface ProtectedRouteProps {
   children: React.ReactNode
   allowedRole: Role
-  skipOnboarding?: boolean
 }
 
-const ProtectedRoute = ({ children, allowedRole, skipOnboarding = false }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading, role, user } = useAuth()
-  const location = useLocation()
+const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
+  const { isAuthenticated, isLoading, role } = useAuth()
 
   if (isLoading) {
     return (
@@ -34,15 +32,6 @@ const ProtectedRoute = ({ children, allowedRole, skipOnboarding = false }: Prote
 
   if (role !== allowedRole) {
     return <Navigate to={ROLE_HOME[role!]} replace />
-  }
-
-  if (
-    !skipOnboarding &&
-    role === 'STUDENT' &&
-    user?.student?.onboardingCompleted === false &&
-    location.pathname !== '/student/onboarding'
-  ) {
-    return <Navigate to="/student/onboarding" replace />
   }
 
   return <>{children}</>

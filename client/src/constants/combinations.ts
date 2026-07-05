@@ -7,23 +7,23 @@ export interface CombinationData {
   description: string
 }
 
-// Rwanda's 15 A-Level subject combinations
+// Rwanda's 10 A-Level subject combinations
 // Used by the combination quiz and any component needing combination metadata
 export const COMBINATIONS: CombinationData[] = [
   {
     code: 'MPC',
-    name: 'Mathematics, Physics, Chemistry',
-    subjects: ['Mathematics', 'Physics', 'Chemistry'],
+    name: 'Mathematics, Physics, Computer Science',
+    subjects: ['Mathematics', 'Physics', 'Computer Science'],
     universityPaths: [
-      'Engineering (Civil, Mechanical, Electrical)',
       'Computer Science',
-      'Applied Sciences',
-      'Architecture',
-      'Medicine',
+      'Software Engineering',
+      'Engineering (Electrical, Mechanical, Civil)',
+      'Data Science',
+      'Robotics & AI',
     ],
-    careers: ['Civil Engineer', 'Software Developer', 'Data Scientist', 'Architect', 'Industrial Chemist'],
+    careers: ['Software Developer', 'Data Scientist', 'Systems Engineer', 'AI Researcher', 'Robotics Engineer'],
     description:
-      'The most versatile science combination. Opens the widest range of engineering, computing, and science degrees.',
+      'The most versatile tech-and-science combination. Opens the widest range of computing, engineering, and applied science degrees.',
   },
   {
     code: 'MPG',
@@ -42,18 +42,18 @@ export const COMBINATIONS: CombinationData[] = [
   },
   {
     code: 'MCE',
-    name: 'Mathematics, Chemistry, Economics',
-    subjects: ['Mathematics', 'Chemistry', 'Economics'],
+    name: 'Mathematics, Computer Science, Economics',
+    subjects: ['Mathematics', 'Computer Science', 'Economics'],
     universityPaths: [
-      'Chemical Engineering',
+      'Computer Science',
       'Economics',
       'Business Analytics',
       'Finance',
-      'Industrial Chemistry',
+      'Software Engineering',
     ],
-    careers: ['Chemical Engineer', 'Financial Analyst', 'Economist', 'Business Analyst', 'Industrial Chemist'],
+    careers: ['Software Developer', 'Financial Analyst', 'Economist', 'Business Analyst', 'Fintech Product Manager'],
     description:
-      'Bridges hard science with economic thinking. Ideal for engineering, finance, and quantitative business roles.',
+      "Bridges computing with economic thinking. Ideal for fintech, business analytics, and Rwanda's growing digital economy.",
   },
   {
     code: 'MCB',
@@ -101,39 +101,9 @@ export const COMBINATIONS: CombinationData[] = [
       'The classic medicine pathway. Accepted by virtually all medical and health science programmes.',
   },
   {
-    code: 'PCE',
-    name: 'Physics, Chemistry, Economics',
-    subjects: ['Physics', 'Chemistry', 'Economics'],
-    universityPaths: [
-      'Engineering',
-      'Economics',
-      'Industrial Chemistry',
-      'Business',
-      'Energy Studies',
-    ],
-    careers: ['Chemical Engineer', 'Economist', 'Energy Analyst', 'Industrial Scientist', 'Business Manager'],
-    description:
-      'Combines physical sciences with economics. Suited for energy, industrial, and business-facing science roles.',
-  },
-  {
-    code: 'HEG',
-    name: 'History, Economics, Geography',
-    subjects: ['History', 'Economics', 'Geography'],
-    universityPaths: [
-      'Law',
-      'Economics',
-      'Public Administration',
-      'Political Science',
-      'Development Studies',
-    ],
-    careers: ['Lawyer', 'Economist', 'Public Servant', 'Diplomat', 'Policy Analyst'],
-    description:
-      'A social science powerhouse. Leads to law, policy, economics, and public administration careers.',
-  },
-  {
     code: 'HGL',
-    name: 'History, Geography, Literature',
-    subjects: ['History', 'Geography', 'Literature'],
+    name: 'History, Geography, Literature in English',
+    subjects: ['History', 'Geography', 'Literature in English'],
     universityPaths: [
       'Law',
       'Journalism & Media',
@@ -146,94 +116,49 @@ export const COMBINATIONS: CombinationData[] = [
       'A humanities combination with strong writing and analytical skills. Great for journalism, law, and education.',
   },
   {
-    code: 'HGK',
-    name: 'History, Geography, Kinyarwanda',
-    subjects: ['History', 'Geography', 'Kinyarwanda'],
+    code: 'HLP',
+    name: 'History, Literature in English, Psychology',
+    subjects: ['History', 'Literature in English', 'Psychology'],
     universityPaths: [
+      'Psychology',
+      'Social Work',
       'Education',
-      'Kinyarwanda & Linguistics',
-      'Social Sciences',
-      'Public Administration',
-      'Journalism',
-    ],
-    careers: ['Teacher', 'Cultural Officer', 'Community Developer', 'Journalist', 'Public Servant'],
-    description:
-      'Rooted in Rwandan history and language. Ideal for education, cultural work, and community-facing public service.',
-  },
-  {
-    code: 'HLE',
-    name: 'History, Literature, Economics',
-    subjects: ['History', 'Literature', 'Economics'],
-    universityPaths: [
       'Law',
-      'Journalism',
-      'Economics',
-      'Business',
+      'Counselling',
+    ],
+    careers: ['Psychologist', 'Counsellor', 'Social Worker', 'Teacher', 'Human Resources Officer'],
+    description:
+      'A people-focused humanities combination. Well-suited to psychology, counselling, and social-facing careers.',
+  },
+  {
+    code: 'LFK',
+    name: 'Literature in English, French, Kinyarwanda/Kiswahili',
+    subjects: ['Literature in English', 'French', 'Kinyarwanda/Kiswahili'],
+    universityPaths: [
+      'Linguistics & Translation',
       'Education',
-    ],
-    careers: ['Lawyer', 'Writer', 'Economist', 'Journalist', 'Teacher'],
-    description:
-      'Blends critical thinking with economic literacy. Well-suited to law, writing, and business-facing roles.',
-  },
-  {
-    code: 'BCG',
-    name: 'Biology, Chemistry, Geography',
-    subjects: ['Biology', 'Chemistry', 'Geography'],
-    universityPaths: [
-      'Environmental Science',
-      'Agriculture & Agronomy',
-      'Veterinary Science',
-      'Ecology',
-      'Public Health',
-    ],
-    careers: ['Environmentalist', 'Agronomist', 'Veterinarian', 'Public Health Officer', 'Ecologist'],
-    description:
-      'Ideal for environmental and agricultural sciences. Strong path to natural resource management and public health.',
-  },
-  {
-    code: 'MEd',
-    name: 'Mathematics, Economics, Digital Technology',
-    subjects: ['Mathematics', 'Economics', 'Digital Technology'],
-    universityPaths: [
-      'Information Technology',
-      'Business Analytics',
-      'Economics',
-      'Finance',
-      'E-Commerce & Digital Business',
-    ],
-    careers: ['IT Specialist', 'Business Analyst', 'Digital Marketer', 'Financial Analyst', 'Entrepreneur'],
-    description:
-      "Combines digital skills with economics. Increasingly relevant in Rwanda's growing digital economy.",
-  },
-  {
-    code: 'AGL',
-    name: 'Accounting, Geography, Literature',
-    subjects: ['Accounting', 'Geography', 'Literature'],
-    universityPaths: [
-      'Accounting & Finance',
-      'Business Administration',
+      'Journalism & Media',
+      'International Relations',
       'Communications',
-      'Education',
-      'Public Relations',
     ],
-    careers: ['Accountant', 'Financial Auditor', 'Business Manager', 'Communications Officer', 'Teacher'],
+    careers: ['Translator', 'Teacher', 'Journalist', 'Diplomat', 'Communications Officer'],
     description:
-      'Business and communication focused. Leads to accounting, finance, and management careers with strong writing skills.',
+      'A language-rich combination spanning regional and international tongues. Strong fit for translation, media, and diplomacy.',
   },
   {
-    code: 'MPE',
-    name: 'Mathematics, Physics, Economics',
-    subjects: ['Mathematics', 'Physics', 'Economics'],
+    code: 'PCM',
+    name: 'Physics, Chemistry, Mathematics',
+    subjects: ['Physics', 'Chemistry', 'Mathematics'],
     universityPaths: [
-      'Engineering',
+      'Engineering (Civil, Mechanical, Electrical)',
+      'Architecture',
+      'Applied Physics',
+      'Industrial Chemistry',
       'Actuarial Science',
-      'Economics',
-      'Finance',
-      'Applied Mathematics',
     ],
-    careers: ['Actuary', 'Engineer', 'Economist', 'Financial Analyst', 'Investment Manager'],
+    careers: ['Civil Engineer', 'Mechanical Engineer', 'Architect', 'Industrial Chemist', 'Actuary'],
     description:
-      'A powerful quantitative combination. Ideal for actuarial science, finance, and physics-driven engineering roles.',
+      'A rigorous pure-science combination. The traditional gateway to engineering and physical-science degrees.',
   },
 ]
 
