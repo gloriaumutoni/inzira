@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { api } from '@/api/axios'
 import { getSectorStyle } from '@/utils/sectorColors'
 import SlotPickerModal from '@/components/sessions/SlotPickerModal'
+import useGroupSessions, { GroupSessionData } from '@/hooks/useGroupSessions'
 
 interface Career {
   id: string
@@ -22,6 +23,7 @@ interface ProfessionalDetail {
   isVerified: boolean
   linkedinUrl: string | null
   careers: Career[]
+  relevantCombinations: string[]
 }
 
 interface ProfessionalProfileModalProps {
@@ -29,11 +31,60 @@ interface ProfessionalProfileModalProps {
   onClose: () => void
 }
 
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+const fmtTime = (d: string) =>
+  new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+
+const ModalGroupSessionCard = ({ session }: { session: GroupSessionData }) => {
+  const [isRegistered, setIsRegistered] = useState(session.isRegistered)
+  const [enrollment, setEnrollment] = useState(session.currentEnrollment)
+  const [loading, setLoading] = useState(false)
+  const isFull = enrollment >= session.maxStudents
+
+  const handleRegister = async () => {
+    setLoading(true)
+    try {
+      await api.post(`/group-sessions/${session.id}/enrol`)
+      setIsRegistered(true)
+      setEnrollment((prev) => prev + 1)
+    } catch {
+      alert('Could not register. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
+      <p className="text-sm font-semibold text-primary leading-tight">{session.title}</p>
+      <p className="text-xs text-muted">{fmtDate(session.scheduledAt)} · {fmtTime(session.scheduledAt)}</p>
+      <p className="text-xs text-muted">{enrollment}/{session.maxStudents} enrolled</p>
+      <span className="self-start text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{session.sector}</span>
+      {isRegistered ? (
+        <span className="self-start text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-medium mt-auto">Enrolled</span>
+      ) : isFull ? (
+        <span className="self-start text-xs bg-border text-muted px-2 py-0.5 rounded-full font-medium mt-auto">Full</span>
+      ) : (
+        <button
+          type="button"
+          onClick={handleRegister}
+          disabled={loading}
+          className="mt-auto w-full bg-accent text-white text-xs px-3 py-1.5 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Joining...' : 'Join for free'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 const ProfessionalProfileModal = ({ professionalId, onClose }: ProfessionalProfileModalProps) => {
   const [profile, setProfile] = useState<ProfessionalDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [showSlotPicker, setShowSlotPicker] = useState(false)
+  const { sessions: groupSessions, loading: groupSessionsLoading } = useGroupSessions({ professionalId })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -134,18 +185,46 @@ const ProfessionalProfileModal = ({ professionalId, onClose }: ProfessionalProfi
           </div>
         )}
 
-        <div className="mt-6">
-          {profile.isMentor ? (
+        {profile.relevantCombinations?.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Relevant A-Level combinations</p>
+            <div className="flex flex-wrap gap-1.5">
+              {profile.relevantCombinations.map((c) => (
+                <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 space-y-4">
+          {profile.isMentor && (
             <button
               onClick={() => setShowSlotPicker(true)}
               className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-accent/90 transition-colors"
             >
               Book a 1-on-1 Session
             </button>
-          ) : (
+          )}
+
+          {groupSessionsLoading && (
+            <div className="animate-pulse bg-border rounded-xl h-20" />
+          )}
+
+          {!groupSessionsLoading && groupSessions.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Upcoming group sessions</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {groupSessions.map((gs) => (
+                  <ModalGroupSessionCard key={gs.id} session={gs} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!profile.isMentor && !groupSessionsLoading && groupSessions.length === 0 && (
             <div className="bg-background border border-border rounded-lg p-4">
               <p className="text-sm text-muted text-center">
-                This professional hosts <strong className="text-primary">group sessions</strong> only.
+                No sessions available from this professional yet.
               </p>
             </div>
           )}

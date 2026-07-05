@@ -5,6 +5,7 @@ import ProfessionalSessions from '@/pages/professional/ProfessionalSessions'
 import ProfessionalMentees from '@/pages/professional/ProfessionalMentees'
 import ProfessionalEarnings from '@/pages/professional/ProfessionalEarnings'
 import ProfessionalCreateSlots from '@/pages/professional/ProfessionalCreateSlots'
+import ProfessionalCareerStories from '@/pages/professional/ProfessionalCareerStories'
 
 const ProfessionalDashboard = () => (
   <DashboardLayout role="PROFESSIONAL">
@@ -15,6 +16,7 @@ const ProfessionalDashboard = () => (
       <Route path="mentees" element={<ProfessionalMentees />} />
       <Route path="earnings" element={<ProfessionalEarnings />} />
       <Route path="create-slots" element={<ProfessionalCreateSlots />} />
+      <Route path="career-stories" element={<ProfessionalCareerStories />} />
     </Routes>
   </DashboardLayout>
 )

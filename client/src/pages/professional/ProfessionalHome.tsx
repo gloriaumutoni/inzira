@@ -1,10 +1,24 @@
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 import MentorApplicationSection from '@/components/professional/MentorApplicationSection'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
+import { CareerStoryForm, EMPTY_FORM } from '@/components/professional/CareerStoryForm'
+import { useCareerStory } from '@/hooks/useCareerStory'
+import {
+  createCareerStory,
+  getCombinations,
+  type CareerStoryPayload,
+} from '@/api/careerStories.api'
+import { SECTORS } from '@/constants/sectors'
+
+const A_LEVEL_COMBINATIONS = [
+  'MPC', 'MPG', 'MCE', 'MCB', 'MEG',
+  'PCB', 'PCE', 'HEG', 'HGL', 'HGK',
+  'HLE', 'BCG', 'MEd', 'AGL', 'MPE',
+]
 
 interface GroupSession {
   id: string
@@ -26,7 +40,7 @@ interface MenteeSession {
 }
 
 const ProfessionalHome = () => {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const isMentor = user?.professional?.isMentor ?? false
 
   const [gsCompletedCount, setGsCompletedCount] = useState<number | null>(null)
@@ -39,25 +53,56 @@ const ProfessionalHome = () => {
   const [upcomingMenteeSessions, setUpcomingMenteeSessions] = useState<MenteeSession[]>([])
   const [menteeLoading, setMenteeLoading] = useState(true)
 
+  const { stories, loading: storiesLoading, refresh: refreshStories } = useCareerStory()
+  const [showStoryForm, setShowStoryForm] = useState(false)
+  const [combinations, setCombinations] = useState<string[]>([])
+  const [storySubmitting, setStorySubmitting] = useState(false)
+  const [storyFormError, setStoryFormError] = useState('')
+
+  const [showCombosEdit, setShowCombosEdit] = useState(false)
+  const [selectedCombos, setSelectedCombos] = useState<string[]>(user?.professional?.relevantCombinations ?? [])
+  const [combosLoading, setCombosLoading] = useState(false)
+
+  const toggleCombo = (c: string) =>
+    setSelectedCombos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
+
+  const saveCombos = async () => {
+    setCombosLoading(true)
+    try {
+      await api.patch('/professionals/me', { relevantCombinations: selectedCombos })
+      setUser({ ...user!, professional: { ...user!.professional!, relevantCombinations: selectedCombos } })
+      setShowCombosEdit(false)
+      toast.success('Combinations saved.')
+    } catch {
+      toast.error('Could not save. Please try again.')
+    } finally {
+      setCombosLoading(false)
+    }
+  }
+
   const [sessionTab, setSessionTab] = useState<'Group Sessions' | 'Mentor Sessions'>('Group Sessions')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showResubmitModal, setShowResubmitModal] = useState(false)
   const [resubmitFields, setResubmitFields] = useState({
-    bio: '',
+    firstName: '',
+    lastName: '',
     jobTitle: '',
     employer: '',
     sector: '',
     linkedinUrl: '',
+    bio: '',
   })
   const [resubmitting, setResubmitting] = useState(false)
 
   const handleOpenResubmit = () => {
     setResubmitFields({
-      bio: user?.professional?.bio ?? '',
+      firstName: user?.professional?.firstName ?? '',
+      lastName: user?.professional?.lastName ?? '',
       jobTitle: user?.professional?.jobTitle ?? '',
       employer: user?.professional?.employer ?? '',
       sector: user?.professional?.sector ?? '',
       linkedinUrl: user?.professional?.linkedinUrl ?? '',
+      bio: user?.professional?.bio ?? '',
     })
     setShowResubmitModal(true)
   }
@@ -67,9 +112,19 @@ const ProfessionalHome = () => {
     try {
       await api.post('/professionals/me/reapply', resubmitFields)
       toast.success('Application resubmitted.')
-      globalThis.location.reload()
-    } catch {
-      toast.error('Could not resubmit. Please try again.')
+      setShowResubmitModal(false)
+      setUser({
+        ...user!,
+        professional: {
+          ...user!.professional!,
+          ...resubmitFields,
+          verificationStatus: 'PENDING',
+          verificationAttempts: (user!.professional!.verificationAttempts ?? 0) + 1,
+        },
+      })
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      toast.error(msg ?? 'Could not resubmit. Please try again.')
     } finally {
       setResubmitting(false)
     }
@@ -85,6 +140,26 @@ const ProfessionalHome = () => {
       setGsUpcomingCount(upcoming.length)
       setUpcomingGroupSessions(upcoming.slice(0, 4))
     }).catch(() => {}).finally(() => setGsLoading(false))
+  }
+
+  useEffect(() => {
+    if (showStoryForm && combinations.length === 0) {
+      getCombinations().then(setCombinations).catch(() => {})
+    }
+  }, [showStoryForm, combinations.length])
+
+  const handleCreateStory = async (data: CareerStoryPayload) => {
+    setStorySubmitting(true)
+    setStoryFormError('')
+    try {
+      await createCareerStory(data)
+      setShowStoryForm(false)
+      refreshStories()
+    } catch (err) {
+      setStoryFormError(err instanceof Error ? err.message : 'Failed to submit story')
+    } finally {
+      setStorySubmitting(false)
+    }
   }
 
   useEffect(() => {
@@ -112,7 +187,7 @@ const ProfessionalHome = () => {
       <div className="p-6 space-y-6">
         {showResubmitModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
-            <dialog open aria-labelledby="resubmit-title" className="bg-surface rounded-2xl shadow-xl w-full max-w-lg p-6 m-0 border-0 max-h-[90vh] overflow-y-auto">
+            <dialog open aria-labelledby="resubmit-title" className="static bg-surface rounded-2xl shadow-xl w-full max-w-lg p-6 m-0 border-0 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 id="resubmit-title" className="text-base font-bold text-primary">Resubmit Application</h2>
                 <button onClick={() => setShowResubmitModal(false)} className="text-muted hover:text-primary">
@@ -121,15 +196,25 @@ const ProfessionalHome = () => {
               </div>
               <p className="text-xs text-muted mb-5">Update your profile details and resubmit for admin review.</p>
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="rs-bio" className="text-xs font-semibold text-muted uppercase tracking-wide">Bio</label>
-                  <textarea
-                    id="rs-bio"
-                    value={resubmitFields.bio}
-                    onChange={(e) => setResubmitFields((f) => ({ ...f, bio: e.target.value }))}
-                    rows={4}
-                    className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="rs-firstname" className="text-xs font-semibold text-muted uppercase tracking-wide">First Name</label>
+                    <input
+                      id="rs-firstname"
+                      value={resubmitFields.firstName}
+                      onChange={(e) => setResubmitFields((f) => ({ ...f, firstName: e.target.value }))}
+                      className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="rs-lastname" className="text-xs font-semibold text-muted uppercase tracking-wide">Last Name</label>
+                    <input
+                      id="rs-lastname"
+                      value={resubmitFields.lastName}
+                      onChange={(e) => setResubmitFields((f) => ({ ...f, lastName: e.target.value }))}
+                      className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -153,12 +238,17 @@ const ProfessionalHome = () => {
                 </div>
                 <div>
                   <label htmlFor="rs-sector" className="text-xs font-semibold text-muted uppercase tracking-wide">Sector</label>
-                  <input
+                  <select
                     id="rs-sector"
                     value={resubmitFields.sector}
                     onChange={(e) => setResubmitFields((f) => ({ ...f, sector: e.target.value }))}
                     className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
-                  />
+                  >
+                    <option value="">Select a sector</option>
+                    {SECTORS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label htmlFor="rs-linkedin" className="text-xs font-semibold text-muted uppercase tracking-wide">LinkedIn URL</label>
@@ -168,6 +258,16 @@ const ProfessionalHome = () => {
                     onChange={(e) => setResubmitFields((f) => ({ ...f, linkedinUrl: e.target.value }))}
                     placeholder="https://linkedin.com/in/your-profile"
                     className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="rs-bio" className="text-xs font-semibold text-muted uppercase tracking-wide">Bio</label>
+                  <textarea
+                    id="rs-bio"
+                    value={resubmitFields.bio}
+                    onChange={(e) => setResubmitFields((f) => ({ ...f, bio: e.target.value }))}
+                    rows={4}
+                    className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
                   />
                 </div>
               </div>
@@ -180,7 +280,7 @@ const ProfessionalHome = () => {
                 </button>
                 <button
                   onClick={handleResubmit}
-                  disabled={resubmitting || !resubmitFields.bio.trim()}
+                  disabled={resubmitting}
                   className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-60"
                 >
                   {resubmitting ? 'Submitting…' : 'Resubmit'}
@@ -357,6 +457,162 @@ const ProfessionalHome = () => {
       {user?.professional?.isVerified && !isMentor && (
         <MentorApplicationSection />
       )}
+
+      {/* Relevant Combinations section */}
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-primary">Relevant A-Level Combinations</h2>
+            <p className="text-xs text-muted mt-0.5">Which A-Level subject combinations typically lead to your career?</p>
+          </div>
+          <button
+            onClick={() => setShowCombosEdit(v => !v)}
+            className="text-xs text-accent hover:underline flex-shrink-0"
+          >
+            {showCombosEdit ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
+
+        {!showCombosEdit && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {selectedCombos.length === 0 ? (
+              <p className="text-xs text-muted italic">No combinations set yet.</p>
+            ) : (
+              selectedCombos.map(c => (
+                <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c}</span>
+              ))
+            )}
+          </div>
+        )}
+
+        {showCombosEdit && (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {A_LEVEL_COMBINATIONS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleCombo(c)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    selectedCombos.includes(c)
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-background text-muted border-border hover:border-accent hover:text-accent'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={saveCombos}
+                disabled={combosLoading}
+                className="text-sm px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
+              >
+                {combosLoading ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Career Story section */}
+      <div>
+        <h2 className="text-base font-semibold text-primary mb-4">Your Career Story</h2>
+
+        {storiesLoading && (
+          <div className="animate-pulse bg-border rounded-xl h-24" />
+        )}
+
+        {!storiesLoading && stories.length === 0 && !showStoryForm && selectedCombos.length === 0 && (
+          <div className="bg-warning/10 border border-warning/20 rounded-xl p-5">
+            <p className="text-sm font-medium text-primary">Set your relevant combinations first</p>
+            <p className="text-xs text-muted mt-1">You need to tag at least one A-Level combination before submitting a career story. Use the section above.</p>
+          </div>
+        )}
+
+        {!storiesLoading && stories.length === 0 && !showStoryForm && selectedCombos.length > 0 && (
+          <div className="bg-surface border border-dashed border-border rounded-xl p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-primary">Share your career journey with students considering your field</p>
+              <p className="text-xs text-muted mt-1">Your story helps A-Level students make informed decisions about their subject combinations.</p>
+            </div>
+            <button
+              onClick={() => setShowStoryForm(true)}
+              className="flex-shrink-0 text-sm px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+            >
+              Write Story
+            </button>
+          </div>
+        )}
+
+        {!storiesLoading && showStoryForm && (
+          <div className="bg-surface border border-border rounded-xl p-6">
+            <h3 className="text-sm font-semibold text-primary mb-4">New career story</h3>
+            <CareerStoryForm
+              initialValues={EMPTY_FORM}
+              combinations={combinations}
+              onSubmit={handleCreateStory}
+              onCancel={() => { setShowStoryForm(false); setStoryFormError('') }}
+              submitLabel="Submit for review"
+              loading={storySubmitting}
+              error={storyFormError}
+            />
+          </div>
+        )}
+
+        {!storiesLoading && stories.length > 0 && !showStoryForm && (() => {
+          const story = stories[0]
+          const statusMeta = {
+            PENDING_REVIEW: { icon: Clock,        color: 'text-warning', label: 'Pending Review' },
+            PUBLISHED:      { icon: CheckCircle,  color: 'text-success', label: 'Published'      },
+            REJECTED:       { icon: XCircle,      color: 'text-error',   label: 'Rejected'       },
+            DRAFT:          { icon: Clock,        color: 'text-muted',   label: 'Draft'          },
+          }[story.status]
+          const Icon = statusMeta.icon
+          return (
+            <div className="bg-surface border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-primary">{story.jobTitle}</p>
+                  <p className="text-xs text-muted mt-0.5">{story.sector}</p>
+                </div>
+                <span className={`inline-flex items-center gap-1 text-xs font-medium ${statusMeta.color}`}>
+                  <Icon className="w-3.5 h-3.5" />
+                  {statusMeta.label}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {story.combinations.map((c: string) => (
+                  <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c}</span>
+                ))}
+              </div>
+
+              {story.status === 'REJECTED' && story.rejectionReason && (
+                <div className="flex items-start gap-2 text-xs text-error bg-error/5 border border-error/20 rounded-lg p-3">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span><span className="font-medium">Rejection reason:</span> {story.rejectionReason}</span>
+                </div>
+              )}
+
+              {story.status === 'PUBLISHED' && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wide">Preview</p>
+                  <p className="text-xs text-foreground leading-relaxed line-clamp-3">{story.myPath}</p>
+                </div>
+              )}
+
+              <a
+                href="/professional/career-stories"
+                className="inline-block text-xs text-accent hover:underline"
+              >
+                {story.status === 'REJECTED' ? 'Edit & resubmit →' : 'View all stories →'}
+              </a>
+            </div>
+          )
+        })()}
+      </div>
 
       {showCreateModal && (
         <CreateGroupSessionModal

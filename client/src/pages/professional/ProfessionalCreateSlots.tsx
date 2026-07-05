@@ -55,12 +55,16 @@ const minDate = () => {
 const buildScheduledAt = (dateStr: string, hour: number, minute: number) =>
   new Date(`${dateStr}T${formatTime(hour, minute)}:00`).toISOString()
 
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKS_OPTIONS = [2, 4, 8, 12]
+
 const ProfessionalCreateSlots = () => {
   const [slots, setSlots] = useState<MentorSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'open' | 'booked'>('open')
   const [tick, setTick] = useState(0)
 
+  const [mode, setMode] = useState<'single' | 'recurring'>('single')
   const [date, setDate] = useState('')
   const [startHour, setStartHour] = useState(10)
   const [startMinute, setStartMinute] = useState(0)
@@ -69,6 +73,12 @@ const ProfessionalCreateSlots = () => {
   const [meetLink, setMeetLink] = useState('')
   const [formError, setFormError] = useState('')
   const [adding, setAdding] = useState(false)
+
+  const [recurDays, setRecurDays] = useState<number[]>([])
+  const [recurWeeks, setRecurWeeks] = useState(4)
+
+  const toggleRecurDay = (day: number) =>
+    setRecurDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day])
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editState, setEditState] = useState<EditState | null>(null)
@@ -111,6 +121,39 @@ const ProfessionalCreateSlots = () => {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setFormError(msg ?? 'Could not create slot.')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleAddRecurring = async () => {
+    setFormError('')
+    if (recurDays.length === 0) { setFormError('Select at least one day of the week.'); return }
+    if (endHour < startHour || (endHour === startHour && endMinute <= startMinute)) {
+      setFormError('End time must be after start time.')
+      return
+    }
+    if (!meetLink.trim()) { setFormError('A Google Meet link is required.'); return }
+
+    setAdding(true)
+    try {
+      const { data } = await api.post('/professionals/me/mentor-slots/recurring', {
+        daysOfWeek: recurDays,
+        startHour,
+        startMinute,
+        endHour,
+        endMinute,
+        meetLink: meetLink.trim(),
+        weeks: recurWeeks,
+      })
+      const { created, skipped } = data.data
+      toast.success(skipped > 0 ? `Created ${created} slots (${skipped} already existed).` : `Created ${created} slots.`)
+      setMeetLink('')
+      setRecurDays([])
+      setTick(t => t + 1)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      setFormError(msg ?? 'Could not create recurring slots.')
     } finally {
       setAdding(false)
     }
@@ -344,18 +387,60 @@ const ProfessionalCreateSlots = () => {
         {/* Create form */}
         <div className="bg-surface border border-border rounded-xl p-6">
           <h2 className="text-base font-semibold text-primary mb-4">Add a slot</h2>
+
+          <div className="flex gap-1 bg-background rounded-lg p-1 mb-4">
+            <button
+              onClick={() => { setMode('single'); setFormError('') }}
+              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                mode === 'single' ? 'bg-surface text-primary shadow-sm border border-border' : 'text-muted hover:text-primary'
+              }`}
+            >
+              Single date
+            </button>
+            <button
+              onClick={() => { setMode('recurring'); setFormError('') }}
+              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                mode === 'recurring' ? 'bg-surface text-primary shadow-sm border border-border' : 'text-muted hover:text-primary'
+              }`}
+            >
+              Recurring weekly
+            </button>
+          </div>
+
           <div className="space-y-4">
-            <div>
-              <label htmlFor="create-date" className="block text-xs font-medium text-muted mb-1">Date</label>
-              <input
-                id="create-date"
-                type="date"
-                value={date}
-                min={minDate()}
-                onChange={e => setDate(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
-              />
-            </div>
+            {mode === 'single' ? (
+              <div>
+                <label htmlFor="create-date" className="block text-xs font-medium text-muted mb-1">Date</label>
+                <input
+                  id="create-date"
+                  type="date"
+                  value={date}
+                  min={minDate()}
+                  onChange={e => setDate(e.target.value)}
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
+                />
+              </div>
+            ) : (
+              <div>
+                <p className="block text-xs font-medium text-muted mb-1">Days of week</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAY_LABELS.map((label, idx) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => toggleRecurDay(idx)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                        recurDays.includes(idx)
+                          ? 'bg-primary text-white border-primary'
+                          : 'border-border text-muted hover:text-primary'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="create-start" className="block text-xs font-medium text-muted mb-1">Start</label>
@@ -405,6 +490,21 @@ const ProfessionalCreateSlots = () => {
               />
               <p className="text-xs text-muted mt-1">Students will use this link to join at the scheduled time.</p>
             </div>
+            {mode === 'recurring' && (
+              <div>
+                <label htmlFor="create-weeks" className="block text-xs font-medium text-muted mb-1">Repeat for</label>
+                <select
+                  id="create-weeks"
+                  value={recurWeeks}
+                  onChange={e => setRecurWeeks(Number(e.target.value))}
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
+                >
+                  {WEEKS_OPTIONS.map(w => (
+                    <option key={w} value={w}>{w} weeks</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {formError && (
               <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2 flex items-start gap-2">
                 <AlertCircle className="text-error w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -412,11 +512,11 @@ const ProfessionalCreateSlots = () => {
               </div>
             )}
             <button
-              onClick={handleAdd}
+              onClick={mode === 'single' ? handleAdd : handleAddRecurring}
               disabled={adding}
               className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
             >
-              {adding ? 'Adding...' : 'Add Slot'}
+              {adding ? 'Adding...' : mode === 'single' ? 'Add Slot' : 'Create Recurring Slots'}
             </button>
           </div>
         </div>
