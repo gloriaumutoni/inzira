@@ -145,6 +145,40 @@ export const create = async (studentUserId: string, data: {
   return session
 }
 
+export const submitFeedback = async (
+  sessionId: string,
+  studentUserId: string,
+  data: {
+    confidenceBefore: number
+    confidenceAfter: number
+    wasHelpful: boolean
+    professionalFeedback?: string
+  }
+) => {
+  const student = await prisma.student.findUnique({ where: { userId: studentUserId } })
+  if (!student) throw new Error('Student not found')
+
+  const session = await prisma.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error('Session not found')
+  if (session.studentId !== student.id) throw new Error('Access denied')
+  if (session.status !== 'COMPLETED') throw new Error('Can only submit feedback for completed sessions')
+
+  const existing = await prisma.sessionFeedback.findUnique({ where: { sessionId } })
+  if (existing) throw new Error('You have already submitted feedback for this session')
+
+  return prisma.sessionFeedback.create({
+    data: {
+      id: crypto.randomUUID(),
+      sessionId,
+      studentId: student.id,
+      confidenceBefore: data.confidenceBefore,
+      confidenceAfter: data.confidenceAfter,
+      wasHelpful: data.wasHelpful,
+      professionalFeedback: data.professionalFeedback,
+    },
+  })
+}
+
 export const getOne = async (id: string, userId: string, role: string) => {
   const session = await prisma.session.findUnique({
     where: { id },

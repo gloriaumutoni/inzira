@@ -32,6 +32,7 @@ export const createMentorSlot = async (req: Request, res: Response): Promise<voi
 
     const slot = await prisma.mentorSlot.create({
       data: {
+        id: crypto.randomUUID(),
         professionalId: professional.id,
         scheduledAt: new Date(scheduledAt),
         durationMins,
@@ -77,7 +78,7 @@ export const getMyMentorSlots = async (req: Request, res: Response): Promise<voi
     const slots = await prisma.mentorSlot.findMany({
       where: { professionalId: professional.id },
       include: {
-        student: {
+        Student: {
           select: { firstName: true, lastName: true, level: true, combination: true },
         },
       },

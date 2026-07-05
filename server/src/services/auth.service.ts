@@ -206,6 +206,14 @@ export const logout = async (token: string) => {
   await prisma.refreshToken.deleteMany({ where: { token } });
 };
 
+export const checkEmail = async (email: string) => {
+  const existing = await prisma.user.findFirst({
+    where: { email: email.trim().toLowerCase() },
+  });
+
+  return !existing;
+};
+
 export const getMe = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },

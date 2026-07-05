@@ -131,6 +131,7 @@ export const bookMentorSlot = async (req: Request, res: Response): Promise<void>
       },
       update: { isBooked: true, bookedByStudentId: student!.id },
       create: {
+        id: crypto.randomUUID(),
         professionalId,
         scheduledAt: new Date(scheduledAt),
         durationMins: 30,
