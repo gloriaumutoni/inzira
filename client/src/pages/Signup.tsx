@@ -5,7 +5,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { signupUser, getMe, SignupPayload } from '@/api/auth.api'
 import { setAccessToken } from '@/utils/token'
 import { getPublicSchools } from '@/api/schools.api'
-import { School } from '@/types'
+import { api } from '@/api/axios'
+import { School, Career } from '@/types'
+import { SECTORS } from '@/constants/sectors'
 
 type SignupRole = 'STUDENT' | 'PROFESSIONAL' | 'CAREER_GUIDE'
 
@@ -25,12 +27,6 @@ const COMBINATIONS = [
   'KGL — Kinyarwanda, Geography, Literature',
   'AEG — Agriculture, Economics, Geography',
   'PCG — Physics, Chemistry, Geography',
-]
-
-const SECTORS = [
-  'ICT', 'Engineering', 'Healthcare', 'Finance',
-  'Education', 'Agriculture', 'Law', 'Architecture',
-  'Arts & Media', 'Business', 'Manufacturing', 'Logistics', 'Other',
 ]
 
 interface Step1Data {
@@ -77,18 +73,45 @@ const Signup = () => {
     confirmPassword: '',
   })
   const [role, setRole] = useState<SignupRole | null>(null)
-  const [step3, setStep3] = useState<Step3Data>({})
+  const [step3, setStep3] = useState<Step3Data>({ confidence: 5 })
   const [schools, setSchools] = useState<School[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [careers, setCareers] = useState<Career[]>([])
+  const [careersLoading, setCareersLoading] = useState(false)
+  const [selectedCareerIds, setSelectedCareerIds] = useState<string[]>([])
 
   useEffect(() => {
     if (step === 3 && (role === 'CAREER_GUIDE' || role === 'STUDENT')) {
       getPublicSchools().then(setSchools).catch(() => {})
     }
   }, [step, role])
+
+  useEffect(() => {
+    if (step === 3 && role === 'STUDENT' && step3.level === 'A_LEVEL' && careers.length === 0) {
+      setCareersLoading(true)
+      api.get('/careers?limit=500')
+        .then(({ data }) => setCareers(data.data.careers ?? data.data ?? []))
+        .catch(() => {})
+        .finally(() => setCareersLoading(false))
+    }
+  }, [step, role, step3.level, careers.length])
+
+  const toggleCareer = (careerId: string) => {
+    setSelectedCareerIds(prev =>
+      prev.includes(careerId) ? prev.filter(id => id !== careerId) : [...prev, careerId]
+    )
+  }
+
+  const careerInterests = Array.from(
+    new Set(
+      careers
+        .filter(c => selectedCareerIds.includes(c.id))
+        .map(c => c.sector)
+    )
+  )
 
   const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault()
@@ -144,6 +167,7 @@ const Signup = () => {
         ...step3,
         sector: step3.sector,
         linkedinUrl: step3.linkedinUrl,
+        ...(role === 'STUDENT' && step3.level === 'A_LEVEL' ? { careerInterests } : {}),
       }
 
       const { accessToken } = await signupUser(payload)
@@ -389,29 +413,53 @@ const Signup = () => {
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">
                   How confident are you about your career path? <span className="text-error">*</span>
+                  <span className="ml-2 text-accent font-bold">{step3.confidence}/10</span>
                 </label>
-                <p className="text-xs text-muted mb-3">1 = Not sure at all, 5 = Very confident</p>
-                <div className="flex gap-3">
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <div key={value} className="flex flex-col items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setStep3({ ...step3, confidence: value })}
-                        className={`w-11 h-11 rounded-full border-2 text-sm font-bold transition-all ${
-                          step3.confidence === value
-                            ? 'border-accent bg-accent text-white scale-110'
-                            : 'border-border bg-surface text-muted hover:border-accent hover:text-accent'
-                        }`}
-                      >
-                        {value}
-                      </button>
-                      <span className="text-xs text-muted text-center">
-                        {value === 1 ? 'Not\nsure' : value === 3 ? 'Some\nidea' : value === 5 ? 'Very\nsure' : ''}
-                      </span>
-                    </div>
-                  ))}
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={step3.confidence ?? 5}
+                  onChange={(e) => setStep3({ ...step3, confidence: Number(e.target.value) })}
+                  className="w-full accent-accent"
+                />
+                <div className="flex justify-between text-xs text-muted mt-1">
+                  <span>1 — Not sure at all</span>
+                  <span>10 — Very confident</span>
                 </div>
               </div>
+
+              {step3.level === 'A_LEVEL' && (
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">
+                    What careers interest you? <span className="text-muted font-normal">(optional)</span>
+                  </label>
+                  {careersLoading ? (
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="animate-pulse bg-border rounded-full h-8 w-20" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto">
+                      {careers.map((career) => (
+                        <button
+                          key={career.id}
+                          type="button"
+                          onClick={() => toggleCareer(career.id)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                            selectedCareerIds.includes(career.id)
+                              ? 'bg-accent text-white border-accent'
+                              : 'bg-surface text-primary border-border hover:border-accent'
+                          }`}
+                        >
+                          {career.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">
