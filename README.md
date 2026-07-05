@@ -1,6 +1,6 @@
-# Inzira — Career Guidance Platform for Rwandan Students
+# Inzira — Career Guidance Platform for Rwandan high school Students
 
-Inzira ("the path") connects Rwandan O-level and A-level students with verified professionals to help them choose and pursue subject combinations with real career insight. Students book 1-on-1 mentorship sessions, enrol in group sessions, explore career stories, and track their confidence growth over time — guided by career guides and overseen by admins.
+Inzira ("the path") connects Rwandan O-level and A-level students with verified professionals to help them choose and pursue subject combinations and streams with real career insight. Students book 1-on-1 mentorship sessions, enrol in group sessions, explore career stories, and track their confidence growth over time, guided by career guides and overseen by admins.
 
 **GitHub:** https://github.com/gloriaumutoni/inzira
 
@@ -8,7 +8,7 @@ Inzira ("the path") connects Rwandan O-level and A-level students with verified 
 
 ## Video Demo
 
-> 5–10 minute walkthrough of all role flows — student, professional, mentor, counselor, admin.
+> Walkthrough of all role flows — student, professional, mentor, career guide, admin.
 
 [Demon Link](https://drive.google.com/drive/folders/1d1e1IUXN6L-Y7lwfnKcf8_p5PUPNpAfH?usp=drive_link)
 
@@ -19,8 +19,7 @@ Inzira ("the path") connects Rwandan O-level and A-level students with verified 
 ### Prerequisites
 
 - Node.js 20+
-- A Clerk account (free) — [clerk.com](https://clerk.com)
-- A Supabase project (free) — [supabase.com](https://supabase.com)
+- A Supabase project 
 
 ### 1. Clone and install
 
@@ -36,19 +35,25 @@ cd ../client && npm install
 
 Create `.env` files from the table below.
 
-**`server/.env`**
+**`server/.env`** 
 
 ```
-DATABASE_URL=postgresql://...          
-CLERK_SECRET_KEY=sk_...
+DATABASE_URL=postgresql://...     
+DIRECT_URL=postgresql://...
+
+PORT=3001
 CORS_ORIGIN=http://localhost:5173
-RESEND_API_KEY=                       
+JWT_SECRET=...
+JWT_REFRESH_SECRET=...
+JWT_EXPIRES_IN="15m"
+JWT_REFRESH_EXPIRES_IN="7d"
+NODE_ENV="development" 
+RESEND_API_KEY=...       
 ```
 
 **`client/.env`**
 
 ```
-VITE_CLERK_PUBLISHABLE_KEY=pk_...
 VITE_API_BASE_URL=http://localhost:3001
 ```
 
@@ -73,7 +78,7 @@ cd client && npm run dev        # → http://localhost:5173
 ### 5. Verify the server
 
 ```bash
-curl http://localhost:3001/api/health
+curl http://localhost:3001/health
 # → {"status":"ok","version":"1.0.0"}
 ```
 
@@ -89,9 +94,9 @@ Testing is layered across four strategies, each targeting a different class of b
 | Pure unit tests             | Deterministic logic with no external dependencies                                                 | `server/src/utils/slots.test.ts` — recurring slot expansion                        |
 | Service-level tests         | Business rules and edge cases, with Prisma mocked so no live database is needed                   | `sessions.service`, `professionals.service`, `careerGuides.service`, `students.service`, `admin.service` |
 | Controller-level tests      | Multi-step state-machine guards (order of checks matters)                                         | `professionals.controller.test.ts` — mentor application flow                       |
-| Data-integrity tests        | Seeded reference data matches domain requirements                                                 | `client/src/constants/combinations.test.ts` — the 15 A-Level combinations          |
+| Data-integrity tests        | Seeded reference data matches domain requirements                                                 | `client/src/constants/combinations.test.ts` (A-Level combinations), `client/src/constants/pathways.test.ts`                       |
 
-**Edge cases exercised** include: booking capacity limits (max 3 upcoming sessions), duplicate free-intro prevention, professional monthly-quota exhaustion, already-booked slot conflicts, a `premiumSessionsPerMonth: 0` divide-by-zero case (documented rather than silently hidden), confidence-log fallback when a student has no logged history yet, null-confidence students in career-guide averages, pagination/export-cap math on admin reports, and the full 6-guard mentor-application state machine (unverified → already-mentor → attempt limit → pending application → existing interview → slot already taken).
+**Edge cases exercised** include: booking capacity limits (max 3 upcoming sessions), duplicate free-intro prevention, professional monthly-quota exhaustion, already-booked slot conflicts, a `premiumSessionsPerMonth: 0` divide-by-zero case (documented rather than silently hidden), confidence-log fallback when a student has no logged history yet, null-confidence students in career-guide averages, pagination/export-cap on admin reports, and the full 6-guard mentor-application state machine (unverified → already-mentor → attempt limit → pending application → existing interview → slot already taken).
 
 **Run the tests:**
 
@@ -100,7 +105,7 @@ cd server && npm test
 cd client && npm test
 ```
 
-**Environments exercised:** Node.js 20 on macOS (local development) and Ubuntu (GitHub Actions CI runner) for the automated suite; manual functional and responsive testing across Chrome and Firefox desktop plus a mobile viewport for the UI, since browser-automation end-to-end testing was out of scope for this pilot.
+**Environments exercised:** Node.js 20 on macOS (local development) and Ubuntu (GitHub Actions CI runner) for the automated suite; manual functional and responsive testing using Chrome desktop plus a mobile viewport for the UI.
 
 ---
 
@@ -111,15 +116,15 @@ Mapping delivered functionality back to the project proposal's objectives:
 | Proposal objective                                                              | Delivered                                                                                                                       | Status      |
 | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | Two-stage verification (LinkedIn check, then admin interview for mentors)        | `Professional.isVerified` gates a separate `isMentor` / `mentorApplicationStatus` flow with its own interview-booking model      | Delivered   |
-| Career library mapped to the 15 A-Level combinations                             | `COMBINATIONS` seeds exactly 15 codes (`client/src/constants/combinations.ts`), used by the quiz and mentor search               | Delivered   |
+| Career library mapped to the A-Level combinations                             | `COMBINATIONS` seeds exactly 15 codes (`client/src/constants/combinations.ts`); a new `PATHWAY_LEAVES` taxonomy (`client/src/constants/pathways.ts`, 3 learning pathways / 4 streams) runs alongside it, with `CombinationPathwayPicker` and `studentTrack` supporting both during the curriculum transition | Delivered   |
 | School-scoped visibility for career guides                                      | `careerGuides.service.getDashboard` filters students by the guide's `schoolId`                                                   | Delivered   |
 | Free group sessions + bookable 1-on-1 mentorship                                 | `groupSessions.service` and `sessions.service` implement enrolment/booking with capacity and quota guards                        | Delivered   |
 | Confidence tracking to measure decision-quality improvement                      | `ConfidenceLog` per session/manual entry, surfaced as deltas on the career-guide engagement table                                | Delivered   |
-| Pilot scope: Gasabo & Nyarugenge districts, 100–150 students, 15–20 professionals, 5–10 mentors | `School.district` field supports scoping; no load-testing has been run at full pilot scale yet                                  | Partial     |
+| Scope: Gasabo & Nyarugenge districts, 100–150 students, 15–20 professionals, 5–10 mentors | `School.district` field supports scoping; no load-testing has been run at full scale yet                                  | Partial     |
 | Recurring mentor availability                                                    | `expandWeeklyTemplate` generates a full weekly-recurring series (1–12 weeks)                                                     | Delivered   |
 | Recurring group sessions                                                        | Currently generates only the single next occurrence (`parentSessionId`-linked), not a full N-week series like mentor slots       | Partial     |
 
-Overall, core functionality is implemented and technically aligned with the proposal's scope. The two gaps noted above (load-testing at full pilot scale, and full recurring-series generation for group sessions) are scoped as follow-up work rather than blockers — both are additive and don't require re-architecting existing data models.
+Overall, core functionality is implemented and technically aligned with the proposal's scope. 
 
 ---
 
@@ -127,16 +132,16 @@ Overall, core functionality is implemented and technically aligned with the prop
 
 | Service  | Host                             | Trigger                                         |
 | -------- | -------------------------------- | ----------------------------------------------- |
-| Frontend | [Vercel](https://vercel.com)     | Push to `main` → auto-deploy via GitHub Actions |
-| Backend  | [Render](https://render.com)     | Push to `main` → deploy hook via GitHub Actions |
-| Database | [Supabase](https://supabase.com) | Managed PostgreSQL — no deploy step             |
+| Frontend | [Vercel]     | Push to `main` → auto-deploy via GitHub Actions |
+| Backend  | [Render]    | Push to `main` → deploy hook via GitHub Actions |
+| Database | [Supabase]| Managed PostgreSQL, no deploy step             |
 
 ### Deployment steps
 
 1. **Migrate the database** — `npx prisma migrate deploy` against the Supabase `DATABASE_URL` (run once per schema change, before the backend that depends on it goes live).
 2. **Deploy the backend** — push to `main` triggers the `deploy-server` GitHub Actions workflow, which calls the Render deploy hook.
 3. **Deploy the frontend** — push to `main` triggers the `deploy-client` GitHub Actions workflow, which builds and deploys to Vercel.
-4. **Verify** — hit the backend's `/api/health` endpoint in production and confirm the frontend loads and can reach the API (see Production URLs below).
+4. **Verify** — hit the backend's `/health` endpoint in production and confirm the frontend loads and can reach the API (see Production URLs below).
 
 ### GitHub secrets required
 
@@ -153,8 +158,7 @@ Add these in **GitHub → Settings → Secrets and variables → Actions**:
 
 |        | URL                                                  |
 | ------ | ---------------------------------------------------- |
-| Client | [Vercel](https://inzira-q8viddwpt-inzira.vercel.app/)|
-| API    | [Render](https://inzira-ptwy.onrender.com)           |
+| Client | [Vercel](https://inzira-self.vercel.app/)            |
 
 ---
 
@@ -162,12 +166,12 @@ Add these in **GitHub → Settings → Secrets and variables → Actions**:
 
 | Role              | What they can do                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Student (O-Level) | Take combination quiz, explore careers by interest, book 1-on-1 sessions, enrol in group sessions, browse career stories, log confidence |
-| Student (A-Level) | Browse professionals by combination, filter group sessions and career stories by subject area, report session concerns, log confidence |
-| Professional      | Write career stories, host group sessions , tag relevant subject combinations on profile              |
+| Student (O-Level) | Take streams quiz, explore careers by interest, book 1-on-1 sessions, enrol in group sessions, report session concerns, log confidence |
+| Student (A-Level) | Browse professionals by combination and streams, filter group sessions and career stories by subject area, report session concerns, log confidence |
+| Professional      | Write career stories, host group sessions , tag relevant subject combinations or streams on profile              |
 | Mentor      | Write career stories, host 1-on-1 and group sessions , tag relevant subject combinations on profile              |
-| Career Guide      | View student engagement table with confidence trends and session history, submit students for verification                            |
-| Admin             | Manage verifications, create interview slots, export reports as PDF, oversee career stories and session safety reports                |
+| Career Guide      | View student engagement table with confidence trends and session history                            |
+| Admin             | Manage profesional, mentor,and career guides verifications, create interview slots, export reports as PDF, oversee career stories and session safety reports                |
 
 ---
 
@@ -176,14 +180,14 @@ Add these in **GitHub → Settings → Secrets and variables → Actions**:
 | Layer    | Tool                                                                              |
 | -------- | --------------------------------------------------------------------------------- |
 | Frontend | React 18 + TypeScript, Vite, Tailwind CSS v3, React Router v6                    |
-| Auth     | Clerk (JWT + session management)                                                  |
-| HTTP     | Axios (interceptors attach Clerk JWT to every request)                            |
+| Auth     | JWT + session management                                                |
+| HTTP     | Axios (interceptors attach JWT to every request)                            |
 | Backend  | Express + TypeScript                                                              |
 | ORM      | Prisma                                                                            |
 | Database | Supabase (PostgreSQL)                                                             |
-| Media    | Cloudinary                                                                        |
 | Email    | Resend (session confirmations, report alerts, verification notifications)         |
 | PDF      | jsPDF + jspdf-autotable (admin report exports)                                   |
+| Caching  | node-cache (per-user TTL response cache on GET routes, `cacheMiddleware`)          |
 | Deploy   | Vercel (client) + Render (server)                                                 |
 | CI/CD    | GitHub Actions                                                                    |
 
@@ -197,23 +201,26 @@ Professionals write short career stories about their journey. Students browse st
 ### Session Safety Reports
 After a session, students can flag a concern. Reports are reviewed by admins from the Admin Safety dashboard.
 
-### Confidence Tracking
-Students log their confidence level (1–10) per subject combination after sessions or manually. Career guides can view confidence trends and deltas on the engagement table.
+### Stream Quiz
+O-Level students who haven't set a stream are prompted to take a quiz (`PathwayQuiz.tsx`). Results navigate directly into the mentor search filtered by that streams.
 
-### Combination Quiz
-O-Level students who haven't set a combination are prompted to take a quiz. Results navigate directly into the mentor search filtered by that combination.
+### Combinations + Streams
+Rwanda's curriculum is transitioning from the fixed A-Level combinations to a new learning pathway which are referred as streams (3 pathways, 4 leaf streams). Both are supported side by side: `CombinationPathwayPicker` renders combinations and stream options together, and `studentTrack` resolves whichever a student has (`combination` or `stream`) to a display label.
+
+### Response Caching
+GET routes across the API are wrapped in a TTL-based, per-user response cache (`cacheMiddleware`, `node-cache`) to cut redundant database load; writes aren't actively invalidated, entries simply expire.
 
 ### Recurring Mentor Slots
 Professionals can create slots in two modes: a single date/time, or a recurring weekly schedule (choose days of the week and number of weeks: 2, 4, 8, or 12).
 
 ### Career Guide Engagement Table
-Career guides see a sortable table of their students showing total sessions, last active date, baseline vs. current confidence delta, and a flag for students needing attention. Expandable rows show a confidence chart, session history, and combinations.
+Career guides see a sortable table of their students showing total sessions, last active date, baseline vs. current confidence, and a flag for students needing attention. Expandable rows show a confidence chart, session history, and subject study.
 
 ### PDF Export
-Admins can export the full students, professionals, or career guides table as a PDF directly from the Reports page.
+Admins can export the full students, professionals, mentors or career guides table as a PDF directly from the Reports page.
 
 ### Relevant Combinations (Professional)
-Professionals tag the A-Level subject combinations most relevant to their career. These badges appear on their profile and are used to surface them in A-Level student mentor search.
+Professionals tag the A-Level subject combinations or streams most relevant to their career. These badges appear on their profile and are used to surface them in A-Level student mentor search.
 
 ---
 
@@ -225,8 +232,9 @@ inzira/
 ├── client/
 │   └── src/
 │       ├── api/            auth, professionals, careerStories, schools
-│       ├── components/     ui/, layout/, auth/, landing/, professionals/, sessions/
-│       ├── constants/      combinations.ts, sectors.ts
+│       ├── components/     ui/, layout/, auth/, landing/, professionals/, sessions/,
+│       │                   shared/ (CombinationPathwayPicker)
+│       ├── constants/      combinations.ts (combinations), pathways.ts, sectors.ts
 │       ├── contexts/       AuthContext, UIContext
 │       ├── hooks/          useAuth, useRole, useGroupSessions, useCareerStory,
 │       │                   useConfidenceLogs, usePendingReflections, useAdminReports, …
@@ -237,19 +245,20 @@ inzira/
 │       │   ├── career-guide/  CareerGuideHome (engagement table + student detail)
 │       │   ├── professional/  ProfessionalHome, ProfessionalCreateSlots,
 │       │   │                  ProfessionalCareerStories, ProfessionalDashboard
-│       │   └── student/    StudentHome, ALevelHome, ALevelSessions,
+│       │   └── student/    StudentHome, ALevelHome, ALevelSessions, PathwayQuiz,
 │       │                   StudentGetMentor, OLevelDashboard, ALevelDashboard
 │       ├── routes/         AppRouter.tsx
-│       └── types/          Shared TypeScript interfaces
+│       ├── types/          Shared TypeScript interfaces
+│       └── utils/          studentTrack.tsx ( combination / streams)
 └── server/
     └── src/
         ├── controllers/    One per resource (auth, professionals, careers,
-        │                   careerStories, groupSessions, sessionReports, …)
-        ├── middleware/     authMiddleware, roleGuard, errorHandler
+        │                   careerStories, groupSessions, sessionReports)
+        ├── middleware/     authMiddleware, roleGuard, errorHandler, cacheMiddleware
         ├── prisma/         schema.prisma, migrations/, seed.ts
         ├── routes/         One file per resource
         ├── services/       email.service (Resend)
-        └── utils/          response helpers, Cloudinary
+        └── utils/          response helpers
 ```
 
 ---
