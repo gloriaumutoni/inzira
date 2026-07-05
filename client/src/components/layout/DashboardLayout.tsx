@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2 } from 'lucide-react'
+import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2, BookOpen, Flag } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
@@ -20,8 +20,8 @@ const STUDENT_O_LEVEL_NAV: NavItem[] = [
 ]
 
 const PROFESSIONAL_NAV_BASE: NavItem[] = [
-  { label: 'Home',     icon: Home,     path: '/professional/home' },
-  { label: 'Sessions', icon: Calendar, path: '/professional/sessions' },
+  { label: 'Home',          icon: Home,     path: '/professional/home' },
+  { label: 'Sessions',      icon: Calendar, path: '/professional/sessions' },
 ]
 
 const MENTOR_NAV: NavItem[] = [
@@ -47,35 +47,44 @@ const CAREER_GUIDE_UNDER_REVIEW_NAV: NavItem[] = [
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Overview',        icon: LayoutDashboard, path: '/admin/overview' },
-  { label: 'Verification',    icon: ShieldCheck,     path: '/admin/verification' },
-  { label: 'Interview Slots', icon: CalendarPlus,    path: '/admin/interview-slots' },
-  { label: 'Schools',         icon: Building2,       path: '/admin/schools' },
-  { label: 'Reports',         icon: BarChart2,       path: '/admin/reports' },
+  { label: 'Overview',         icon: LayoutDashboard, path: '/admin/overview' },
+  { label: 'Verification',     icon: ShieldCheck,     path: '/admin/verification' },
+  { label: 'Create Slots',     icon: CalendarPlus,    path: '/admin/create-slots' },
+  { label: 'Schools',          icon: Building2,       path: '/admin/schools' },
+  { label: 'Career Stories',   icon: BookOpen,        path: '/admin/career-stories' },
+  { label: 'Safety',           icon: Flag,            path: '/admin/session-reports' },
+  { label: 'Reports',          icon: BarChart2,       path: '/admin/reports' },
 ]
 
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
-  { label: 'Home',       icon: Home,     path: '/student/home' },
-  { label: 'Sessions',   icon: Calendar, path: '/student/sessions' },
-  { label: 'Get Mentor', icon: Users,    path: '/student/get-mentor' },
+  { label: 'Home',                icon: Home,     path: '/student/home' },
+  { label: 'Sessions',            icon: Calendar, path: '/student/sessions' },
+  { label: 'Get Mentor',          icon: Users,    path: '/student/get-mentor' },
+  { label: 'Career Library',      icon: BookOpen, path: '/student/career-library' },
 ]
 
+const CAREER_STORY_NAV_ITEM: NavItem = { label: 'Career Stories', icon: BookOpen, path: '/professional/career-stories' }
+
 const PAGE_TITLES: Record<string, string> = {
-  '/student/home':              'Home',
-  '/student/discover':          'Discover',
-  '/student/explore-careers':   'Explore Careers',
-  '/student/sessions':          'Sessions',
-  '/student/get-mentor':        'Get a Mentor',
-  '/professional/home':         'Home',
-  '/professional/sessions':     'Sessions',
-  '/professional/earnings':     'Earnings',
-  '/career-guide/home':         'Home',
-  '/career-guide/sessions':     'Career Discovery',
-  '/admin/overview':            'Overview',
-  '/admin/verification':        'Verification',
-  '/admin/interview-slots':     'Interview Slots',
-  '/admin/schools':             'Partner Schools',
-  '/admin/reports':             'Reports',
+  '/student/home':                   'Home',
+  '/student/discover':               'Discover',
+  '/student/explore-careers':        'Explore Careers',
+  '/student/sessions':               'Sessions',
+  '/student/get-mentor':             'Get Mentor',
+  '/student/career-library':         'Career Library',
+  '/professional/home':              'Home',
+  '/professional/sessions':          'Sessions',
+  '/professional/earnings':          'Earnings',
+  '/professional/career-stories':    'Career Stories',
+  '/career-guide/home':              'Home',
+  '/career-guide/sessions':          'Career Discovery',
+  '/admin/overview':                 'Overview',
+  '/admin/verification':             'Verification',
+  '/admin/create-slots':             'Create Slots',
+  '/admin/schools':                  'Partner Schools',
+  '/admin/reports':                  'Reports',
+  '/admin/career-stories':           'Career Stories Review',
+  '/admin/session-reports':          'Safety — Session Reports',
 }
 
 function getNavItems(role: Role, level?: Level): NavItem[] {
@@ -115,9 +124,9 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const navigate = useNavigate()
 
   const getProfessionalNav = (): NavItem[] => {
-    if (!user?.professional?.isVerified) return UNDER_REVIEW_NAV
-    if (user?.professional?.isMentor) return MENTOR_NAV
-    return PROFESSIONAL_NAV_BASE
+    if (!user?.professional?.isVerified) return [...UNDER_REVIEW_NAV, { ...CAREER_STORY_NAV_ITEM, disabled: true }]
+    if (user?.professional?.isMentor) return [...MENTOR_NAV, CAREER_STORY_NAV_ITEM]
+    return [...PROFESSIONAL_NAV_BASE, CAREER_STORY_NAV_ITEM]
   }
 
   const getCareerGuideNav = (): NavItem[] => {

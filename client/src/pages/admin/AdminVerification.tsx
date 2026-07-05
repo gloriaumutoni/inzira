@@ -253,10 +253,10 @@ const AdminVerification = () => {
                   </a>
                 )}
 
-                {p.verificationAttempts > 0 && (
+                {p.rejectionCount > 0 && (
                   <div className="mt-3 p-3 bg-error/5 border border-error/20 rounded-lg">
                     <p className="text-xs font-semibold text-error">
-                      Previously declined {p.verificationAttempts} time{p.verificationAttempts === 1 ? '' : 's'}
+                      Previously declined {p.rejectionCount} time{p.rejectionCount === 1 ? '' : 's'}
                     </p>
                     <p className="text-xs text-muted mt-1">
                       <span className="font-medium text-error/80">Reason: </span>
@@ -362,10 +362,10 @@ const AdminVerification = () => {
                   </div>
                 )}
 
-                {m.mentorApplicationAttempts > 0 && (
+                {m.mentorRejectionCount > 0 && (
                   <div className="mt-3 p-3 bg-error/5 border border-error/20 rounded-lg">
                     <p className="text-xs font-semibold text-error">
-                      Previously declined {m.mentorApplicationAttempts} time{m.mentorApplicationAttempts === 1 ? '' : 's'}
+                      Previously declined {m.mentorRejectionCount} time{m.mentorRejectionCount === 1 ? '' : 's'}
                     </p>
                     <p className="text-xs text-muted mt-1">
                       <span className="font-medium text-error/80">Reason: </span>
@@ -404,7 +404,7 @@ const AdminVerification = () => {
           <dialog
             open
             aria-labelledby="decline-modal-title"
-            className="bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 m-0 border-0"
+            className="static bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 m-0 border-0"
           >
             <div className="flex items-center justify-between mb-3">
               <h2 id="decline-modal-title" className="text-base font-bold text-primary">Decline application</h2>

@@ -1,15 +1,20 @@
 import { useState } from 'react'
-import { Users, Briefcase, BookOpen, TrendingUp, Printer, Video, CheckCircle } from 'lucide-react'
+import { Users, Briefcase, BookOpen, TrendingUp, Download, Video, CheckCircle } from 'lucide-react'
 import {
   useReportStudents,
   useReportProfessionals,
   useReportCareerGuides,
   useReportSummary,
+  fetchAllReportStudents,
+  fetchAllReportProfessionals,
+  fetchAllReportCareerGuides,
   type ReportStudent,
   type ReportProfessional,
   type ReportCareerGuide,
 } from '@/hooks/useAdminReports'
 import useAdminStats, { type MentorSession, type GroupSessionItem } from '@/hooks/useAdminStats'
+import { exportTableToPdf, type PdfColumn } from '@/utils/exportPdf'
+import { toast } from '@/utils/toast'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', {
@@ -112,6 +117,7 @@ const StudentsSection = () => {
   const [level, setLevel] = useState<'A_LEVEL' | 'O_LEVEL'>('O_LEVEL')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [exporting, setExporting] = useState(false)
   const { data, total, totalPages, loading, error } = useReportStudents(level, page)
 
   const handleLevel = (l: 'A_LEVEL' | 'O_LEVEL') => {
@@ -120,15 +126,45 @@ const StudentsSection = () => {
     setSearch('')
   }
 
-  const filtered = search
-    ? data.filter(
-        (s: ReportStudent) =>
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-          (s.school ?? '').toLowerCase().includes(search.toLowerCase()),
-      )
-    : data
+  const matchesSearch = (s: ReportStudent) =>
+    `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+    (s.school ?? '').toLowerCase().includes(search.toLowerCase())
 
-  const cols = level === 'A_LEVEL' ? 6 : 5
+  const filtered = search ? data.filter(matchesSearch) : data
+
+  const cols = level === 'A_LEVEL' ? 5 : 4
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const all = await fetchAllReportStudents(level)
+      const rows = search ? all.filter(matchesSearch) : all
+
+      const columns: PdfColumn<ReportStudent>[] = [
+        { header: 'Name', accessor: (s) => `${s.firstName} ${s.lastName}` },
+        { header: 'School', accessor: (s) => s.school ?? '—' },
+      ]
+      if (level === 'A_LEVEL') {
+        columns.push({ header: 'Combination', accessor: (s) => s.combination ?? '—' })
+      }
+      columns.push(
+        { header: 'Sessions', accessor: (s) => s.sessionCount },
+        { header: 'Joined', accessor: (s) => fmtDate(s.createdAt) },
+      )
+
+      exportTableToPdf({
+        title: `${level === 'A_LEVEL' ? 'A-Level' : 'O-Level'} Students Report`,
+        subtitle: `${rows.length} student${rows.length === 1 ? '' : 's'}${search ? ` · filtered by "${search}"` : ''}`,
+        columns,
+        rows,
+        filename: `students-${level.toLowerCase()}-${Date.now()}.pdf`,
+      })
+    } catch {
+      toast.error('Failed to export PDF. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="bg-surface rounded-xl border border-border p-5">
@@ -160,6 +196,14 @@ const StudentsSection = () => {
               </button>
             ))}
           </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-1.5 border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-primary hover:bg-background transition-colors disabled:opacity-50"
+          >
+            <Download size={14} />
+            {exporting ? 'Exporting…' : 'Export PDF'}
+          </button>
         </div>
       </div>
 
@@ -169,7 +213,6 @@ const StudentsSection = () => {
             <tr className="border-b border-border">
               <th className="text-left py-2 pr-4 text-xs font-semibold text-muted uppercase tracking-wide">Name</th>
               <th className="text-left py-2 pr-4 text-xs font-semibold text-muted uppercase tracking-wide">School</th>
-              <th className="text-left py-2 pr-4 text-xs font-semibold text-muted uppercase tracking-wide">Year</th>
               {level === 'A_LEVEL' && (
                 <th className="text-left py-2 pr-4 text-xs font-semibold text-muted uppercase tracking-wide">Combination</th>
               )}
@@ -201,7 +244,6 @@ const StudentsSection = () => {
                     {s.firstName} {s.lastName}
                   </td>
                   <td className="py-3 pr-4 text-muted">{s.school ?? '—'}</td>
-                  <td className="py-3 pr-4 text-muted">{s.schoolYear}</td>
                   {level === 'A_LEVEL' && (
                     <td className="py-3 pr-4 text-muted">{s.combination ?? '—'}</td>
                   )}
@@ -262,6 +304,7 @@ const ProfessionalsSection = () => {
   const [status, setStatus] = useState<ProStatus>('approved')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   const isGuide = category === 'career-guide'
 
@@ -295,6 +338,71 @@ const ProfessionalsSection = () => {
       )
     : cgData
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      if (isGuide) {
+        const all = await fetchAllReportCareerGuides(status)
+        const rows = search
+          ? all.filter(
+              (g) =>
+                `${g.firstName} ${g.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+                (g.school?.name ?? '').toLowerCase().includes(search.toLowerCase()),
+            )
+          : all
+
+        const columns: PdfColumn<ReportCareerGuide>[] = [
+          { header: 'Name', accessor: (g) => `${g.firstName} ${g.lastName}` },
+          { header: 'Email', accessor: (g) => g.email },
+          { header: 'School', accessor: (g) => g.school?.name ?? '—' },
+          { header: 'District', accessor: (g) => g.school?.district ?? '—' },
+          { header: status === 'approved' ? 'Verified Since' : 'Joined', accessor: (g) => fmtDate(g.createdAt) },
+        ]
+
+        exportTableToPdf({
+          title: `${HEADING[category][status]} Report`,
+          subtitle: `${rows.length} career guide${rows.length === 1 ? '' : 's'}${search ? ` · filtered by "${search}"` : ''}`,
+          columns,
+          rows,
+          filename: `career-guides-${status}-${Date.now()}.pdf`,
+        })
+      } else {
+        const all = await fetchAllReportProfessionals(proFetchType(category, status))
+        const rows = search
+          ? all.filter(
+              (p) =>
+                `${p.firstName} ${p.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+                p.sector.toLowerCase().includes(search.toLowerCase()) ||
+                p.employer.toLowerCase().includes(search.toLowerCase()),
+            )
+          : all
+
+        const columns: PdfColumn<ReportProfessional>[] = [
+          { header: 'Name', accessor: (p) => `${p.firstName} ${p.lastName}` },
+          { header: 'Email', accessor: (p) => p.email },
+          { header: 'Title', accessor: (p) => p.jobTitle },
+          { header: 'Employer', accessor: (p) => p.employer },
+          { header: 'Sector', accessor: (p) => p.sector },
+          { header: 'Completed', accessor: (p) => p.completedSessions },
+          { header: 'Upcoming', accessor: (p) => p.upcomingSessions },
+          { header: 'Joined', accessor: (p) => fmtDate(p.createdAt) },
+        ]
+
+        exportTableToPdf({
+          title: `${HEADING[category][status]} Report`,
+          subtitle: `${rows.length} ${category === 'mentor' ? 'mentor' : 'professional'}${rows.length === 1 ? '' : 's'}${search ? ` · filtered by "${search}"` : ''}`,
+          columns,
+          rows,
+          filename: `${category}-${status}-${Date.now()}.pdf`,
+        })
+      }
+    } catch {
+      toast.error('Failed to export PDF. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="bg-surface rounded-xl border border-border p-5">
       {/* Header row */}
@@ -303,13 +411,23 @@ const ProfessionalsSection = () => {
           <h2 className="text-base font-semibold text-primary">{HEADING[category][status]}</h2>
           <p className="text-xs text-muted mt-0.5">{total} total</p>
         </div>
-        <input
-          type="text"
-          placeholder={isGuide ? 'Search name or school…' : 'Search name, sector…'}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-border rounded-lg px-3 py-1.5 text-sm w-48 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent print:hidden"
-        />
+        <div className="flex items-center gap-3 print:hidden">
+          <input
+            type="text"
+            placeholder={isGuide ? 'Search name or school…' : 'Search name, sector…'}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border border-border rounded-lg px-3 py-1.5 text-sm w-48 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-1.5 border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-primary hover:bg-background transition-colors disabled:opacity-50"
+          >
+            <Download size={14} />
+            {exporting ? 'Exporting…' : 'Export PDF'}
+          </button>
+        </div>
       </div>
 
       {/* Category + status toggles */}
@@ -464,6 +582,41 @@ const SessionsSection = () => {
       ? (stats?.upcomingGroupSessions ?? [])
       : (stats?.recentGroupSessions ?? [])
 
+  const handleExport = () => {
+    const tabLabel = sessionTab === 'upcoming' ? 'Upcoming' : 'Recent'
+
+    if (sessionType === 'mentor') {
+      const columns: PdfColumn<MentorSession>[] = [
+        { header: 'Student', accessor: (s) => s.studentName },
+        { header: 'School', accessor: (s) => s.school ?? '—' },
+        { header: 'Grade', accessor: (s) => s.grade },
+        { header: 'Scheduled', accessor: (s) => fmtDate(s.scheduledAt) },
+        { header: 'Status', accessor: (s) => s.status },
+      ]
+      exportTableToPdf({
+        title: `${tabLabel} Mentor Sessions`,
+        subtitle: `${activeMentorSessions.length} session${activeMentorSessions.length === 1 ? '' : 's'}`,
+        columns,
+        rows: activeMentorSessions,
+        filename: `mentor-sessions-${sessionTab}-${Date.now()}.pdf`,
+      })
+    } else {
+      const columns: PdfColumn<GroupSessionItem>[] = [
+        { header: 'Title', accessor: (g) => g.title },
+        { header: 'Sector', accessor: (g) => g.sector },
+        { header: 'Enrolled', accessor: (g) => g.enrolmentCount },
+        { header: 'Scheduled', accessor: (g) => fmtDate(g.scheduledAt) },
+      ]
+      exportTableToPdf({
+        title: `${tabLabel} Group Sessions`,
+        subtitle: `${activeGroupSessions.length} session${activeGroupSessions.length === 1 ? '' : 's'}`,
+        columns,
+        rows: activeGroupSessions,
+        filename: `group-sessions-${sessionTab}-${Date.now()}.pdf`,
+      })
+    }
+  }
+
   return (
     <div className="bg-surface rounded-xl border border-border p-5">
       <div className="flex items-center justify-between mb-4">
@@ -502,6 +655,13 @@ const SessionsSection = () => {
               </button>
             ))}
           </div>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 border border-border rounded-lg px-3 py-1.5 text-sm font-medium text-primary hover:bg-background transition-colors"
+          >
+            <Download size={14} />
+            Export PDF
+          </button>
         </div>
       </div>
 
@@ -585,20 +745,11 @@ const AdminReports = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Platform Reports</h1>
-          <p className="text-sm text-muted mt-1">
-            Full overview of students, professionals, and platform activity.
-          </p>
-        </div>
-        <button
-          onClick={() => globalThis.print()}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors print:hidden"
-        >
-          <Printer size={15} />
-          Export PDF
-        </button>
+      <div>
+        <h1 className="text-xl font-bold text-primary">Platform Reports</h1>
+        <p className="text-sm text-muted mt-1">
+          Full overview of students, professionals, and platform activity.
+        </p>
       </div>
 
       {summaryLoading ? (
