@@ -10,7 +10,7 @@ Inzira ("the path") connects Rwandan O-level and A-level students with verified 
 
 > Walkthrough of all role flows — student, professional, mentor, career guide, admin.
 
-[Demon Link](https://drive.google.com/drive/folders/1d1e1IUXN6L-Y7lwfnKcf8_p5PUPNpAfH?usp=drive_link)
+[Demon Link](https://drive.google.com/file/d/1AVh79hOl7cGBol9ceb1-5JnGup4c2L2x/view?usp=sharing)
 
 ---
 
