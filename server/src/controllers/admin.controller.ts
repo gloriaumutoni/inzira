@@ -132,10 +132,6 @@ export const getAdminInterviewSlots = async (req: Request, res: Response): Promi
       orderBy: [{ dayOfWeek: 'asc' }, { startHour: 'asc' }],
       include: {
         bookings: {
-          where: {
-            scheduledAt: { gt: new Date() },
-            professional: { mentorApplicationStatus: 'PENDING' },
-          },
           include: {
             professional: {
               select: {
@@ -280,14 +276,14 @@ export const getReportSummary = async (_req: Request, res: Response): Promise<vo
 
 export const getAvailableInterviewSlots = async (req: Request, res: Response): Promise<void> => {
   try {
-    const templates = await prisma.adminInterviewSlot.findMany({ where: { isActive: true } })
-    const expanded = expandWeeklyTemplate(templates)
+    const allTemplates = await prisma.adminInterviewSlot.findMany({ where: { isActive: true } })
     const booked = await prisma.mentorApplicationInterviewBooking.findMany({
-      select: { scheduledAt: true },
+      select: { adminSlotId: true },
     })
-    const bookedTimes = new Set(booked.map((b) => b.scheduledAt.toISOString()))
+    const bookedTemplateIds = new Set(booked.map((b) => b.adminSlotId))
+    const templates = allTemplates.filter((t) => !bookedTemplateIds.has(t.id))
+    const expanded = expandWeeklyTemplate(templates)
     const available = expanded
-      .filter((slot) => !bookedTimes.has(slot.start.toISOString()))
       .map((slot) => {
         const matchingTemplate = templates.find(
           (t) =>

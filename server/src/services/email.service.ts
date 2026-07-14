@@ -204,14 +204,13 @@ export async function notifyProfessionalVerificationRejected(prof: {
   await resend.emails.send({
     from: FROM,
     to: prof.email,
-    subject: 'Update on your Inzira verification',
+    subject: 'Your Inzira professional application was declined',
     html: layout(
-      'Verification Update',
+      'Request Declined',
       h2(`Hi ${prof.firstName},`) +
-      p('We reviewed your professional profile and were unable to approve it at this time.') +
+      p('Your request to become a professional on Inzira has been declined.') +
       p(`<strong>Reason:</strong> ${reason || 'Does not meet current requirements.'}`) +
-      p('You may update your profile information and reapply.') +
-      btn('Update Your Profile', `${BASE}`)
+      btn('Contact Support', `${BASE}`)
     ),
   })
 }
@@ -240,14 +239,13 @@ export async function notifyProfessionalMentorRejected(prof: {
   await resend.emails.send({
     from: FROM,
     to: prof.email,
-    subject: 'Update on your Inzira mentor application',
+    subject: 'Your Inzira mentor application was declined',
     html: layout(
-      'Mentor Application Update',
+      'Request Declined',
       h2(`Hi ${prof.firstName},`) +
-      p('We reviewed your mentor application and were unable to approve it at this time.') +
+      p('Your request to become a mentor on Inzira has been declined.') +
       p(`<strong>Reason:</strong> ${reason || 'Does not meet current requirements.'}`) +
-      p('You may reapply once you have addressed the feedback above.') +
-      btn('View Dashboard', `${BASE}`)
+      btn('Contact Support', `${BASE}`)
     ),
   })
 }
@@ -493,11 +491,11 @@ export async function notifyCareerGuideVerificationRejected(guide: {
   await resend.emails.send({
     from: FROM,
     to: guide.email,
-    subject: 'Update on your Inzira career guide application',
+    subject: 'Your Inzira career guide application was declined',
     html: layout(
-      'Career Guide Application Update',
+      'Request Declined',
       h2(`Hi ${guide.firstName},`) +
-      p('We reviewed your career guide application and were unable to approve it at this time.') +
+      p('Your request to become a career guide on Inzira has been declined.') +
       p(`<strong>Reason:</strong> ${reason || 'Does not meet current requirements.'}`) +
       btn('Contact Support', `${BASE}`)
     ),

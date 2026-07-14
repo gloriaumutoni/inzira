@@ -1,6 +1,14 @@
 import { prisma } from '../prisma/client'
 import * as emailService from './email.service'
 
+const isValidGoogleMeetLink = (url: string): boolean => {
+  try {
+    return new URL(url).hostname === 'meet.google.com'
+  } catch {
+    return false
+  }
+}
+
 export const list = async (filters: {
   sector?: string
   sectors?: string
@@ -114,6 +122,9 @@ export const create = async (
   if (!professional.isVerified) {
     throw new Error('Only verified professionals can create group sessions.')
   }
+  if (!data.joinLink?.trim() || !isValidGoogleMeetLink(data.joinLink)) {
+    throw new Error('A valid Google Meet link is required.')
+  }
 
   const session = await prisma.groupSession.create({
     data: {
@@ -175,6 +186,9 @@ export const update = async (
   const session = await prisma.groupSession.findUnique({ where: { id } })
   if (!session) throw new Error('Group session not found')
   if (session.professionalId !== professional.id) throw new Error('Access denied')
+  if (data.joinLink !== undefined && (!data.joinLink.trim() || !isValidGoogleMeetLink(data.joinLink))) {
+    throw new Error('A valid Google Meet link is required.')
+  }
 
   return prisma.groupSession.update({
     where: { id },

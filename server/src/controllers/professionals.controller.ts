@@ -105,6 +105,10 @@ export const applyToBeMentor = async (req: Request, res: Response): Promise<void
       res.status(409).json({ success: false, error: 'You are already a mentor.' })
       return
     }
+    if (professional.mentorApplicationStatus === 'REJECTED') {
+      res.status(403).json({ success: false, error: 'Your mentor application was declined and cannot be resubmitted.' })
+      return
+    }
     if (professional.mentorApplicationAttempts >= 3) {
       res.status(403).json({ success: false, error: 'You have reached the maximum number of mentor applications (3).' })
       return
@@ -166,6 +170,10 @@ export const reapplyVerification = async (req: Request, res: Response): Promise<
       include: { user: { select: { email: true } } },
     })
     if (!professional) { badRequest(res, 'Not found'); return }
+    if (professional.verificationStatus === 'REJECTED') {
+      res.status(403).json({ success: false, error: 'Your application was declined and cannot be resubmitted.' })
+      return
+    }
     if (professional.verificationAttempts >= 3) {
       res.status(403).json({ success: false, error: 'You have reached the maximum number of verification submissions (3).' })
       return

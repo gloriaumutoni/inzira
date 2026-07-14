@@ -120,9 +120,12 @@ export const getMySchoolStudents = async (req: Request, res: Response): Promise<
         // needsAttention
         const registeredMoreThan7Days = new Date(s.user.createdAt) < sevenDaysAgo
         const noRecentSession = !lastSessionDate || new Date(lastSessionDate) < fourteenDaysAgo
-        const needsAttention =
-          (totalSessions === 0 && registeredMoreThan7Days) ||
-          (currentConfidence !== null && currentConfidence < 5 && noRecentSession)
+        const neverBooked = totalSessions === 0 && registeredMoreThan7Days
+        const lowConfidenceInactive = currentConfidence !== null && currentConfidence < 5 && noRecentSession
+        const needsAttention = neverBooked || lowConfidenceInactive
+        let attentionReason: string | null = null
+        if (neverBooked) attentionReason = 'No sessions booked since registering over a week ago'
+        else if (lowConfidenceInactive) attentionReason = `Confidence at ${currentConfidence}/10 with no session in the last 14 days`
 
         return {
           id: s.id,
@@ -148,6 +151,7 @@ export const getMySchoolStudents = async (req: Request, res: Response): Promise<
           confidenceDelta,
           lastActiveDate,
           needsAttention,
+          attentionReason,
         }
       }),
     })
@@ -264,6 +268,10 @@ export const reapplyVerification = async (req: Request, res: Response): Promise<
   try {
     const guide = await prisma.careerGuide.findUnique({ where: { userId: req.auth!.userId } })
     if (!guide) { badRequest(res, 'Not found'); return }
+    if (guide.verificationStatus === 'REJECTED') {
+      res.status(403).json({ success: false, error: 'Your application was declined and cannot be resubmitted.' })
+      return
+    }
     if (guide.verificationAttempts >= 3) {
       res.status(403).json({ success: false, error: 'You have reached the maximum number of verification submissions (3).' })
       return
