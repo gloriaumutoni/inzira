@@ -1,13 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Search, BookOpen, Briefcase, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import {
-  listCareerStories,
-  getCareerStory,
-  getCombinations,
-  type CareerStory,
-} from '@/api/careerStories.api'
+import { type CareerStory } from '@/api/careerStories.api'
+import { useCareerStoriesQuery, useCareerStoryQuery } from '@/hooks/queries/studentQueries'
+import { useCareerStoryCombinationsQuery } from '@/hooks/queries/professionalDashboardQueries'
 import ProfessionalProfileModal from '@/components/professionals/ProfessionalProfileModal'
 
 const SECTORS = [
@@ -154,23 +151,11 @@ function Section({ icon, title, children }: Readonly<{ icon: React.ReactNode; ti
 const CareerLibrary = () => {
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [stories, setStories] = useState<CareerStory[]>([])
-  const [total, setTotal] = useState(0)
-  const [combinations, setCombinations] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedStory, setSelectedStory] = useState<CareerStory | null>(null)
-  const [deepLinkLoading, setDeepLinkLoading] = useState(false)
 
   const storyIdParam = searchParams.get('story')
-
-  useEffect(() => {
-    if (!storyIdParam) return
-    setDeepLinkLoading(true)
-    getCareerStory(storyIdParam)
-      .then(setSelectedStory)
-      .catch(() => {})
-      .finally(() => setDeepLinkLoading(false))
-  }, [storyIdParam])
+  const { data: deepLinkStory, isLoading: deepLinkLoading } = useCareerStoryQuery(storyIdParam, !!storyIdParam)
+  const activeStory = selectedStory ?? deepLinkStory ?? null
 
   const handleBack = () => {
     setSelectedStory(null)
@@ -188,41 +173,26 @@ const CareerLibrary = () => {
   const [page, setPage] = useState(1)
   const LIMIT = 12
 
-  const fetchStories = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await listCareerStories({
-        search: search || undefined,
-        combination: combo || undefined,
-        sector: sector || undefined,
-        interests: !search && matchInterests && studentInterests.length > 0
-          ? studentInterests.join(',')
-          : undefined,
-        page,
-        limit: LIMIT,
-      })
-      setStories(res.stories)
-      setTotal(res.total)
-    } catch {
-      // silent — show empty state
-    } finally {
-      setLoading(false)
-    }
-  }, [search, combo, sector, matchInterests, studentInterests, page])
+  const { data: combinations = [] } = useCareerStoryCombinationsQuery()
 
-  useEffect(() => {
-    getCombinations().then(setCombinations).catch(() => {})
-  }, [])
+  const { data: storiesRes, isLoading: loading } = useCareerStoriesQuery({
+    search: search || undefined,
+    combination: combo || undefined,
+    sector: sector || undefined,
+    interests: !search && matchInterests && studentInterests.length > 0
+      ? studentInterests.join(',')
+      : undefined,
+    page,
+    limit: LIMIT,
+  })
+  const stories = storiesRes?.stories ?? []
+  const total = storiesRes?.total ?? 0
 
   useEffect(() => {
     setPage(1)
   }, [search, combo, sector, matchInterests])
 
-  useEffect(() => {
-    fetchStories()
-  }, [fetchStories])
-
-  if (deepLinkLoading) {
+  if (storyIdParam && deepLinkLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse bg-border rounded-xl h-64" />
@@ -230,10 +200,10 @@ const CareerLibrary = () => {
     )
   }
 
-  if (selectedStory) {
+  if (activeStory) {
     return (
       <div className="p-6">
-        <StoryDetail story={selectedStory} onBack={handleBack} />
+        <StoryDetail story={activeStory} onBack={handleBack} />
       </div>
     )
   }

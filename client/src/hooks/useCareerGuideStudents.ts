@@ -26,6 +26,7 @@ export interface SchoolStudent {
   confidenceDelta: number | null
   lastActiveDate: string | null
   needsAttention: boolean
+  attentionReason: string | null
 }
 
 const useCareerGuideStudents = () => {

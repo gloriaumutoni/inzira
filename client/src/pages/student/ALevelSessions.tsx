@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
 import useStudentSessions, { StudentSession } from '@/hooks/useStudentSessions'
+import {
+  useGroupSessionsBrowseQuery,
+  useGroupEnrolmentsQuery,
+  useMentorSlotsQuery,
+  useEnrolGroupSessionMutation,
+  type GroupSession,
+  type MentorSlot,
+} from '@/hooks/queries/studentQueries'
 import { getTrackCode, TrackOptgroups } from '@/utils/studentTrack'
 
 type ReportReason = 'INAPPROPRIATE_BEHAVIOUR' | 'UNCOMFORTABLE_CONTENT' | 'NO_SHOW' | 'HARASSMENT' | 'OTHER'
@@ -108,28 +115,6 @@ function ReportModal({ sessionId, sessionType, onClose }: Readonly<{
   )
 }
 
-interface GroupSession {
-  id: string
-  title: string
-  description?: string
-  scheduledAt: string
-  duration: number
-  sector: string
-  combinations: string[]
-  maxStudents: number
-  joinLink?: string
-  professional: { id: string; firstName: string; lastName: string; jobTitle?: string }
-  _count: { enrolments: number }
-}
-
-interface MentorSlot {
-  id: string
-  scheduledAt: string
-  durationMins: number
-  meetLink: string | null
-  Professional: { id: string; firstName: string; lastName: string; jobTitle: string }
-}
-
 const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
 const SKELETON_KEYS = ['sk1', 'sk2', 'sk3', 'sk4']
 
@@ -184,15 +169,6 @@ const ALevelSessions = () => {
   const [relevantOnly, setRelevantOnly] = useState(studentCombos.length > 0)
   const [selectedCombination, setSelectedCombination] = useState<string | undefined>(undefined)
 
-  const [upcomingGs, setUpcomingGs] = useState<GroupSession[]>([])
-  const [pastEnrolledGs, setPastEnrolledGs] = useState<GroupSession[]>([])
-  const [enrolledUpcomingCount, setEnrolledUpcomingCount] = useState(0)
-  const [gsLoading, setGsLoading] = useState(true)
-  const [enrolling, setEnrolling] = useState<string | null>(null)
-
-  const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
-  const [slotsLoading, setSlotsLoading] = useState(true)
-
   const [reportTarget, setReportTarget] = useState<{ id: string; type: 'session' | 'group-session' } | null>(null)
 
   useEffect(() => {
@@ -209,62 +185,31 @@ const ALevelSessions = () => {
     activeCombination = selectedCombination
   }
 
-  const fetchGroupData = useCallback(async () => {
-    setGsLoading(true)
-    try {
-      const params = new URLSearchParams({ limit: '100' })
-      if (activeCombination) params.set('combination', activeCombination)
+  const { data: available = [], isLoading: availableLoading } = useGroupSessionsBrowseQuery({
+    combination: activeCombination,
+    limit: 100,
+  })
+  const { data: enrolments = [], isLoading: enrolmentsLoading } = useGroupEnrolmentsQuery()
+  const gsLoading = availableLoading || enrolmentsLoading
 
-      const [gsRes, enrollRes] = await Promise.all([
-        api.get(`/group-sessions?${params}`),
-        api.get('/students/me/group-sessions'),
-      ])
-      const available: GroupSession[] = gsRes.data.data.sessions ?? []
-      const enrolments: { id: string; groupSession: GroupSession }[] = enrollRes.data.data.enrolments ?? []
-
-      const enrolled = enrolments.map(e => e.groupSession)
-      const ids = new Set<string>(enrolments.map(e => e.groupSession.id))
-      const now = new Date()
-
-      setUpcomingGs(available.filter(g => new Date(g.scheduledAt) > now && !ids.has(g.id)))
-      setPastEnrolledGs(enrolled.filter(g => new Date(g.scheduledAt) <= now))
-      setEnrolledUpcomingCount(enrolled.filter(g => new Date(g.scheduledAt) > now).length)
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Could not load sessions.'
-      toast.error(msg)
-    } finally {
-      setGsLoading(false)
+  const { upcomingGs, pastEnrolledGs, enrolledUpcomingCount } = useMemo(() => {
+    const enrolled = enrolments.map(e => e.groupSession)
+    const ids = new Set<string>(enrolments.map(e => e.groupSession.id))
+    const now = new Date()
+    return {
+      upcomingGs: available.filter(g => new Date(g.scheduledAt) > now && !ids.has(g.id)),
+      pastEnrolledGs: enrolled.filter(g => new Date(g.scheduledAt) <= now),
+      enrolledUpcomingCount: enrolled.filter(g => new Date(g.scheduledAt) > now).length,
     }
-  }, [activeCombination])
+  }, [available, enrolments])
 
-  useEffect(() => { fetchGroupData() }, [fetchGroupData])
+  const { data: mentorSlots = [], isLoading: slotsLoading } = useMentorSlotsQuery()
 
-  useEffect(() => {
-    api.get('/students/me/mentor-slots')
-      .then(({ data }) => setMentorSlots(data.data.slots ?? []))
-      .catch(() => {})
-      .finally(() => setSlotsLoading(false))
-  }, [])
-
-  const handleEnrol = async (sessionId: string) => {
-    setEnrolling(sessionId)
-    try {
-      await api.post(`/group-sessions/${sessionId}/enrol`)
-      await fetchGroupData()
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Could not enrol. Please try again.'
-      toast.error(msg)
-    } finally {
-      setEnrolling(null)
-    }
-  }
+  const enrolMutation = useEnrolGroupSessionMutation()
+  const handleEnrol = (sessionId: string) => enrolMutation.mutate(sessionId)
 
   const renderEnrollButton = (gs: GroupSession) => {
-    const isPending = enrolling === gs.id
+    const isPending = enrolMutation.isPending && enrolMutation.variables === gs.id
     if (enrolledUpcomingCount >= 3) {
       return (
         <div className="relative group mt-auto pt-2">

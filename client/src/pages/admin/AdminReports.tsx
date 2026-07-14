@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { Users, Briefcase, BookOpen, TrendingUp, Download, Video, CheckCircle } from 'lucide-react'
 import {
-  useReportStudents,
-  useReportProfessionals,
-  useReportCareerGuides,
-  useReportSummary,
+  useReportStudentsQuery,
+  useReportProfessionalsQuery,
+  useReportCareerGuidesQuery,
+  useReportSummaryQuery,
+  useAdminStatsQuery,
   fetchAllReportStudents,
   fetchAllReportProfessionals,
   fetchAllReportCareerGuides,
   type ReportStudent,
   type ReportProfessional,
   type ReportCareerGuide,
-} from '@/hooks/useAdminReports'
-import useAdminStats, { type MentorSession, type GroupSessionItem } from '@/hooks/useAdminStats'
+  type MentorSession,
+  type GroupSessionItem,
+} from '@/hooks/queries/adminQueries'
 import { exportTableToPdf, type PdfColumn } from '@/utils/exportPdf'
 import { toast } from '@/utils/toast'
 
@@ -118,7 +120,11 @@ const StudentsSection = () => {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [exporting, setExporting] = useState(false)
-  const { data, total, totalPages, loading, error } = useReportStudents(level, page)
+  const { data: result, isLoading: loading, isError } = useReportStudentsQuery(level, page)
+  const data = result?.data ?? []
+  const total = result?.total ?? 0
+  const totalPages = result?.totalPages ?? 1
+  const error = isError ? 'Failed to load data. Please try again.' : null
 
   const handleLevel = (l: 'A_LEVEL' | 'O_LEVEL') => {
     setLevel(l)
@@ -308,11 +314,20 @@ const ProfessionalsSection = () => {
 
   const isGuide = category === 'career-guide'
 
-  const proState = useReportProfessionals(proFetchType(category, status), page)
-  const cgState = useReportCareerGuides(page, status)
+  const proQuery = useReportProfessionalsQuery(proFetchType(category, status), page)
+  const cgQuery = useReportCareerGuidesQuery(page, status)
 
-  const { data: proData, total: proTotal, totalPages: proTotalPages, loading: proLoading, error: proError } = proState
-  const { data: cgData, total: cgTotal, totalPages: cgTotalPages, loading: cgLoading, error: cgError } = cgState
+  const proData = proQuery.data?.data ?? []
+  const proTotal = proQuery.data?.total ?? 0
+  const proTotalPages = proQuery.data?.totalPages ?? 1
+  const proLoading = proQuery.isLoading
+  const proError = proQuery.isError ? 'Failed to load data. Please try again.' : null
+
+  const cgData = cgQuery.data?.data ?? []
+  const cgTotal = cgQuery.data?.total ?? 0
+  const cgTotalPages = cgQuery.data?.totalPages ?? 1
+  const cgLoading = cgQuery.isLoading
+  const cgError = cgQuery.isError ? 'Failed to load data. Please try again.' : null
 
   const total = isGuide ? cgTotal : proTotal
   const totalPages = isGuide ? cgTotalPages : proTotalPages
@@ -568,7 +583,7 @@ const ProfessionalsSection = () => {
 }
 
 const SessionsSection = () => {
-  const { stats, loading, error } = useAdminStats()
+  const { data: stats, isLoading: loading, isError: error } = useAdminStatsQuery()
   const [sessionTab, setSessionTab] = useState<'upcoming' | 'recent'>('upcoming')
   const [sessionType, setSessionType] = useState<'mentor' | 'group'>('mentor')
 
@@ -737,7 +752,7 @@ const SessionsSection = () => {
 }
 
 const AdminReports = () => {
-  const { summary, loading: summaryLoading } = useReportSummary()
+  const { data: summary, isLoading: summaryLoading } = useReportSummaryQuery()
 
   const engagementPct = summary
     ? Math.round((summary.engagingStudents / Math.max(summary.totalStudents, 1)) * 100)

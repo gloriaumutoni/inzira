@@ -1,16 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Trash2, AlertCircle, Pencil, Check, X, User } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
-
-interface MentorSlot {
-  id: string
-  scheduledAt: string
-  durationMins: number
-  isBooked: boolean
-  meetLink: string | null
-  Student: { id: string; firstName: string; lastName: string } | null
-}
+import {
+  professionalDashboardKeys,
+  useMentorSlotsQuery,
+  type MentorSlot,
+} from '@/hooks/queries/professionalDashboardQueries'
 
 interface EditState {
   date: string
@@ -59,10 +56,11 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const WEEKS_OPTIONS = [2, 4, 8, 12]
 
 const ProfessionalCreateSlots = () => {
-  const [slots, setSlots] = useState<MentorSlot[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: slots = [], isLoading: loading } = useMentorSlotsQuery()
+  const invalidateSlots = () =>
+    queryClient.invalidateQueries({ queryKey: professionalDashboardKeys.mentorSlots })
   const [tab, setTab] = useState<'open' | 'booked'>('open')
-  const [tick, setTick] = useState(0)
 
   const [mode, setMode] = useState<'single' | 'recurring'>('single')
   const [date, setDate] = useState('')
@@ -82,14 +80,6 @@ const ProfessionalCreateSlots = () => {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editState, setEditState] = useState<EditState | null>(null)
-
-  useEffect(() => {
-    setLoading(true)
-    api.get('/professionals/me/mentor-slots')
-      .then(({ data }) => setSlots(data.data.slots ?? []))
-      .catch(() => toast.error('Could not load slots.'))
-      .finally(() => setLoading(false))
-  }, [tick])
 
   const handleStartChange = (hour: number, minute: number) => {
     setStartHour(hour)
@@ -117,7 +107,7 @@ const ProfessionalCreateSlots = () => {
       toast.success('Slot created.')
       setDate('')
       setMeetLink('')
-      setTick(t => t + 1)
+      invalidateSlots()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setFormError(msg ?? 'Could not create slot.')
@@ -150,7 +140,7 @@ const ProfessionalCreateSlots = () => {
       toast.success(skipped > 0 ? `Created ${created} slots (${skipped} already existed).` : `Created ${created} slots.`)
       setMeetLink('')
       setRecurDays([])
-      setTick(t => t + 1)
+      invalidateSlots()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setFormError(msg ?? 'Could not create recurring slots.')
@@ -164,7 +154,7 @@ const ProfessionalCreateSlots = () => {
     try {
       await api.delete(`/professionals/me/mentor-slots/${id}`)
       toast.success('Slot removed.')
-      setTick(t => t + 1)
+      invalidateSlots()
     } catch {
       toast.error('Could not remove slot.')
     }
@@ -212,7 +202,7 @@ const ProfessionalCreateSlots = () => {
       await api.put(`/professionals/me/mentor-slots/${editingId}`, { scheduledAt, durationMins, meetLink: ml.trim() })
       toast.success('Slot updated.')
       cancelEdit()
-      setTick(t => t + 1)
+      invalidateSlots()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setEditState({ ...editState, saving: false, error: msg ?? 'Could not update slot.' })

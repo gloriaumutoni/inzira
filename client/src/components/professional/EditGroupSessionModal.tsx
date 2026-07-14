@@ -41,14 +41,14 @@ const EditGroupSessionModal = ({ session, onClose, onSuccess }: EditGroupSession
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (loading) return
-    if (joinLink && !isValidGoogleMeetLink(joinLink)) {
+    if (!isValidGoogleMeetLink(joinLink)) {
       setError('Please enter a valid Google Meet link (https://meet.google.com/...)')
       return
     }
     setLoading(true)
     setError(null)
     try {
-      const body: Record<string, unknown> = { title, joinLink: joinLink || undefined }
+      const body: Record<string, unknown> = { title, joinLink }
       if (!hasEnrollments) {
         body.scheduledAt = new Date(scheduledAt).toISOString()
         body.maxStudents = maxStudents
@@ -80,7 +80,7 @@ const EditGroupSessionModal = ({ session, onClose, onSuccess }: EditGroupSession
           </div>
           <div>
             <label className="block text-sm font-medium text-primary mb-1">Google Meet Link</label>
-            <input type="url" value={joinLink} onChange={e => setJoinLink(e.target.value)} placeholder="https://meet.google.com/..." className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
+            <input type="url" required value={joinLink} onChange={e => setJoinLink(e.target.value)} placeholder="https://meet.google.com/..." className="w-full px-4 py-2.5 rounded-lg border border-border text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
             <p className="text-xs text-muted mt-1">Only Google Meet links are accepted.</p>
           </div>
           {!hasEnrollments && (

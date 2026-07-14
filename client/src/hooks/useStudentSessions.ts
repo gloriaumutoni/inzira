@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
+import { useEffect } from 'react'
+import { useStudentSessionsQuery } from '@/hooks/queries/studentQueries'
 
 export interface StudentSession {
   id: string
@@ -24,27 +24,17 @@ interface UseStudentSessionsResult {
 }
 
 const useStudentSessions = (): UseStudentSessionsResult => {
-  const [sessions, setSessions] = useState<StudentSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const { data, isLoading, isError } = useStudentSessionsQuery()
 
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        // Sessions list endpoint — returns { sessions, total, page, limit }
-        const { data } = await api.get('/sessions')
-        setSessions(data.data.sessions ?? data.data)
-      } catch {
-        setError(true)
-        toast.error('Unable to load sessions. Please try again.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  }, [])
+    if (isError) toast.error('Unable to load sessions. Please try again.')
+  }, [isError])
 
-  return { sessions, loading, error }
+  return {
+    sessions: data ?? [],
+    loading: isLoading,
+    error: isError,
+  }
 }
 
 export default useStudentSessions

@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { Trash2, AlertCircle, Pencil, Check, X, Calendar, User, Mail, Briefcase } from 'lucide-react'
-import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
-import useAdminInterviewSlots, { AdminInterviewSlot } from '@/hooks/useAdminInterviewSlots'
+import {
+  useInterviewSlotsQuery,
+  useAddInterviewSlotMutation,
+  useUpdateInterviewSlotMutation,
+  useDeleteInterviewSlotMutation,
+  type AdminInterviewSlot,
+} from '@/hooks/queries/adminQueries'
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WORK_DAYS = [1, 2, 3, 4, 5]
@@ -42,7 +47,10 @@ interface EditState {
 }
 
 const AdminCreateSlots = () => {
-  const { slots, loading, refetch } = useAdminInterviewSlots()
+  const { data: slots = [], isLoading: loading } = useInterviewSlotsQuery()
+  const addSlotMutation = useAddInterviewSlotMutation()
+  const updateSlotMutation = useUpdateInterviewSlotMutation()
+  const deleteSlotMutation = useDeleteInterviewSlotMutation()
   const [activeTab, setActiveTab] = useState<'open' | 'booked'>('open')
 
   // Create form state
@@ -83,7 +91,7 @@ const AdminCreateSlots = () => {
     setTimeError('')
     setAdding(true)
     try {
-      await api.post('/admin/interview-slots', {
+      await addSlotMutation.mutateAsync({
         dayOfWeek,
         startHour,
         startMinute,
@@ -95,7 +103,6 @@ const AdminCreateSlots = () => {
       toast.success('Interview slot added.')
       setMeetLink('')
       setRepeatWeeks(null)
-      refetch()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       toast.error(msg ?? 'A slot already exists at this day and time.')
@@ -107,9 +114,8 @@ const AdminCreateSlots = () => {
   const handleDelete = async (id: string) => {
     if (!globalThis.confirm('Delete this slot?')) return
     try {
-      await api.delete(`/admin/interview-slots/${id}`)
+      await deleteSlotMutation.mutateAsync(id)
       toast.success('Slot removed.')
-      refetch()
     } catch {
       toast.error('Could not remove slot.')
     }
@@ -154,13 +160,15 @@ const AdminCreateSlots = () => {
     }
     setEditState({ ...editState, saving: true, error: '' })
     try {
-      await api.put(`/admin/interview-slots/${editingId}`, {
-        dayOfWeek: d, startHour: sh, startMinute: sm, endHour: eh, endMinute: em, meetLink: ml.trim(),
-        endDate: weeksToEndDate(rw),
+      await updateSlotMutation.mutateAsync({
+        id: editingId,
+        payload: {
+          dayOfWeek: d, startHour: sh, startMinute: sm, endHour: eh, endMinute: em, meetLink: ml.trim(),
+          endDate: weeksToEndDate(rw),
+        },
       })
       toast.success('Slot updated.')
       cancelEdit()
-      refetch()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setEditState({ ...editState, saving: false, error: msg ?? 'Could not update slot.' })

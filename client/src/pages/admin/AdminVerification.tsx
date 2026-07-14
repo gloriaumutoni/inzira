@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { CheckCircle, ExternalLink, UserCheck, Award, GraduationCap, X } from 'lucide-react'
-import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
-import useVerification from '@/hooks/useVerification'
-import useMentorApplications from '@/hooks/useMentorApplications'
-import useCareerGuideVerification from '@/hooks/useCareerGuideVerification'
-import useVerificationStats from '@/hooks/useVerificationStats'
-import useAdminStats from '@/hooks/useAdminStats'
-
-type VerificationType = 'professionals' | 'mentors' | 'career-guides'
+import {
+  useVerificationProfessionalsQuery,
+  useMentorApplicationsQuery,
+  useCareerGuideVerificationQuery,
+  useAdminStatsQuery,
+  useApproveVerificationMutation,
+  useRejectVerificationMutation,
+  type VerificationType,
+} from '@/hooks/queries/adminQueries'
 
 function initials(first: string, last: string): string {
   return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
@@ -70,27 +71,21 @@ const AdminVerification = () => {
   const [declineModal, setDeclineModal] = useState<{
     id: string
     type: VerificationType
-    refetch: () => void
   } | null>(null)
   const [declineReason, setDeclineReason] = useState('')
 
-  const { professionals, loading: proLoading, refetch: refetchPros } = useVerification()
-  const { applications: mentorApps, loading: mentorLoading, refetch: refetchMentors } = useMentorApplications()
-  const { careerGuides, loading: cgLoading, refetch: refetchCGs } = useCareerGuideVerification()
-  const { stats, loading: statsLoading } = useVerificationStats()
-  const { refetch: statsRefetch } = useAdminStats()
+  const { data: professionals = [], isLoading: proLoading } = useVerificationProfessionalsQuery()
+  const { data: mentorApps = [], isLoading: mentorLoading } = useMentorApplicationsQuery()
+  const { data: careerGuides = [], isLoading: cgLoading } = useCareerGuideVerificationQuery()
+  const { data: stats, isLoading: statsLoading } = useAdminStatsQuery()
+  const approveMutation = useApproveVerificationMutation()
+  const rejectMutation = useRejectVerificationMutation()
 
-  const handleApprove = async (
-    id: string,
-    type: 'professionals' | 'mentors' | 'career-guides',
-    refetch: () => void,
-  ) => {
+  const handleApprove = async (id: string, type: VerificationType) => {
     setActioningId(id)
     try {
-      await api.patch(`/admin/verification/${type}/${id}/approve`)
+      await approveMutation.mutateAsync({ type, id })
       toast.success('Approved successfully')
-      refetch()
-      statsRefetch()
     } catch {
       toast.error('Action failed')
     } finally {
@@ -98,26 +93,22 @@ const AdminVerification = () => {
     }
   }
 
-  const openDeclineModal = (
-    id: string,
-    type: VerificationType,
-    refetch: () => void,
-  ) => {
-    setDeclineModal({ id, type, refetch })
+  const openDeclineModal = (id: string, type: VerificationType) => {
+    setDeclineModal({ id, type })
     setDeclineReason('')
   }
 
   const confirmDecline = async () => {
     if (!declineModal) return
-    const { id, type, refetch } = declineModal
+    const { id, type } = declineModal
     setActioningId(id)
     try {
-      await api.patch(`/admin/verification/${type}/${id}/reject`, {
+      await rejectMutation.mutateAsync({
+        type,
+        id,
         reason: declineReason.trim() || 'Does not meet current requirements',
       })
       toast.success('Declined')
-      refetch()
-      statsRefetch()
       setDeclineModal(null)
     } catch {
       toast.error('Action failed')
@@ -146,21 +137,21 @@ const AdminVerification = () => {
         <StatCard
           icon={<UserCheck className="w-5 h-5 text-success" />}
           label="APPROVED PROFESSIONALS"
-          value={stats.approvedProfessionals}
+          value={stats?.approvedProfessionals ?? 0}
           bg="bg-success/10"
           loading={statsLoading}
         />
         <StatCard
           icon={<Award className="w-5 h-5 text-accent" />}
           label="APPROVED MENTORS"
-          value={stats.approvedMentors}
+          value={stats?.approvedMentors ?? 0}
           bg="bg-accent/10"
           loading={statsLoading}
         />
         <StatCard
           icon={<GraduationCap className="w-5 h-5 text-primary" />}
           label="APPROVED CAREER GUIDES"
-          value={stats.approvedCareerGuides}
+          value={stats?.approvedCareerGuides ?? 0}
           bg="bg-primary/10"
           loading={statsLoading}
         />
@@ -269,14 +260,14 @@ const AdminVerification = () => {
                   <p className="text-xs text-muted">Submitted {formatDate(p.submittedAt)}</p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => openDeclineModal(p.id, 'professionals', refetchPros)}
+                      onClick={() => openDeclineModal(p.id, 'professionals')}
                       disabled={actioningId === p.id}
                       className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
                     >
                       Decline
                     </button>
                     <button
-                      onClick={() => handleApprove(p.id, 'professionals', refetchPros)}
+                      onClick={() => handleApprove(p.id, 'professionals')}
                       disabled={actioningId === p.id}
                       className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
                     >
@@ -378,14 +369,14 @@ const AdminVerification = () => {
                   <p className="text-xs text-muted">Applied {formatDate(m.appliedAt)}</p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => openDeclineModal(m.id, 'mentors', refetchMentors)}
+                      onClick={() => openDeclineModal(m.id, 'mentors')}
                       disabled={actioningId === m.id}
                       className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
                     >
                       Decline
                     </button>
                     <button
-                      onClick={() => handleApprove(m.id, 'mentors', refetchMentors)}
+                      onClick={() => handleApprove(m.id, 'mentors')}
                       disabled={actioningId === m.id}
                       className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
                     >
@@ -498,14 +489,14 @@ const AdminVerification = () => {
                   <p className="text-xs text-muted">Submitted {formatDate(cg.submittedAt)}</p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => openDeclineModal(cg.id, 'career-guides', refetchCGs)}
+                      onClick={() => openDeclineModal(cg.id, 'career-guides')}
                       disabled={actioningId === cg.id}
                       className="border border-error text-error text-xs px-3 py-1.5 rounded-lg hover:bg-error/5 disabled:opacity-60"
                     >
                       Decline
                     </button>
                     <button
-                      onClick={() => handleApprove(cg.id, 'career-guides', refetchCGs)}
+                      onClick={() => handleApprove(cg.id, 'career-guides')}
                       disabled={actioningId === cg.id}
                       className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
                     >

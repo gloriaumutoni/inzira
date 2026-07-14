@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { api } from '@/api/axios'
+import { useEffect } from 'react'
+import { useStudentDashboardQuery } from '@/hooks/queries/studentQueries'
 import { toast } from '@/utils/toast'
 
 interface UpcomingSession {
@@ -35,7 +35,7 @@ interface ConfidenceLogEntry {
   createdAt: string
 }
 
-interface StudentDashboardData {
+export interface StudentDashboardData {
   upcomingSessions: UpcomingSession[]
   groupSessions: GroupSessionEnrolment[]
   latestConfidence: ConfidenceLogEntry | null
@@ -49,29 +49,18 @@ interface UseStudentDashboardResult {
 }
 
 const useStudentDashboard = (): UseStudentDashboardResult => {
-  const [dashboard, setDashboard] = useState<StudentDashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-  const [tick, setTick] = useState(0)
+  const { data, isLoading, isError, refetch } = useStudentDashboardQuery()
 
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const { data } = await api.get('/students/me/dashboard')
-        setDashboard(data.data)
-      } catch {
-        setError(true)
-        toast.error('Unable to load your dashboard data.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetch()
-  }, [tick])
+    if (isError) toast.error('Unable to load your dashboard data.')
+  }, [isError])
 
-  const refetch = () => setTick((t) => t + 1)
-
-  return { dashboard, loading, error, refetch }
+  return {
+    dashboard: data ?? null,
+    loading: isLoading,
+    error: isError,
+    refetch: () => { refetch() },
+  }
 }
 
 export default useStudentDashboard

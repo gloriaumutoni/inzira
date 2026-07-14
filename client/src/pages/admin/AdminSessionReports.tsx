@@ -1,37 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronUp, ShieldOff, ShieldCheck } from 'lucide-react'
-import { api } from '@/api/axios'
-
-type ReportReason = 'INAPPROPRIATE_BEHAVIOUR' | 'UNCOMFORTABLE_CONTENT' | 'NO_SHOW' | 'HARASSMENT' | 'OTHER'
-type ReportStatus = 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'DISMISSED'
-
-interface ReportedProfessional {
-  id: string
-  firstName: string
-  lastName: string
-  isActive: boolean
-}
-
-interface SessionReport {
-  id: string
-  reason: ReportReason
-  description?: string
-  status: ReportStatus
-  createdAt: string
-  session?: {
-    id: string
-    scheduledAt: string
-    student: { firstName: string; lastName: string }
-    professional: ReportedProfessional
-  }
-  groupSession?: {
-    id: string
-    title: string
-    scheduledAt: string
-    professional: ReportedProfessional
-  }
-  reporter: { id: string; email: string; student?: { firstName: string; lastName: string } | null }
-}
+import {
+  useSessionReportsQuery,
+  useUpdateSessionReportStatusMutation,
+  useSuspendProfessionalMutation,
+  type ReportReason,
+  type ReportStatus,
+  type SessionReport,
+} from '@/hooks/queries/adminQueries'
 
 const REASON_LABELS: Record<ReportReason, string> = {
   INAPPROPRIATE_BEHAVIOUR: 'Inappropriate behaviour',
@@ -197,43 +173,19 @@ function ReportRow({ report, onStatusChange, onSuspendToggle }: Readonly<{
 }
 
 const AdminSessionReports = () => {
-  const [reports, setReports] = useState<SessionReport[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [filterTab, setFilterTab] = useState<ReportStatus | 'ALL'>('ALL')
+  const { data: reports = [], isLoading: loading, isError } = useSessionReportsQuery(filterTab)
+  const error = isError ? 'Could not load reports.' : null
 
-  const fetchReports = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const params = filterTab === 'ALL' ? '' : `?status=${filterTab}`
-      const { data } = await api.get(`/admin/session-reports${params}`)
-      setReports(data.data ?? [])
-    } catch {
-      setError('Could not load reports.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchReports() }, [filterTab])
+  const updateStatusMutation = useUpdateSessionReportStatusMutation()
+  const suspendMutation = useSuspendProfessionalMutation()
 
   const handleStatusChange = async (id: string, status: ReportStatus) => {
-    await api.patch(`/admin/session-reports/${id}`, { status })
-    setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+    await updateStatusMutation.mutateAsync({ id, status })
   }
 
   const handleSuspendToggle = async (professionalId: string, currentlyActive: boolean) => {
-    await api.patch(`/admin/professionals/${professionalId}/${currentlyActive ? 'suspend' : 'reinstate'}`)
-    setReports(prev => prev.map(r => {
-      if (r.session?.professional.id === professionalId) {
-        return { ...r, session: { ...r.session, professional: { ...r.session.professional, isActive: !currentlyActive } } }
-      }
-      if (r.groupSession?.professional.id === professionalId) {
-        return { ...r, groupSession: { ...r.groupSession, professional: { ...r.groupSession.professional, isActive: !currentlyActive } } }
-      }
-      return r
-    }))
+    await suspendMutation.mutateAsync({ professionalId, currentlyActive })
   }
 
   const SKELETON_KEYS = ['a', 'b', 'c', 'd']

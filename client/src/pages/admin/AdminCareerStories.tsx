@@ -1,7 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { CheckCircle, XCircle, BookOpen, AlertCircle, EyeOff, PenLine, X, ChevronDown } from 'lucide-react'
-import { type CareerStory, adminListVerifiedProfessionals, type VerifiedProfessional } from '@/api/careerStories.api'
-import useAdminCareerStories, { type Tab } from '@/hooks/useAdminCareerStories'
+import { type CareerStory } from '@/api/careerStories.api'
+import {
+  useAdminCareerStoriesQuery,
+  useVerifiedProfessionalsQuery,
+  useApproveCareerStoryMutation,
+  useRejectCareerStoryMutation,
+  useUnpublishCareerStoryMutation,
+  useCreateCareerStoryMutation,
+  type CareerStoryTab as Tab,
+} from '@/hooks/queries/adminQueries'
 import { CombinationPathwayPicker } from '@/components/shared/CombinationPathwayPicker'
 
 const SECTORS = [
@@ -30,16 +38,10 @@ function WriteStoryModal({
   submitting: boolean
 }>) {
   const [form, setForm] = useState(EMPTY_FORM)
-  const [professionals, setProfessionals] = useState<VerifiedProfessional[]>([])
+  const { data: professionals = [] } = useVerifiedProfessionalsQuery()
   const [proSearch, setProSearch] = useState('')
   const [proDropOpen, setProDropOpen] = useState(false)
   const [formError, setFormError] = useState('')
-
-  useEffect(() => {
-    adminListVerifiedProfessionals()
-      .then(setProfessionals)
-      .catch(() => {})
-  }, [])
 
   const selectedPro = professionals.find(p => p.id === form.professionalId)
   const filteredPros = professionals.filter(p =>
@@ -434,8 +436,33 @@ const EMPTY_MESSAGES: Record<Tab, { icon: React.ElementType; heading: string; su
 }
 
 const AdminCareerStories = () => {
-  const { stories, loading, error, actingId, tab, setTab, approve, reject, unpublish, create } =
-    useAdminCareerStories()
+  const [tab, setTab] = useState<Tab>('PENDING_REVIEW')
+  const { data: stories = [], isLoading: loading, isError } = useAdminCareerStoriesQuery(tab)
+  const error = isError ? 'Failed to load stories' : ''
+  const [actingId, setActingId] = useState<string | null>(null)
+
+  const approveMutation = useApproveCareerStoryMutation()
+  const rejectMutation = useRejectCareerStoryMutation()
+  const unpublishMutation = useUnpublishCareerStoryMutation()
+  const createMutation = useCreateCareerStoryMutation()
+
+  const approve = async (id: string) => {
+    setActingId(id)
+    try {
+      await approveMutation.mutateAsync({ id, tab })
+    } finally {
+      setActingId(null)
+    }
+  }
+
+  const unpublish = async (id: string) => {
+    setActingId(id)
+    try {
+      await unpublishMutation.mutateAsync({ id, tab })
+    } finally {
+      setActingId(null)
+    }
+  }
 
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [showWriteModal, setShowWriteModal] = useState(false)
@@ -445,13 +472,18 @@ const AdminCareerStories = () => {
     if (!rejectingId) return
     const id = rejectingId
     setRejectingId(null)
-    await reject(id, reason)
+    setActingId(id)
+    try {
+      await rejectMutation.mutateAsync({ id, reason, tab })
+    } finally {
+      setActingId(null)
+    }
   }
 
   const handleWriteSubmit = async (data: typeof EMPTY_FORM) => {
     setWriteSubmitting(true)
     try {
-      await create(data)
+      await createMutation.mutateAsync(data)
       setShowWriteModal(false)
     } finally {
       setWriteSubmitting(false)

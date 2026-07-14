@@ -1,17 +1,12 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { api } from '@/api/axios'
+import { CombinationPathwayPicker } from '@/components/shared/CombinationPathwayPicker'
 
 const SECTORS = [
   'ICT', 'Engineering', 'Healthcare', 'Finance',
   'Education', 'Agriculture', 'Law', 'Architecture',
   'Arts & Media', 'Business', 'Manufacturing', 'Logistics', 'Other',
-]
-
-const COMBINATIONS = [
-  'MPC', 'MPG', 'MEG', 'MHE', 'MCE',
-  'PCB', 'BCG', 'HEG', 'HEL', 'HGL',
-  'KEG', 'KEL', 'KGL', 'AEG', 'PCG',
 ]
 
 interface CreateGroupSessionModalProps {
@@ -28,9 +23,6 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
   const [maxStudents, setMaxStudents] = useState(30)
   const [joinLink, setJoinLink] = useState('')
   const [combinations, setCombinations] = useState<string[]>([])
-
-  const toggleCombination = (c: string) =>
-    setCombinations(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,7 +40,7 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (loading) return
-    if (joinLink && !isValidGoogleMeetLink(joinLink)) {
+    if (!isValidGoogleMeetLink(joinLink)) {
       setError('Please enter a valid Google Meet link (https://meet.google.com/...)')
       return
     }
@@ -63,7 +55,7 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
         scheduledAt: new Date(scheduledAt).toISOString(),
         duration: Number(duration),
         maxStudents: Number(maxStudents),
-        joinLink: joinLink || undefined,
+        joinLink,
       })
       onSuccess()
       onClose()
@@ -123,24 +115,12 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">A-Level Combinations <span className="text-subtle">(optional)</span></label>
-            <div className="flex flex-wrap gap-2">
-              {COMBINATIONS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => toggleCombination(c)}
-                  className={[
-                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
-                    combinations.includes(c)
-                      ? 'bg-accent text-white border-accent'
-                      : 'border-border text-muted hover:border-accent/50',
-                  ].join(' ')}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            <CombinationPathwayPicker
+              value={combinations}
+              onChange={setCombinations}
+              mode="multi"
+              sections={['legacy', 'pathway']}
+            />
             <p className="text-xs text-muted mt-1">Leave empty to show to all students.</p>
           </div>
 
@@ -184,9 +164,10 @@ const CreateGroupSessionModal = ({ onClose, onSuccess }: CreateGroupSessionModal
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Join Link <span className="text-subtle">(optional)</span></label>
+            <label className="block text-xs font-medium text-muted mb-1">Join Link</label>
             <input
               type="text"
+              required
               value={joinLink}
               onChange={(e) => setJoinLink(e.target.value)}
               placeholder="https://meet.google.com/abc-defg-hij"

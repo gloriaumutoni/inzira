@@ -1,11 +1,21 @@
 import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { UIProvider } from '@/contexts/UIContext'
 import AppRouter from '@/routes/AppRouter'
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
 const App = () => (
-  <>
+  <QueryClientProvider client={queryClient}>
     <Toaster
       position="top-right"
       closeButton
@@ -26,7 +36,7 @@ const App = () => (
         </BrowserRouter>
       </UIProvider>
     </AuthProvider>
-  </>
+  </QueryClientProvider>
 )
 
 export default App

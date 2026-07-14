@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, ChevronDown, ChevronUp, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
-  getMyCareerStories,
   createCareerStory,
   updateCareerStory,
-  getCombinations,
   type CareerStory,
   type CareerStoryPayload,
 } from '@/api/careerStories.api'
+import {
+  professionalDashboardKeys,
+  useCareerStoriesMeQuery,
+  useCareerStoryCombinationsQuery,
+} from '@/hooks/queries/professionalDashboardQueries'
 import { CareerStoryForm, EMPTY_FORM } from '@/components/professional/CareerStoryForm'
 
 type Status = CareerStory['status']
@@ -104,30 +108,23 @@ function StorySection({ title, children }: Readonly<{ title: string; children: s
 }
 
 const ProfessionalCareerStories = () => {
-  const [stories, setStories] = useState<CareerStory[]>([])
-  const [combinations, setCombinations] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: stories = [], isLoading: loading } = useCareerStoriesMeQuery()
+  const { data: combinations = [] } = useCareerStoryCombinationsQuery()
   const [showForm, setShowForm] = useState(false)
   const [editingStory, setEditingStory] = useState<CareerStory | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
-  useEffect(() => {
-    Promise.all([
-      getMyCareerStories(),
-      getCombinations(),
-    ]).then(([s, c]) => {
-      setStories(s)
-      setCombinations(c)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const invalidateStories = () =>
+    queryClient.invalidateQueries({ queryKey: professionalDashboardKeys.careerStoriesMe })
 
   const handleCreate = async (data: CareerStoryPayload) => {
     setSubmitting(true)
     setFormError('')
     try {
-      const story = await createCareerStory(data)
-      setStories(prev => [story, ...prev])
+      await createCareerStory(data)
+      invalidateStories()
       setShowForm(false)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to submit story')
@@ -141,8 +138,8 @@ const ProfessionalCareerStories = () => {
     setSubmitting(true)
     setFormError('')
     try {
-      const updated = await updateCareerStory(editingStory.id, data)
-      setStories(prev => prev.map(s => s.id === updated.id ? updated : s))
+      await updateCareerStory(editingStory.id, data)
+      invalidateStories()
       setEditingStory(null)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to update story')

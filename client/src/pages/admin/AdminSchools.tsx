@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { Building2, Users, UserCheck, X } from 'lucide-react'
-import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
-import useSchools, { School } from '@/hooks/useSchools'
+import {
+  useSchoolsQuery,
+  useAddSchoolMutation,
+  useAssignCareerGuideMutation,
+  useDeactivateSchoolMutation,
+  type School,
+} from '@/hooks/queries/adminQueries'
 
 const DISTRICTS = ['Gasabo', 'Nyarugenge', 'Kicukiro', 'Other']
 
@@ -16,7 +21,10 @@ interface AssignForm {
 }
 
 const AdminSchools = () => {
-  const { schools, loading, error, refetch } = useSchools()
+  const { data: schools = [], isLoading: loading, isError: error } = useSchoolsQuery()
+  const addSchoolMutation = useAddSchoolMutation()
+  const assignCareerGuideMutation = useAssignCareerGuideMutation()
+  const deactivateSchoolMutation = useDeactivateSchoolMutation()
   const [selected, setSelected] = useState<School | null>(null)
   const [districtFilter, setDistrictFilter] = useState<'all' | 'hasGuide'>('all')
 
@@ -48,8 +56,7 @@ const AdminSchools = () => {
     setAddLoading(true)
     setAddError('')
     try {
-      await api.post('/schools', { name: addForm.name.trim(), district: addForm.district })
-      refetch()
+      await addSchoolMutation.mutateAsync({ name: addForm.name.trim(), district: addForm.district })
       setShowAddModal(false)
       setAddForm({ name: '', district: 'Gasabo' })
       toast.success('School added successfully.')
@@ -68,8 +75,7 @@ const AdminSchools = () => {
     setAssignLoading(true)
     setAssignError('')
     try {
-      await api.post(`/schools/${assignSchoolId}/career-guide`, { email: assignForm.email.trim() })
-      refetch()
+      await assignCareerGuideMutation.mutateAsync({ schoolId: assignSchoolId, email: assignForm.email.trim() })
       if (selected?.id === assignSchoolId) {
         setSelected(null)
       }
@@ -89,8 +95,7 @@ const AdminSchools = () => {
     if (!window.confirm(`Deactivate ${school.name}? Students will no longer be associated with it.`)) return
     setDeactivating(school.id)
     try {
-      await api.patch(`/schools/${school.id}`, { isActive: false })
-      refetch()
+      await deactivateSchoolMutation.mutateAsync(school.id)
       if (selected?.id === school.id) setSelected(null)
       toast.success('School deactivated.')
     } catch {

@@ -1,18 +1,19 @@
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import useMentees from '@/hooks/useMentees'
+import { useMenteesQuery } from '@/hooks/queries/professionalDashboardQueries'
 
 const ProfessionalMentees = () => {
   const { user } = useAuth()
+  const canView = user?.professional?.isVerified !== false && !!user?.professional?.isMentor
+  const { data: mentees = [], isLoading: loading, isError: error } = useMenteesQuery(canView)
+  const navigate = useNavigate()
+
   if (user?.professional?.isVerified === false) {
     return <Navigate to="/professional/home" replace />
   }
   if (!user?.professional?.isMentor) {
     return <Navigate to="/professional/home" replace />
   }
-
-  const { mentees, loading, error } = useMentees()
-  const navigate = useNavigate()
 
   const proCount = mentees.filter((m) => m.plan === 'PRO').length
   const premiumCount = mentees.filter((m) => m.plan === 'PREMIUM').length

@@ -1,9 +1,7 @@
 import { Fragment, useState, useMemo } from 'react'
-import { X, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useAuth } from '@/contexts/AuthContext'
-import { api } from '@/api/axios'
-import { toast } from '@/utils/toast'
 import useCareerGuideDashboard from '@/hooks/useCareerGuideDashboard'
 import useGroupSessions from '@/hooks/useGroupSessions'
 import useCareerGuideStudents from '@/hooks/useCareerGuideStudents'
@@ -51,7 +49,15 @@ const STATUS_ORDER: Record<Status, number> = {
   'inactive': 3,
 }
 
-const StatusBadge = ({ status }: { status: Status }) => {
+const StatusBadge = ({
+  status,
+  confidence,
+  reason,
+}: {
+  status: Status
+  confidence?: number | null
+  reason?: string | null
+}) => {
   const cfg = {
     'needs-followup': { label: 'Needs Follow-up', cls: 'bg-error/10 text-error' },
     active: { label: 'Active', cls: 'bg-success/10 text-success' },
@@ -59,9 +65,17 @@ const StatusBadge = ({ status }: { status: Status }) => {
     inactive: { label: 'Inactive', cls: 'bg-muted/10 text-muted' },
   }[status]
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${cfg.cls}`}>
-      {cfg.label}
-    </span>
+    <div>
+      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${cfg.cls}`}>
+        {cfg.label}
+      </span>
+      {status === 'needs-followup' && (
+        <div className="mt-1 text-[11px] text-muted leading-snug max-w-[180px]">
+          {confidence !== null && confidence !== undefined && <span>Confidence: {confidence}/10. </span>}
+          {reason}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -97,13 +111,10 @@ const describeLastActivity = (
 
 const ExpandedActivityRow = ({ student }: { student: SchoolStudent }) => {
   const { detail, loading } = useCareerGuideStudentDetail(student.id)
-  const reflections = detail?.confidenceLogs.filter((l) => l.sessionId !== null) ?? []
-  const reflectionTrend =
-    reflections.length >= 2 ? reflections[reflections.length - 1].score - reflections[0].score : null
 
   return (
     <tr className="bg-background/40">
-      <td colSpan={9} className="px-5 py-4">
+      <td colSpan={8} className="px-5 py-4">
         {loading || !detail ? (
           <div className="h-16 bg-border/40 animate-pulse rounded-lg" />
         ) : (
@@ -116,29 +127,7 @@ const ExpandedActivityRow = ({ student }: { student: SchoolStudent }) => {
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Reflections</p>
-              <p className="text-xs text-primary">
-                {reflections.length === 0
-                  ? 'None submitted yet'
-                  : `${reflections.length} submitted${
-                      reflectionTrend === null
-                        ? ''
-                        : reflectionTrend > 0
-                        ? ', confidence trending up'
-                        : reflectionTrend < 0
-                        ? ', confidence trending down'
-                        : ', confidence steady'
-                    }`}
-              </p>
-              {reflections.length > 0 && reflections[reflections.length - 1].note && (
-                <p className="text-xs text-muted italic mt-0.5">
-                  "{reflections[reflections.length - 1].note}"
-                </p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Combinations Considering</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Stream Considering</p>
               {detail.combinationsConsidering.length === 0 ? (
                 <p className="text-xs text-muted">None set</p>
               ) : (
@@ -159,16 +148,16 @@ const ExpandedActivityRow = ({ student }: { student: SchoolStudent }) => {
               {detail.sessionHistory.length === 0 ? (
                 <p className="text-xs text-muted">No sessions yet</p>
               ) : (
-                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                <ul className="space-y-1 max-h-28 overflow-y-auto pr-1 list-disc list-inside">
                   {detail.sessionHistory.map((sess, i) => (
-                    <div key={`${sess.id}-${i}`} className="flex justify-between gap-2 text-xs">
-                      <span className="text-primary truncate">
+                    <li key={`${sess.id}-${i}`} className="text-xs">
+                      <span className="text-primary">
                         {sess.type === 'Group' ? sess.title ?? 'Group Session' : sess.professionalName}
                       </span>
-                      <span className="text-muted whitespace-nowrap">{fmtDate(sess.date)}</span>
-                    </div>
+                      <span className="text-muted"> · {fmtDate(sess.date)}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </div>
 
@@ -242,7 +231,6 @@ const EngagementTable = ({ students }: { students: SchoolStudent[] }) => {
                 Name <SortIcon k="name" />
               </th>
               <th className="text-left px-3 py-3 text-muted font-semibold uppercase tracking-wide">Level</th>
-              <th className="text-left px-3 py-3 text-muted font-semibold uppercase tracking-wide">Year</th>
               <th className="text-left px-3 py-3 text-muted font-semibold uppercase tracking-wide">Combinations</th>
               <th
                 className="text-center px-3 py-3 text-muted font-semibold uppercase tracking-wide cursor-pointer select-none"
@@ -287,7 +275,6 @@ const EngagementTable = ({ students }: { students: SchoolStudent[] }) => {
                     <td className="px-3 py-3 text-muted whitespace-nowrap">
                       {s.level === 'A_LEVEL' ? 'A-Level' : 'O-Level'}
                     </td>
-                    <td className="px-3 py-3 text-muted">{s.schoolYear}</td>
                     <td className="px-3 py-3 text-muted max-w-[140px]">
                       {s.combinationsConsidering.length > 0
                         ? s.combinationsConsidering.slice(0, 2).join(', ') +
@@ -309,7 +296,7 @@ const EngagementTable = ({ students }: { students: SchoolStudent[] }) => {
                       {fmtRelative(s.lastActiveDate)}
                     </td>
                     <td className="px-3 py-3">
-                      <StatusBadge status={status} />
+                      <StatusBadge status={status} confidence={s.currentConfidence} reason={s.attentionReason} />
                     </td>
                     <td className="px-3 py-3 text-muted">
                       {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -321,7 +308,7 @@ const EngagementTable = ({ students }: { students: SchoolStudent[] }) => {
             })}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-muted">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted">
                   No students found.
                 </td>
               </tr>
@@ -336,13 +323,10 @@ const EngagementTable = ({ students }: { students: SchoolStudent[] }) => {
 // ─── Main component ──────────────────────────────────────────────────────────
 
 const CareerGuideHome = () => {
-  const { user, setUser } = useAuth()
+  const { user } = useAuth()
   const { dashboard, loading: dashLoading, error: dashError } = useCareerGuideDashboard()
   const { sessions: groupSessions, loading: gsLoading } = useGroupSessions({ limit: 2 })
   const { students, loading: studentsLoading } = useCareerGuideStudents()
-  const [showResubmitModal, setShowResubmitModal] = useState(false)
-  const [linkedinUrl, setLinkedinUrl] = useState('')
-  const [resubmitting, setResubmitting] = useState(false)
 
   const firstName = user?.careerGuide?.firstName ?? 'Guide'
   const schoolName = dashboard?.school?.name
@@ -350,90 +334,15 @@ const CareerGuideHome = () => {
   if (user?.careerGuide && !user.careerGuide.isVerified) {
     const isRejected = user.careerGuide.verificationStatus === 'REJECTED'
 
-    const handleResubmit = async () => {
-      setResubmitting(true)
-      try {
-        await api.post('/career-guides/me/reapply', { linkedinUrl: linkedinUrl.trim() || undefined })
-        toast.success('Application resubmitted.')
-        setShowResubmitModal(false)
-        setUser({
-          ...user!,
-          careerGuide: {
-            ...user!.careerGuide!,
-            linkedinUrl: linkedinUrl.trim() || user!.careerGuide!.linkedinUrl,
-            verificationStatus: 'PENDING',
-            verificationAttempts: (user!.careerGuide!.verificationAttempts ?? 0) + 1,
-          },
-        })
-      } catch (err: unknown) {
-        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        toast.error(msg ?? 'Could not resubmit. Please try again.')
-      } finally {
-        setResubmitting(false)
-      }
-    }
-
-    const verificationAttempts = user.careerGuide.verificationAttempts ?? 0
-
     return (
       <div className="p-6 space-y-6">
-        {showResubmitModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
-            <dialog open aria-labelledby="cg-resubmit-title" className="static bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 m-0 border-0">
-              <div className="flex items-center justify-between mb-4">
-                <h2 id="cg-resubmit-title" className="text-base font-bold text-primary">Resubmit Application</h2>
-                <button onClick={() => setShowResubmitModal(false)} className="text-muted hover:text-primary">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-xs text-muted mb-5">Update your LinkedIn profile URL and resubmit for admin review.</p>
-              <div>
-                <label className="text-xs font-semibold text-muted uppercase tracking-wide">LinkedIn URL</label>
-                <input
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  placeholder={user.careerGuide?.linkedinUrl ?? 'https://linkedin.com/in/your-profile'}
-                  className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-background text-primary"
-                />
-              </div>
-              <div className="flex gap-2 mt-6 justify-end">
-                <button
-                  onClick={() => setShowResubmitModal(false)}
-                  className="px-4 py-2 text-sm text-muted hover:text-primary border border-border rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleResubmit}
-                  disabled={resubmitting}
-                  className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-60"
-                >
-                  {resubmitting ? 'Submitting…' : 'Resubmit'}
-                </button>
-              </div>
-            </dialog>
-          </div>
-        )}
         {isRejected ? (
-          verificationAttempts >= 3 ? (
-            <div className="bg-error/10 border border-error/20 rounded-xl p-5">
-              <p className="text-sm font-semibold text-error">Not eligible to apply</p>
-              <p className="text-xs text-muted mt-1">You have reached the maximum number of verification submissions (3) and are no longer eligible to apply.</p>
-            </div>
-          ) : (
-            <div className="bg-error/10 border border-error/20 rounded-xl p-5">
-              <p className="text-sm font-semibold text-error">Your application was declined</p>
-              {user.careerGuide.rejectionReason && (
-                <p className="text-xs text-muted mt-1">{user.careerGuide.rejectionReason}</p>
-              )}
-              <button
-                onClick={() => { setLinkedinUrl(user.careerGuide?.linkedinUrl ?? ''); setShowResubmitModal(true) }}
-                className="mt-3 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Resubmit for review
-              </button>
-            </div>
-          )
+          <div className="bg-error/10 border border-error/20 rounded-xl p-5">
+            <p className="text-sm font-semibold text-error">Request to become Career Guide declined</p>
+            {user.careerGuide.rejectionReason && (
+              <p className="text-xs text-muted mt-1">Reason: {user.careerGuide.rejectionReason}</p>
+            )}
+          </div>
         ) : (
           <div className="bg-warning/10 border border-warning/20 rounded-xl p-5">
             <p className="text-sm font-semibold text-primary">Your account is under review</p>

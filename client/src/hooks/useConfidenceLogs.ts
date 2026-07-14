@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
-import { api } from '@/api/axios'
+import { useConfidenceLogsQuery, groupLogsByCombo } from '@/hooks/queries/studentQueries'
 
 export interface ConfidenceLog {
   id: string
@@ -17,34 +16,15 @@ export interface CombinationTrend {
 }
 
 const useConfidenceLogs = () => {
-  const [logs, setLogs] = useState<ConfidenceLog[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading, refetch } = useConfidenceLogsQuery()
+  const logs = data ?? []
 
-  const fetch = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data } = await api.get('/students/me/confidence')
-      setLogs(data.data)
-    } catch {
-      // fail silently
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { fetch() }, [fetch])
-
-  const byCombo: CombinationTrend[] = (() => {
-    const map = new Map<string, ConfidenceLog[]>()
-    for (const log of logs) {
-      const key = log.combination ?? 'General'
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(log)
-    }
-    return Array.from(map.entries()).map(([combination, entries]) => ({ combination, logs: entries }))
-  })()
-
-  return { logs, byCombo, loading, refetch: fetch }
+  return {
+    logs,
+    byCombo: groupLogsByCombo(logs),
+    loading: isLoading,
+    refetch: () => { refetch() },
+  }
 }
 
 export default useConfidenceLogs

@@ -1,35 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentDashboard from '@/hooks/useStudentDashboard'
 import useConfidenceLogs from '@/hooks/useConfidenceLogs'
 import ManualConfidenceModal from '@/components/student/ManualConfidenceModal'
 import CombinationConfidenceChart from '@/components/student/CombinationConfidenceChart'
-import { api } from '@/api/axios'
-import { listCareerStories, CareerStory } from '@/api/careerStories.api'
+import {
+  useMentorSlotsQuery,
+  useGroupSessionsBrowseQuery,
+  useCareerStoriesDiscoveryQuery,
+  useEnrolGroupSessionMutation,
+} from '@/hooks/queries/studentQueries'
 import { getTrackLabel } from '@/utils/studentTrack'
-
-interface MentorSlot {
-  id: string
-  scheduledAt: string
-  durationMins: number
-  meetLink: string | null
-  Professional: { id: string; firstName: string; lastName: string; jobTitle: string }
-}
-
-interface GroupSession {
-  id: string
-  title: string
-  description?: string
-  scheduledAt: string
-  duration: number
-  sector: string
-  combinations: string[]
-  maxStudents: number
-  joinLink?: string
-  professional: { id: string; firstName: string; lastName: string; jobTitle?: string }
-  _count: { enrolments: number }
-}
 
 const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
 
@@ -43,76 +25,23 @@ const ALevelHome = () => {
   const { dashboard, loading: dashLoading, error: dashError } = useStudentDashboard()
   const { byCombo, refetch: refetchLogs } = useConfidenceLogs()
   const [showManualLog, setShowManualLog] = useState(false)
-  const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
-  const [slotsLoading, setSlotsLoading] = useState(true)
-  const [enrolling, setEnrolling] = useState<string | null>(null)
-  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
-
-  const [relevantSessions, setRelevantSessions] = useState<GroupSession[]>([])
-  const [relevantStories, setRelevantStories] = useState<CareerStory[]>([])
-  const [discoveryLoading, setDiscoveryLoading] = useState(true)
 
   const studentCombos = user?.student?.combinationsConsidering ?? []
 
-  useEffect(() => {
-    if (dashboard?.groupSessions) {
-      setEnrolledIds(new Set(dashboard.groupSessions.map((e: { groupSession: { id: string } }) => e.groupSession.id)))
-    }
-  }, [dashboard])
+  const { data: mentorSlots = [], isLoading: slotsLoading } = useMentorSlotsQuery()
+  const { data: relevantSessions = [], isLoading: sessionsDiscoveryLoading } = useGroupSessionsBrowseQuery(
+    { combination: studentCombos.join(','), limit: 3 },
+    studentCombos.length > 0
+  )
+  const { data: relevantStories = [], isLoading: storiesDiscoveryLoading } = useCareerStoriesDiscoveryQuery(studentCombos)
 
-  const fetchDiscovery = useCallback(async () => {
-    if (studentCombos.length === 0) {
-      setDiscoveryLoading(false)
-      return
-    }
-    setDiscoveryLoading(true)
-    try {
-      const combination = studentCombos.join(',')
+  const enrolledIds = useMemo(
+    () => new Set((dashboard?.groupSessions ?? []).map(e => e.groupSession.id)),
+    [dashboard]
+  )
 
-      const gsRes = await api.get(`/group-sessions?combination=${encodeURIComponent(combination)}&limit=3`)
-      setRelevantSessions(gsRes.data.data.sessions ?? [])
-
-      const storyResults = await Promise.all(
-        studentCombos.map(c => listCareerStories({ combination: c, limit: 3 }))
-      )
-      const seen = new Set<string>()
-      const deduped: CareerStory[] = []
-      for (const result of storyResults) {
-        for (const story of result.stories) {
-          if (!seen.has(story.id)) {
-            seen.add(story.id)
-            deduped.push(story)
-          }
-        }
-      }
-      setRelevantStories(deduped.slice(0, 3))
-    } catch {
-      // fail silently — discovery sections are non-critical
-    } finally {
-      setDiscoveryLoading(false)
-    }
-  }, [studentCombos.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    api.get('/students/me/mentor-slots')
-      .then(({ data }) => setMentorSlots(data.data.slots ?? []))
-      .catch(() => {})
-      .finally(() => setSlotsLoading(false))
-  }, [])
-
-  useEffect(() => { fetchDiscovery() }, [fetchDiscovery])
-
-  const handleEnrol = async (sessionId: string) => {
-    setEnrolling(sessionId)
-    try {
-      await api.post(`/group-sessions/${sessionId}/enrol`)
-      setEnrolledIds(prev => new Set([...prev, sessionId]))
-    } catch {
-      // fail silently
-    } finally {
-      setEnrolling(null)
-    }
-  }
+  const enrolMutation = useEnrolGroupSessionMutation()
+  const handleEnrol = (sessionId: string) => enrolMutation.mutate(sessionId)
 
   const firstName = user?.student?.firstName ?? 'there'
   const combination = getTrackLabel(user?.student) ?? 'A-Level'
@@ -123,7 +52,7 @@ const ALevelHome = () => {
   const confidenceScore = dashboard?.latestConfidence?.score ?? null
 
   const renderDiscoverySessions = () => {
-    if (discoveryLoading) {
+    if (sessionsDiscoveryLoading) {
       return (
         <div className={GRID}>
           {['a', 'b', 'c'].map(k => (
@@ -144,7 +73,7 @@ const ALevelHome = () => {
       <div className={GRID}>
         {relevantSessions.map(gs => {
           const isEnrolled = enrolledIds.has(gs.id)
-          const isPending = enrolling === gs.id
+          const isPending = enrolMutation.isPending && enrolMutation.variables === gs.id
           return (
             <div key={gs.id} className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2">
               <p className="text-sm font-semibold text-primary leading-tight">{gs.title}</p>
@@ -297,7 +226,7 @@ const ALevelHome = () => {
         </section>
       )}
 
-      {studentCombos.length > 0 && !discoveryLoading && relevantStories.length > 0 && (
+      {studentCombos.length > 0 && !storiesDiscoveryLoading && relevantStories.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-primary">Career stories from professionals in your field</h2>

@@ -1,11 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { Users, Briefcase, CheckCircle, GraduationCap, BookOpen, UserCheck } from 'lucide-react'
-import useAdminStats from '@/hooks/useAdminStats'
-
-
+import { useAdminStatsQuery } from '@/hooks/queries/adminQueries'
 
 const AdminOverview = () => {
-  const { stats, loading } = useAdminStats()
+  const { data: stats, isLoading: loading } = useAdminStatsQuery()
   const navigate = useNavigate()
 
   return (

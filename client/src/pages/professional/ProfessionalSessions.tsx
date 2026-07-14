@@ -1,30 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
-import { api } from '@/api/axios'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
 import EditGroupSessionModal from '@/components/professional/EditGroupSessionModal'
-
-interface GroupSession {
-  id: string
-  title: string
-  scheduledAt: string
-  maxStudents: number
-  status: string
-  joinLink?: string
-  description?: string
-  sector?: string
-  isCancelled?: boolean
-  _count?: { enrolments: number }
-}
-
-interface MenteeSession {
-  id: string
-  scheduledAt: string
-  type: string
-  status: string
-  duration: number
-  student: { id: string; firstName: string; lastName: string }
-}
+import {
+  professionalDashboardKeys,
+  useGroupSessionsMeQuery,
+  useMenteeSessionsQuery,
+  type GroupSession,
+  type MenteeSession,
+} from '@/hooks/queries/professionalDashboardQueries'
 
 const sessionGrid = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
 
@@ -70,38 +55,18 @@ const TabBar = ({ tabs, active, onChange }: { tabs: string[]; active: string; on
 const ProfessionalSessions = () => {
   const { user } = useAuth()
   const isMentor = user?.professional?.isMentor ?? false
+  const queryClient = useQueryClient()
 
   const [categoryTab, setCategoryTab] = useState<'Group Sessions' | 'Mentee Sessions'>('Group Sessions')
   const [timeTab, setTimeTab] = useState<'Upcoming' | 'Past'>('Upcoming')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingSession, setEditingSession] = useState<GroupSession | null>(null)
 
-  const [groupSessions, setGroupSessions] = useState<GroupSession[]>([])
-  const [gsLoading, setGsLoading] = useState(true)
-  const [gsTick, setGsTick] = useState(0)
+  const { data: groupSessions = [], isLoading: gsLoading } = useGroupSessionsMeQuery()
+  const { data: menteeSessions = [], isLoading: menteeLoading } = useMenteeSessionsQuery(isMentor)
 
-  const [menteeSessions, setMenteeSessions] = useState<MenteeSession[]>([])
-  const [menteeLoading, setMenteeLoading] = useState(true)
-
-  useEffect(() => {
-    setGsLoading(true)
-    api.get('/group-sessions/me')
-      .then(({ data }) => {
-        const raw = data.data.sessions ?? data.data ?? []
-        const unique = Array.from(new Map(raw.map((s: { id: string }) => [s.id, s])).values())
-        setGroupSessions(unique as GroupSession[])
-      })
-      .catch(() => {})
-      .finally(() => setGsLoading(false))
-  }, [gsTick])
-
-  useEffect(() => {
-    if (!isMentor) return
-    api.get('/sessions?limit=1000')
-      .then(({ data }) => setMenteeSessions(data.data.sessions ?? []))
-      .catch(() => {})
-      .finally(() => setMenteeLoading(false))
-  }, [isMentor])
+  const invalidateGroupSessions = () =>
+    queryClient.invalidateQueries({ queryKey: professionalDashboardKeys.groupSessionsMe })
 
   const now = new Date()
 
@@ -215,7 +180,7 @@ const ProfessionalSessions = () => {
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false)
-            setGsTick(t => t + 1)
+            invalidateGroupSessions()
           }}
         />
       )}
@@ -224,7 +189,7 @@ const ProfessionalSessions = () => {
         <EditGroupSessionModal
           session={editingSession}
           onClose={() => setEditingSession(null)}
-          onSuccess={() => setGsTick(t => t + 1)}
+          onSuccess={invalidateGroupSessions}
         />
       )}
     </div>
