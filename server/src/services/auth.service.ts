@@ -30,6 +30,7 @@ interface SignupData {
   confidence?: number;
   careerInterests?: string[];
   combinationsConsidering?: string[];
+  relevantCombinations?: string[];
 }
 
 export const signup = async (data: SignupData) => {
@@ -41,6 +42,10 @@ export const signup = async (data: SignupData) => {
 
   if (existing) {
     throw new Error('An account with this email already exists. Please sign in instead.');
+  }
+
+  if (data.role === "PROFESSIONAL" && !data.relevantCombinations?.length) {
+    throw new Error('Please select at least one relevant A-Level combination.');
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
@@ -85,6 +90,7 @@ export const signup = async (data: SignupData) => {
           sector: data.sector ?? "",
           bio: data.bio ?? "",
           linkedinUrl: data.linkedinUrl ?? null,
+          relevantCombinations: data.relevantCombinations ?? [],
           verificationAttempts: 1,
         },
       });

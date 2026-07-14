@@ -70,6 +70,7 @@ const Signup = () => {
   const [selectedCareerIds, setSelectedCareerIds] = useState<string[]>([])
   const [aLevelSystem, setALevelSystem] = useState<'legacy' | 'pathway'>('legacy')
   const [combinationsConsidering, setCombinationsConsidering] = useState<string[]>([])
+  const [relevantCombinations, setRelevantCombinations] = useState<string[]>([])
   const [expandedPathway, setExpandedPathway] = useState<string | null>(null)
 
   useEffect(() => {
@@ -152,6 +153,11 @@ const Signup = () => {
       return
     }
 
+    if (role === 'PROFESSIONAL' && relevantCombinations.length === 0) {
+      setError('Please select at least one relevant A-Level combination.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -166,6 +172,7 @@ const Signup = () => {
         linkedinUrl: step3.linkedinUrl,
         ...(role === 'STUDENT' && step3.level === 'A_LEVEL' ? { careerInterests } : {}),
         ...(role === 'STUDENT' && step3.level === 'O_LEVEL' ? { combinationsConsidering } : {}),
+        ...(role === 'PROFESSIONAL' ? { relevantCombinations } : {}),
       }
 
       const { accessToken } = await signupUser(payload)
@@ -636,18 +643,19 @@ const Signup = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">Bio</label>
-                <textarea
-                  value={step3.bio ?? ''}
-                  onChange={(e) => setStep3({ ...step3, bio: e.target.value })}
-                  placeholder="Tell students about your career journey"
-                  rows={3}
-                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Relevant A-Level combinations
+                </label>
+                <p className="text-xs text-muted mb-2">Which A-Level subject combinations typically lead to your career?</p>
+                <CombinationPathwayPicker
+                  mode="multi"
+                  value={relevantCombinations}
+                  onChange={setRelevantCombinations}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">
-                  LinkedIn Profile URL <span className="text-error">*</span>
+                  LinkedIn Profile URL
                 </label>
                 <input
                   type="url"
@@ -660,6 +668,16 @@ const Signup = () => {
                 <p className="text-xs text-muted mt-1">
                   Used by our team to verify your professional background before approval.
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">Bio</label>
+                <textarea
+                  value={step3.bio ?? ''}
+                  onChange={(e) => setStep3({ ...step3, bio: e.target.value })}
+                  placeholder="Tell students about your career journey"
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                />
               </div>
               {error && (
                 <div className="bg-error/10 border border-error/20 rounded-lg px-4 py-3 flex items-start gap-2 mt-2">

@@ -18,6 +18,7 @@ export interface SignupPayload {
   linkedinUrl?: string
   careerInterests?: string[]
   combinationsConsidering?: string[]
+  relevantCombinations?: string[]
 }
 
 export const loginUser = async (
