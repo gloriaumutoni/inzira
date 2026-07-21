@@ -19,11 +19,7 @@ const SkeletonGrid = () => (
   </div>
 )
 
-const typeLabel = (type: string) => {
-  if (type === 'FREE_INTRO') return 'Free Intro'
-  if (type === 'PRO') return 'Pro'
-  return 'Premium'
-}
+const typeLabel = (_type: string) => 'Session'
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {

@@ -144,7 +144,6 @@ export const bookMentorSlot = async (req: Request, res: Response): Promise<void>
       data: {
         studentId: student!.id,
         professionalId,
-        type: 'FREE_INTRO',
         status: 'CONFIRMED',
         scheduledAt: new Date(scheduledAt),
         duration: 30,

@@ -28,18 +28,11 @@ export const start = async (studentUserId: string, professionalId: string) => {
   if (!professional.isVerified || !professional.isActive) {
     throw new Error('Professional is not available')
   }
-  if (!professional.offersPremiumTier) {
-    throw new Error('This professional does not offer Premium mentorship')
-  }
-
-  const nextBillingDate = new Date()
-  nextBillingDate.setDate(nextBillingDate.getDate() + 30)
 
   const mentorship = await prisma.mentorship.create({
     data: {
       studentId: student.id,
       professionalId,
-      nextBillingDate,
     },
   })
 
@@ -117,7 +110,5 @@ export const getBilling = async (professionalUserId: string) => {
     studentCode: `S${m.studentId.slice(0, 6).toUpperCase()}`,
     since: m.startDate,
     sessionsUsed: m.sessionsUsed,
-    nextBillingDate: m.nextBillingDate,
-    netAmount: professional.premiumRate,
   }))
 }

@@ -11,8 +11,6 @@ interface ProfessionalSnippet {
   jobTitle: string
   profilePhoto?: string | null
   offersFreeIntro: boolean
-  offersProTier: boolean
-  proRate: number
 }
 
 interface AvailableSlot {
@@ -23,26 +21,18 @@ interface AvailableSlot {
 
 interface BookSessionModalProps {
   professional: ProfessionalSnippet
-  defaultType: 'FREE_INTRO' | 'PRO' | 'GROUP'
+  defaultType: 'FREE_INTRO' | 'GROUP'
   groupSessionId?: string | null
   onClose: () => void
 }
 
 const DURATION_MAP = {
   FREE_INTRO: 20,
-  PRO: 60,
   GROUP: 60,
 }
 
-const COST_MAP = (pro: ProfessionalSnippet) => ({
-  FREE_INTRO: 0,
-  PRO: pro.proRate,
-  GROUP: 0,
-})
-
 const TYPE_LABELS = {
   FREE_INTRO: 'Free Intro Session',
-  PRO: 'Mentorship Session',
   GROUP: 'Group Session',
 }
 
@@ -54,20 +44,14 @@ const BookSessionModal = ({
 }: BookSessionModalProps) => {
   const navigate = useNavigate()
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [selectedType, setSelectedType] = useState<'FREE_INTRO' | 'PRO' | 'GROUP'>(defaultType)
+  const [selectedType, setSelectedType] = useState<'FREE_INTRO' | 'GROUP'>(defaultType)
   const [slots, setSlots] = useState<AvailableSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'MOMO'>('MOMO')
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardExpiry, setCardExpiry] = useState('')
-  const [cardCvv, setCardCvv] = useState('')
-  const [momoPhone, setMomoPhone] = useState('')
   const [consent, setConsent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
 
-  const cost = COST_MAP(professional)[selectedType]
   const initials = `${professional.firstName[0] ?? ''}${professional.lastName[0] ?? ''}`.toUpperCase()
 
   const fetchSlots = async () => {
@@ -83,7 +67,7 @@ const BookSessionModal = ({
   }
 
   useEffect(() => {
-    if (step === 2 && (selectedType === 'FREE_INTRO' || selectedType === 'PRO')) {
+    if (step === 2 && selectedType === 'FREE_INTRO') {
       fetchSlots()
     }
   }, [step])
@@ -100,14 +84,8 @@ const BookSessionModal = ({
     }
   }
 
-  const isPaymentValid = () => {
-    if (cost === 0) return true
-    if (paymentMethod === 'MOMO') return momoPhone.length >= 10
-    return cardNumber.length >= 16 && cardExpiry.length >= 4 && cardCvv.length >= 3
-  }
-
   const handleConfirm = async () => {
-    if (!consent || !isPaymentValid()) return
+    if (!consent) return
     setSubmitting(true)
     try {
       if (selectedType === 'GROUP' && groupSessionId) {
@@ -118,7 +96,6 @@ const BookSessionModal = ({
         ).toISOString()
         await api.post('/sessions', {
           professionalId: professional.id,
-          type: selectedType,
           scheduledAt,
           duration: DURATION_MAP[selectedType],
         })
@@ -209,23 +186,6 @@ const BookSessionModal = ({
                 </button>
               )}
 
-              {professional.offersProTier && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedType('PRO')}
-                  className={`w-full text-left border rounded-xl p-4 transition-all ${
-                    selectedType === 'PRO'
-                      ? 'border-accent bg-accent/5'
-                      : 'border-border hover:border-accent'
-                  }`}
-                >
-                  <p className="text-sm font-semibold text-primary">1-on-1 Mentorship Session</p>
-                  <p className="text-xs text-muted mt-0.5">
-                    60 min · 1-on-1 · {professional.proRate.toLocaleString()} RWF
-                  </p>
-                </button>
-              )}
-
               <button
                 type="button"
                 onClick={() => groupSessionId && setSelectedType('GROUP')}
@@ -245,7 +205,7 @@ const BookSessionModal = ({
               </button>
 
               <p className="text-xs text-muted pt-2 border-t border-border">
-                💡 Book 4 sessions this month for 15,000 RWF — save 5,000 RWF.
+                Sessions are free — no payment required.
               </p>
             </div>
           )}
@@ -324,82 +284,7 @@ const BookSessionModal = ({
                   <span className="text-muted">Duration</span>
                   <span className="font-medium text-primary">{DURATION_MAP[selectedType]} min</span>
                 </div>
-                <div className="flex justify-between text-sm font-semibold border-t border-border pt-1.5 mt-1.5">
-                  <span className="text-primary">Total</span>
-                  <span className="text-primary">
-                    {cost === 0 ? 'Free' : `${cost.toLocaleString()} RWF`}
-                  </span>
-                </div>
               </div>
-
-              {/* Payment */}
-              {cost > 0 && (
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    {(['MOMO', 'CARD'] as const).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setPaymentMethod(m)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${
-                          paymentMethod === m
-                            ? 'border-accent bg-accent/10 text-accent'
-                            : 'border-border text-muted hover:border-accent'
-                        }`}
-                      >
-                        {m === 'MOMO' ? 'MTN Mobile Money' : 'Card'}
-                      </button>
-                    ))}
-                  </div>
-
-                  {paymentMethod === 'MOMO' ? (
-                    <div>
-                      <label className="block text-xs font-medium text-primary mb-1">
-                        Phone number
-                      </label>
-                      <input
-                        type="tel"
-                        value={momoPhone}
-                        onChange={(e) => setMomoPhone(e.target.value)}
-                        placeholder="+250 7XX XXX XXX"
-                        className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                      />
-                      <p className="text-xs text-muted mt-1">
-                        You will receive a prompt on your phone to confirm this payment.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        placeholder="Card number"
-                        maxLength={19}
-                        className="w-full px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          placeholder="MM / YY"
-                          maxLength={5}
-                          className="px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                        <input
-                          type="text"
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          placeholder="CVV"
-                          maxLength={4}
-                          className="px-4 py-2.5 rounded-lg border border-border text-primary placeholder:text-subtle text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Consent */}
               <label className="flex items-start gap-2 cursor-pointer">
@@ -449,7 +334,7 @@ const BookSessionModal = ({
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={!consent || !isPaymentValid() || submitting}
+              disabled={!consent || submitting}
               className="bg-accent text-white text-sm px-5 py-2 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
               {submitting ? 'Confirming...' : 'Confirm Booking'}

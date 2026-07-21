@@ -11,8 +11,6 @@ export interface Professional {
   isVerified: boolean
   isMentor: boolean
   offersFreeIntro: boolean
-  offersProTier: boolean
-  offersPremiumTier: boolean
   linkedinUrl: string | null
   averageRating: number | null
   reviewCount: number

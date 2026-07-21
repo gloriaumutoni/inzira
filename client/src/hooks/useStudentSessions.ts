@@ -4,7 +4,6 @@ import { useStudentSessionsQuery } from '@/hooks/queries/studentQueries'
 
 export interface StudentSession {
   id: string
-  type: 'FREE_INTRO' | 'PRO' | 'PREMIUM'
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
   scheduledAt: string
   duration: number

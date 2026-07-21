@@ -1,5 +1,4 @@
 import { prisma } from '../prisma/client'
-import { COMMISSION_RATE } from './auth.service'
 import { createNotification } from './notifications.service'
 import * as emailService from './email.service'
 
@@ -30,7 +29,6 @@ export const list = async (userId: string, role: string, filters: {
 
   const where: Record<string, unknown> = { [whereKey]: profileId }
   if (filters.status) where.status = filters.status
-  if (filters.type) where.type = filters.type
 
   const [sessions, total] = await Promise.all([
     prisma.session.findMany({
@@ -68,16 +66,9 @@ const resolveSlotData = async (data: {
   return { professionalId: data.professionalId, scheduledAt: new Date(data.scheduledAt), duration: data.duration }
 }
 
-const computeGrossAmount = (type: string, professional: { proRate: number; premiumRate: number; premiumSessionsPerMonth: number }) => {
-  if (type === 'PRO') return professional.proRate
-  if (type === 'PREMIUM') return Math.round(professional.premiumRate / professional.premiumSessionsPerMonth)
-  return 0
-}
-
 export const create = async (studentUserId: string, data: {
   professionalId?: string
   slotId?: string
-  type: 'FREE_INTRO' | 'PRO' | 'PREMIUM'
   scheduledAt?: string
   duration?: number
 }) => {
@@ -100,28 +91,16 @@ export const create = async (studentUserId: string, data: {
     throw new Error('You already have 3 upcoming mentor sessions. Complete one before booking another.')
   }
 
-  if (data.type === 'FREE_INTRO') {
-    const existing = await prisma.session.findFirst({
-      where: { studentId: student.id, professionalId: professional.id, type: 'FREE_INTRO' },
-    })
-    if (existing) throw new Error('You have already had a free intro with this professional')
-  } else if (professional.sessionsUsedThisMonth >= professional.sessionQuota) {
+  if (professional.sessionsUsedThisMonth >= professional.sessionQuota) {
     throw new Error('This professional has reached their session limit for this month')
   }
-
-  const grossAmount = computeGrossAmount(data.type, professional)
-  const commissionAmount = Math.round(grossAmount * COMMISSION_RATE)
 
   const session = await prisma.session.create({
     data: {
       studentId: student.id,
       professionalId: professional.id,
-      type: data.type,
       scheduledAt,
       duration,
-      grossAmount,
-      commissionAmount,
-      netAmount: grossAmount - commissionAmount,
     },
     include: {
       student: { select: { id: true, firstName: true, lastName: true } },
@@ -146,7 +125,7 @@ export const create = async (studentUserId: string, data: {
     emailService.notifyProfessionalNewSessionRequest(
       { firstName: professional.firstName, email: professional.user.email },
       { firstName: student.firstName, lastName: student.lastName },
-      { scheduledAt: session.scheduledAt, type: session.type },
+      { scheduledAt: session.scheduledAt },
     ).catch(console.error)
   }
 
@@ -251,7 +230,7 @@ export const confirm = async (id: string, professionalUserId: string) => {
     emailService.notifyStudentSessionConfirmed(
       { firstName: studentUser.student!.firstName, email: studentUser.email },
       { firstName: professional.firstName, lastName: professional.lastName },
-      { scheduledAt: session.scheduledAt, type: session.type },
+      { scheduledAt: session.scheduledAt },
     ).catch(console.error)
   }
 

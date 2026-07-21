@@ -48,7 +48,7 @@ const SlotPickerModal = ({ mentorId, mentorName, mentorJobTitle, onClose, onBook
     if (!selectedSlotId || booking) return
     setBooking(true)
     try {
-      await api.post('/sessions', { professionalId: mentorId, slotId: selectedSlotId, type: 'FREE_INTRO' })
+      await api.post('/sessions', { professionalId: mentorId, slotId: selectedSlotId })
       toast.success('Session booked successfully!')
       onBooked()
     } catch (err: unknown) {

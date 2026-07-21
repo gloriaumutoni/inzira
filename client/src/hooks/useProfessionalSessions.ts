@@ -12,7 +12,6 @@ interface SessionStudent {
 
 interface ProfessionalSession {
   id: string
-  type: 'FREE_INTRO' | 'PRO' | 'PREMIUM'
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'DECLINED'
   scheduledAt: string
   duration: number
