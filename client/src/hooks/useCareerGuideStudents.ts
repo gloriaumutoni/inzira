@@ -11,6 +11,8 @@ export interface SchoolStudent {
   combination: string | null
   combinationsConsidering: string[]
   confidenceLevel: number | null
+  streamCode: string | null
+  quizTaken: boolean
   joinedAt: string
   mentorEnrolled: number
   mentorCompleted: number

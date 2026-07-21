@@ -41,4 +41,7 @@ router.patch('/career-stories/:id/unpublish', careerStoriesController.adminUnpub
 router.get('/session-reports', cacheMiddleware(20), sessionReportsController.adminList)
 router.patch('/session-reports/:id', sessionReportsController.adminUpdate)
 
+router.get('/coverage', cacheMiddleware(60), adminController.getCoverage)
+router.get('/impact', cacheMiddleware(60), adminController.getAdminImpact)
+
 export default router

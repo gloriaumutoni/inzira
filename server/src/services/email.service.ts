@@ -253,9 +253,8 @@ export async function notifyProfessionalMentorRejected(prof: {
 export async function notifyProfessionalNewSessionRequest(
   prof: { firstName: string; email: string },
   student: { firstName: string; lastName: string },
-  session: { scheduledAt: Date; type: string }
+  session: { scheduledAt: Date }
 ) {
-  const typeLabel = session.type.replaceAll('_', ' ')
   await resend.emails.send({
     from: FROM,
     to: prof.email,
@@ -263,7 +262,7 @@ export async function notifyProfessionalNewSessionRequest(
     html: layout(
       'New Session Request',
       h2(`New session request, ${prof.firstName}`) +
-      p(`<strong>${student.firstName} ${student.lastName}</strong> has requested a <strong>${typeLabel}</strong> session with you.`) +
+      p(`<strong>${student.firstName} ${student.lastName}</strong> has requested a session with you.`) +
       p(`<strong>Proposed time:</strong> ${fmt(session.scheduledAt)}`) +
       p('Please confirm or decline this request from your dashboard.') +
       btn('Review Request', `${BASE}`)
@@ -369,9 +368,8 @@ export async function notifyProfessionalCareerStoryRejected(
 export async function notifyStudentSessionConfirmed(
   student: { firstName: string; email: string },
   prof: { firstName: string; lastName: string },
-  session: { scheduledAt: Date; type: string }
+  session: { scheduledAt: Date }
 ) {
-  const typeLabel = session.type.replaceAll('_', ' ')
   await resend.emails.send({
     from: FROM,
     to: student.email,
@@ -379,7 +377,7 @@ export async function notifyStudentSessionConfirmed(
     html: layout(
       'Session Confirmed',
       h2(`Session confirmed, ${student.firstName}!`) +
-      p(`Your <strong>${typeLabel}</strong> session with <strong>${prof.firstName} ${prof.lastName}</strong> is confirmed.`) +
+      p(`Your session with <strong>${prof.firstName} ${prof.lastName}</strong> is confirmed.`) +
       p(`<strong>When:</strong> ${fmt(session.scheduledAt)}`) +
       btn('View Session Details', `${BASE}`)
     ),

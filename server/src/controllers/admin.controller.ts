@@ -274,6 +274,24 @@ export const getReportSummary = async (_req: Request, res: Response): Promise<vo
   }
 }
 
+export const getCoverage = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await adminService.getCoverage())
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getAdminImpact = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const schoolId = req.query.schoolId as string | undefined
+    const level = req.query.level as string | undefined
+    ok(res, await adminService.getAdminImpact({ schoolId, level }))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
 export const getAvailableInterviewSlots = async (req: Request, res: Response): Promise<void> => {
   try {
     const allTemplates = await prisma.adminInterviewSlot.findMany({ where: { isActive: true } })

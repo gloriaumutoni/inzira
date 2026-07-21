@@ -11,6 +11,23 @@ import {
   type AdminCareerStoryPayload,
   type VerifiedProfessional,
 } from '@/api/careerStories.api'
+import {
+  adminListAllCareers,
+  adminCreateCareer,
+  adminUpdateCareer,
+  adminToggleCareer,
+  adminDeleteCareer,
+  addCareerStep,
+  updateCareerStep,
+  deleteCareerStep,
+  getAdminCoverage,
+  getAdminImpact,
+  type AdminCareer,
+  type CareerUpsertPayload,
+  type StepPayload,
+  type CoverageResponse,
+  type ImpactResponse,
+} from '@/api/careers.api'
 
 export type VerificationType = 'professionals' | 'mentors' | 'career-guides'
 export type CareerStoryTab = 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED'
@@ -247,6 +264,9 @@ export const adminKeys = {
   reportCareerGuides: (page: number, status: 'approved' | 'rejected') => ['admin', 'reports', 'career-guides', page, status] as const,
   reportSummary: ['admin', 'reports', 'summary'] as const,
   sessionReports: (filter: ReportStatus | 'ALL') => ['admin', 'session-reports', filter] as const,
+  careers: ['admin', 'careers'] as const,
+  coverage: ['admin', 'coverage'] as const,
+  impact: (schoolId?: string, level?: string) => ['admin', 'impact', schoolId, level] as const,
 }
 
 // ---------- Stats ----------
@@ -589,3 +609,84 @@ export const useSuspendProfessionalMutation = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'session-reports'] }),
   })
 }
+
+// ---------- Careers (admin CRUD) ----------
+
+export const useAdminCareersQuery = () =>
+  useQuery<AdminCareer[]>({ queryKey: adminKeys.careers, queryFn: adminListAllCareers })
+
+export const useCreateCareerMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CareerUpsertPayload) => adminCreateCareer(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+export const useUpdateCareerMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CareerUpsertPayload> & { isActive?: boolean } }) =>
+      adminUpdateCareer(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+export const useToggleCareerMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => adminToggleCareer(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+export const useDeleteCareerMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => adminDeleteCareer(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+export const useAddStepMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ careerId, payload }: { careerId: string; payload: StepPayload }) =>
+      addCareerStep(careerId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+export const useUpdateStepMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ careerId, stepId, payload }: { careerId: string; stepId: string; payload: Partial<StepPayload> }) =>
+      updateCareerStep(careerId, stepId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+export const useDeleteStepMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ careerId, stepId }: { careerId: string; stepId: string }) =>
+      deleteCareerStep(careerId, stepId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.careers }),
+  })
+}
+
+// ---------- Coverage ----------
+
+export const useAdminCoverageQuery = () =>
+  useQuery<CoverageResponse>({ queryKey: adminKeys.coverage, queryFn: getAdminCoverage })
+
+// ---------- Impact ----------
+
+export const useAdminImpactQuery = (schoolId?: string, level?: string) =>
+  useQuery<ImpactResponse>({
+    queryKey: adminKeys.impact(schoolId, level),
+    queryFn: () => getAdminImpact({ schoolId, level }),
+  })
+
+// Re-export types consumed by page components
+export type { AdminCareer, CoverageResponse, ImpactResponse }

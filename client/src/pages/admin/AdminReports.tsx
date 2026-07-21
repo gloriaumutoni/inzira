@@ -48,15 +48,11 @@ function timeUntil(iso: string): string {
   return `In ${d} day${d === 1 ? '' : 's'}`
 }
 
-function sessionIcon(type: string) {
-  if (type === 'FREE_INTRO') return <BookOpen size={14} />
-  if (type === 'PREMIUM') return <CheckCircle size={14} />
+function sessionIcon(_type: string) {
   return <Video size={14} />
 }
 
-function sessionIconBg(type: string): string {
-  if (type === 'FREE_INTRO') return 'bg-warning/20 text-warning'
-  if (type === 'PREMIUM') return 'bg-success/20 text-success'
+function sessionIconBg(_type: string): string {
   return 'bg-accent/20 text-accent'
 }
 

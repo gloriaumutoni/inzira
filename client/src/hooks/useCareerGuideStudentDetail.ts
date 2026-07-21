@@ -5,7 +5,6 @@ import type { CombinationTrend, ConfidenceLog } from '@/hooks/useConfidenceLogs'
 export interface SessionHistoryItem {
   id: string
   type: '1-on-1' | 'Group'
-  sessionType: string | null
   date: string
   status: string
   professionalName: string

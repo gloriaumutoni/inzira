@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client'
 import { createNotification } from './notifications.service'
 import * as emailService from './email.service'
+import { STREAM_CODES, STREAM_NAMES, combinationToStream } from '../utils/streamMap'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -117,7 +118,6 @@ export const getStats = async () => {
     id: s.id,
     studentName: `${s.student.firstName} ${s.student.lastName}`,
     school: s.student.school?.name ?? null,
-    type: s.type,
     status: s.status,
     scheduledAt: s.scheduledAt.toISOString(),
     grade: s.student.schoolYear,
@@ -485,5 +485,148 @@ export const getReportSummary = async () => {
     totalSessions,
     completedSessions,
     completionRate: totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
+  }
+}
+
+// ── Coverage analytics ──────────────────────────────────────────────────────
+
+export const getCoverage = async () => {
+  const [careers, mentors, stories] = await Promise.all([
+    prisma.career.findMany({
+      where: { isActive: true },
+      include: {
+        roadmapSteps: { select: { id: true } },
+        _count: { select: { careerStories: { where: { status: 'PUBLISHED' } } } },
+      },
+      orderBy: { title: 'asc' },
+    }),
+    prisma.professional.findMany({
+      where: { isMentor: true, isVerified: true, isActive: true },
+      select: { relevantStreams: true, relevantCombinations: true, sector: true },
+    }),
+    prisma.careerStory.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { streamCodes: true, combinations: true, sector: true },
+    }),
+  ])
+
+  const byStream = STREAM_CODES.map((streamCode) => {
+    const mentorCount = mentors.filter(
+      (m) =>
+        m.relevantStreams.includes(streamCode) ||
+        m.relevantCombinations.some((c) => combinationToStream(c) === streamCode),
+    ).length
+    const storyCount = stories.filter(
+      (s) =>
+        s.streamCodes.includes(streamCode) ||
+        s.combinations.some((c) => combinationToStream(c) === streamCode),
+    ).length
+    const careerCount = careers.filter(
+      (c) =>
+        c.streamCodes.includes(streamCode) ||
+        c.combinations.some((cb) => combinationToStream(cb) === streamCode),
+    ).length
+    return {
+      streamCode,
+      streamName: STREAM_NAMES[streamCode],
+      mentorCount,
+      storyCount,
+      careerCount,
+      gap: mentorCount === 0 || storyCount === 0,
+    }
+  })
+
+  const byCareer = careers.map((career) => ({
+    careerId: career.id,
+    title: career.title,
+    mentorCount: mentors.filter(
+      (m) =>
+        m.sector === career.sector ||
+        career.streamCodes.some((s) => m.relevantStreams.includes(s)) ||
+        career.combinations.some((c) => {
+          const s = combinationToStream(c)
+          return s ? m.relevantStreams.includes(s) : false
+        }),
+    ).length,
+    storyCount: career._count.careerStories,
+    hasRoadmap: career.roadmapSteps.length > 0,
+  }))
+
+  return {
+    byStream,
+    byCareer,
+    emptyStreams: byStream.filter((s) => s.gap).map((s) => s.streamCode),
+    careersMissingRoadmap: careers.filter((c) => c.roadmapSteps.length === 0).map((c) => c.id),
+  }
+}
+
+// ── Impact / funnel analytics ────────────────────────────────────────────────
+
+export const getAdminImpact = async (params: { schoolId?: string; level?: string }) => {
+  const studentWhere: Record<string, unknown> = {}
+  if (params.schoolId) studentWhere.schoolId = params.schoolId
+  if (params.level) studentWhere.level = params.level
+
+  const [signups, quizCompletions, streamChosen, mentorSessionsBooked, confidenceLogs, allSchools] =
+    await Promise.all([
+      prisma.student.count({ where: studentWhere }),
+      prisma.quizResult.count({ where: { student: studentWhere } }),
+      prisma.student.count({ where: { ...studentWhere, streamCode: { not: null } } }),
+      prisma.session.count({ where: { status: 'COMPLETED', student: studentWhere } }),
+      prisma.confidenceLog.findMany({
+        where: { student: studentWhere },
+        select: { score: true, studentId: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.school.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+    ])
+
+  const computeConfidenceDelta = (logs: { score: number; studentId: string }[]) => {
+    const firstByStudent = new Map<string, number>()
+    const latestByStudent = new Map<string, number>()
+    for (const log of logs) {
+      if (!firstByStudent.has(log.studentId)) firstByStudent.set(log.studentId, log.score)
+      latestByStudent.set(log.studentId, log.score)
+    }
+    const studentIds = [...firstByStudent.keys()]
+    const avgStart =
+      studentIds.length
+        ? studentIds.reduce((a, id) => a + (firstByStudent.get(id) ?? 0), 0) / studentIds.length
+        : 0
+    const avgLatest =
+      studentIds.length
+        ? studentIds.reduce((a, id) => a + (latestByStudent.get(id) ?? 0), 0) / studentIds.length
+        : 0
+    return { avgStart, avgLatest, delta: avgLatest - avgStart }
+  }
+
+  const confidence = computeConfidenceDelta(confidenceLogs)
+
+  const bySchool = await Promise.all(
+    allSchools.map(async (school) => {
+      const [schoolSignups, schoolQuiz, schoolLogs] = await Promise.all([
+        prisma.student.count({ where: { ...studentWhere, schoolId: school.id } }),
+        prisma.quizResult.count({ where: { student: { ...studentWhere, schoolId: school.id } } }),
+        prisma.confidenceLog.findMany({
+          where: { student: { schoolId: school.id } },
+          select: { score: true, studentId: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+      ])
+      const { delta } = computeConfidenceDelta(schoolLogs)
+      return {
+        schoolId: school.id,
+        schoolName: school.name,
+        signups: schoolSignups,
+        quizCompletions: schoolQuiz,
+        avgDelta: delta,
+      }
+    }),
+  )
+
+  return {
+    funnel: { signups, quizCompletions, streamChosen, mentorSessionsBooked },
+    confidence,
+    bySchool,
   }
 }

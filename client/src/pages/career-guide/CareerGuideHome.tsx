@@ -379,13 +379,11 @@ const CareerGuideHome = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
-          {schoolName && (
-            <p className="text-sm text-muted mt-0.5">Career Discovery · {schoolName}</p>
-          )}
-        </div>
+      <div>
+        <h1 className="text-xl font-bold text-primary">Welcome back, {firstName}</h1>
+        {schoolName && (
+          <p className="text-sm text-muted mt-0.5">Career Discovery · {schoolName}</p>
+        )}
       </div>
 
       {/* Student level stats */}

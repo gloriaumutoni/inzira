@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2, BookOpen, Flag } from 'lucide-react'
+import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2, BookOpen, Flag, Compass, ClipboardList, TrendingUp, Briefcase } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
@@ -14,9 +14,11 @@ interface NavItem {
 }
 
 const STUDENT_O_LEVEL_NAV: NavItem[] = [
-  { label: 'Home',       icon: Home,     path: '/student/home' },
-  { label: 'Sessions',   icon: Calendar, path: '/student/sessions' },
-  { label: 'Get Mentor', icon: Users,    path: '/student/get-mentor' },
+  { label: 'Home',           icon: Home,          path: '/student/home' },
+  { label: 'Pathway Quiz',   icon: ClipboardList, path: '/student/quiz' },
+  { label: 'Career Library', icon: BookOpen,      path: '/student/career-library' },
+  { label: 'Sessions',       icon: Calendar,      path: '/student/sessions' },
+  { label: 'Get Mentor',     icon: Users,         path: '/student/get-mentor' },
 ]
 
 const PROFESSIONAL_NAV_BASE: NavItem[] = [
@@ -37,13 +39,17 @@ const UNDER_REVIEW_NAV: NavItem[] = [
 ]
 
 const CAREER_GUIDE_NAV: NavItem[] = [
-  { label: 'Home',     icon: Home,     path: '/career-guide/home' },
-  { label: 'Sessions', icon: Calendar, path: '/career-guide/sessions' },
+  { label: 'Home',        icon: Home,         path: '/career-guide/home' },
+  { label: 'Sessions',    icon: Calendar,     path: '/career-guide/sessions' },
+  { label: 'Cohort Quiz', icon: ClipboardList, path: '/career-guide/cohort-quiz' },
+  { label: 'Impact',      icon: TrendingUp,   path: '/career-guide/impact' },
 ]
 
 const CAREER_GUIDE_UNDER_REVIEW_NAV: NavItem[] = [
-  { label: 'Home',     icon: Home,     path: '/career-guide/home' },
-  { label: 'Sessions', icon: Calendar, path: '/career-guide/sessions', disabled: true },
+  { label: 'Home',        icon: Home,         path: '/career-guide/home' },
+  { label: 'Sessions',    icon: Calendar,     path: '/career-guide/sessions', disabled: true },
+  { label: 'Cohort Quiz', icon: ClipboardList, path: '/career-guide/cohort-quiz', disabled: true },
+  { label: 'Impact',      icon: TrendingUp,   path: '/career-guide/impact', disabled: true },
 ]
 
 const ADMIN_NAV: NavItem[] = [
@@ -54,10 +60,13 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Career Stories',   icon: BookOpen,        path: '/admin/career-stories' },
   { label: 'Safety',           icon: Flag,            path: '/admin/session-reports' },
   { label: 'Reports',          icon: BarChart2,       path: '/admin/reports' },
+  { label: 'Careers',          icon: Briefcase,       path: '/admin/careers' },
+  { label: 'Impact',           icon: TrendingUp,      path: '/admin/impact' },
 ]
 
 const STUDENT_A_LEVEL_NAV: NavItem[] = [
   { label: 'Home',                icon: Home,     path: '/student/home' },
+  { label: 'Explore Careers',     icon: Compass,  path: '/student/reach' },
   { label: 'Sessions',            icon: Calendar, path: '/student/sessions' },
   { label: 'Get Mentor',          icon: Users,    path: '/student/get-mentor' },
   { label: 'Career Library',      icon: BookOpen, path: '/student/career-library' },
@@ -72,6 +81,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/student/sessions':               'Sessions',
   '/student/get-mentor':             'Get Mentor',
   '/student/career-library':         'Career Library',
+  '/student/quiz':                   'Pathway Quiz',
+  '/student/compare':                'Compare Pathways',
+  '/student/reach':                  'Explore Careers',
   '/professional/home':              'Home',
   '/professional/sessions':          'Sessions',
   '/professional/earnings':          'Earnings',
@@ -85,6 +97,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/reports':                  'Reports',
   '/admin/career-stories':           'Career Stories Review',
   '/admin/session-reports':          'Safety — Session Reports',
+  '/admin/careers':                   'Career Library',
+  '/admin/impact':                    'Impact Overview',
 }
 
 function getNavItems(role: Role, level?: Level): NavItem[] {
@@ -139,7 +153,8 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
     : role === 'CAREER_GUIDE'
       ? getCareerGuideNav()
       : getNavItems(role, level)
-  const pageTitle = PAGE_TITLES[location.pathname] ?? ''
+  const pageTitle = PAGE_TITLES[location.pathname]
+    ?? (location.pathname.startsWith('/student/career-roadmap') ? 'Career Roadmap' : '')
 
   const handleLogout = async () => {
     try { await logoutUser() } catch { /* ignore network errors */ }

@@ -7,6 +7,8 @@ import AdminSchools from '@/pages/admin/AdminSchools'
 import AdminReports from '@/pages/admin/AdminReports'
 import AdminCareerStories from '@/pages/admin/AdminCareerStories'
 import AdminSessionReports from '@/pages/admin/AdminSessionReports'
+import AdminCareers from '@/pages/admin/AdminCareers'
+import AdminImpact from '@/pages/admin/AdminImpact'
 
 const AdminDashboard = () => (
   <DashboardLayout role="ADMIN">
@@ -19,6 +21,8 @@ const AdminDashboard = () => (
       <Route path="reports" element={<AdminReports />} />
       <Route path="career-stories" element={<AdminCareerStories />} />
       <Route path="session-reports" element={<AdminSessionReports />} />
+      <Route path="careers" element={<AdminCareers />} />
+      <Route path="impact" element={<AdminImpact />} />
     </Routes>
   </DashboardLayout>
 )

@@ -64,6 +64,7 @@ export const getMySchoolStudents = async (req: Request, res: Response): Promise<
           orderBy: { createdAt: 'asc' },
           select: { score: true, createdAt: true },
         },
+        quizResults: { select: { id: true }, take: 1 },
       },
       orderBy: { firstName: 'asc' },
     })
@@ -136,6 +137,8 @@ export const getMySchoolStudents = async (req: Request, res: Response): Promise<
           combination: s.combination ?? null,
           combinationsConsidering: s.combinationsConsidering,
           confidenceLevel: s.confidenceLevel ?? null,
+          streamCode: s.streamCode ?? null,
+          quizTaken: s.quizResults.length > 0,
           joinedAt: s.user.createdAt,
           mentorEnrolled: mentorSessions.length,
           mentorCompleted: completedMentorSessions.length,
@@ -183,7 +186,6 @@ export const getStudentDetail = async (req: Request, res: Response): Promise<voi
             id: true,
             status: true,
             scheduledAt: true,
-            type: true,
             professional: { select: { firstName: true, lastName: true } },
           },
         },
@@ -226,7 +228,6 @@ export const getStudentDetail = async (req: Request, res: Response): Promise<voi
       .map((s) => ({
         id: s.id,
         type: '1-on-1' as const,
-        sessionType: s.type,
         date: s.scheduledAt,
         status: s.status,
         professionalName: `${s.professional.firstName} ${s.professional.lastName}`,
@@ -259,6 +260,22 @@ export const getStudentDetail = async (req: Request, res: Response): Promise<voi
       sessionHistory,
       confidenceLogs: student.confidenceLogs,
     })
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getCohortQuizSummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careerGuidesService.getCohortQuizSummary(req.auth!.userId))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getImpact = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careerGuidesService.getImpact(req.auth!.userId))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }
