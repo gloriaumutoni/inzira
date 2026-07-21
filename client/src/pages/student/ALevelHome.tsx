@@ -10,7 +10,9 @@ import {
   useGroupSessionsBrowseQuery,
   useCareerStoriesDiscoveryQuery,
   useEnrolGroupSessionMutation,
+  useReachableCareers,
 } from '@/hooks/queries/studentQueries'
+import { Compass, Users as UsersIcon, ArrowRight } from 'lucide-react'
 import { getTrackLabel } from '@/utils/studentTrack'
 
 const GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
@@ -34,6 +36,10 @@ const ALevelHome = () => {
     studentCombos.length > 0
   )
   const { data: relevantStories = [], isLoading: storiesDiscoveryLoading } = useCareerStoriesDiscoveryQuery(studentCombos)
+  const { data: reachData } = useReachableCareers()
+  const reachDirect = (reachData?.reachable ?? []).slice(0, 3)
+  const reachStretch = (reachData?.stretch ?? []).slice(0, 3)
+  const reachTop = [...reachDirect, ...reachStretch]
 
   const enrolledIds = useMemo(
     () => new Set((dashboard?.groupSessions ?? []).map(e => e.groupSession.id)),
@@ -164,7 +170,7 @@ const ALevelHome = () => {
     <div className="p-6 space-y-8">
       {showManualLog && (
         <ManualConfidenceModal
-          combinations={user?.student?.combinationsConsidering ?? []}
+          streamCode={user?.student?.streamCode}
           onDone={() => { setShowManualLog(false); refetchLogs() }}
           onClose={() => setShowManualLog(false)}
         />
@@ -215,6 +221,42 @@ const ALevelHome = () => {
           </>
         )}
       </div>
+
+      {reachTop.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-primary flex items-center gap-2">
+              <Compass className="w-4 h-4" /> Careers you can reach
+            </h2>
+            <Link to="/student/reach" className="text-xs text-accent hover:underline">Explore all →</Link>
+          </div>
+          <div className={GRID}>
+            {reachTop.map(c => (
+              <Link
+                key={c.id}
+                to={`/student/career-roadmap/${c.id}`}
+                className="bg-surface rounded-xl border border-border p-4 flex flex-col gap-2 hover:border-primary/40 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-primary leading-tight">{c.title}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap shrink-0 ${
+                    c.reachability === 'DIRECT' ? 'bg-success/10 text-success' : 'bg-amber-500/10 text-amber-600'
+                  }`}>
+                    {c.reachability === 'DIRECT' ? 'Direct' : 'Stretch'}
+                  </span>
+                </div>
+                <span className="self-start text-xs bg-muted/10 text-muted px-2 py-0.5 rounded-full">{c.sector}</span>
+                <p className="text-xs text-muted line-clamp-2">{c.shortDescription}</p>
+                <div className="flex items-center gap-3 text-xs text-muted mt-auto pt-1">
+                  <span className="flex items-center gap-1"><UsersIcon className="w-3 h-3" /> {c.mentorCount}</span>
+                  <span>See roadmap</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-accent ml-auto" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {studentCombos.length > 0 && (
         <section className="space-y-3">

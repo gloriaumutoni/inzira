@@ -1,5 +1,6 @@
 import { prisma } from '../prisma/client'
 import { expandWeeklyTemplate } from '../utils/slots'
+import { STREAM_CODES, STREAM_NAMES, combinationToStream, combinationsToStreams, type StreamCode } from '../utils/streamMap'
 
 export const getMe = async (userId: string) => {
   return prisma.professional.findUnique({
@@ -17,21 +18,8 @@ export const updateMe = async (userId: string, data: {
   linkedinUrl?: string
   bio?: string
   profilePhoto?: string
+  relevantStreams?: string[]
   relevantCombinations?: string[]
-}) => {
-  return prisma.professional.update({
-    where: { userId },
-    data,
-  })
-}
-
-export const updateTiers = async (userId: string, data: {
-  offersFreeIntro?: boolean
-  offersProTier?: boolean
-  offersPremiumTier?: boolean
-  proRate?: number
-  premiumRate?: number
-  premiumSessionsPerMonth?: number
 }) => {
   return prisma.professional.update({
     where: { userId },
@@ -51,7 +39,7 @@ export const getAvailability = async (userId: string) => {
 
 export const saveAvailability = async (
   userId: string,
-  slots: { dayOfWeek: number; startHour: number; isPremiumOnly: boolean }[]
+  slots: { dayOfWeek: number; startHour: number }[]
 ) => {
   const professional = await prisma.professional.findUnique({ where: { userId } })
   if (!professional) throw new Error('Professional not found')
@@ -70,7 +58,7 @@ export const getDashboard = async (userId: string) => {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [pendingRequests, upcomingSessions, activePremiumStudents, monthlyEarnings, completedCount] =
+  const [pendingRequests, upcomingSessions, activePremiumStudents, completedCount] =
     await Promise.all([
       prisma.session.findMany({
         where: { professionalId: professional.id, status: 'PENDING' },
@@ -90,14 +78,6 @@ export const getDashboard = async (userId: string) => {
       prisma.mentorship.count({
         where: { professionalId: professional.id, status: 'ACTIVE' },
       }),
-      prisma.session.aggregate({
-        where: {
-          professionalId: professional.id,
-          status: 'COMPLETED',
-          createdAt: { gte: startOfMonth },
-        },
-        _sum: { netAmount: true },
-      }),
       prisma.session.count({
         where: { professionalId: professional.id, status: 'COMPLETED' },
       }),
@@ -107,7 +87,6 @@ export const getDashboard = async (userId: string) => {
     pendingRequests,
     upcomingSessions,
     activePremiumStudents,
-    monthlyEarnings: monthlyEarnings._sum.netAmount ?? 0,
     sessionsCompleted: completedCount,
     sessionsUsedThisMonth: professional.sessionsUsedThisMonth,
     sessionQuota: professional.sessionQuota,
@@ -267,4 +246,82 @@ export const createRecurringMentorSlots = async (professionalId: string, data: {
   })
 
   return { created: result.count, skipped: scheduledDates.length - result.count, slots }
+}
+
+// Streams a mentor/story serves: relevantStreams/streamCodes lead, legacy
+// combination fields are a fallback for records not yet re-tagged.
+const streamsFromMentor = (m: { relevantStreams: string[]; relevantCombinations: string[] }): StreamCode[] =>
+  m.relevantStreams.length > 0
+    ? m.relevantStreams.filter((s): s is StreamCode => (STREAM_CODES as readonly string[]).includes(s))
+    : combinationsToStreams(m.relevantCombinations)
+
+const streamsFromStory = (s: { streamCodes: string[]; combinations: string[] }): StreamCode[] =>
+  s.streamCodes.length > 0
+    ? s.streamCodes.filter((c): c is StreamCode => (STREAM_CODES as readonly string[]).includes(c))
+    : combinationsToStreams(s.combinations)
+
+const streamsFromCareer = (c: { streamCodes: string[]; combinations: string[] }): StreamCode[] =>
+  c.streamCodes.length > 0
+    ? c.streamCodes.filter((s): s is StreamCode => (STREAM_CODES as readonly string[]).includes(s))
+    : combinationsToStreams(c.combinations)
+
+// "Careers in your area with no coverage" — active careers with zero mentors
+// or zero published stories, scoped to the calling professional's streams
+// (their relevantStreams, or relevantCombinations mapped legacy).
+export const getCoverageGaps = async (userId: string) => {
+  const professional = await prisma.professional.findUnique({
+    where: { userId },
+    select: { relevantStreams: true, relevantCombinations: true },
+  })
+  if (!professional) throw new Error('Professional not found')
+  const myStreams = streamsFromMentor(professional)
+
+  const [careers, mentors, stories] = await Promise.all([
+    prisma.career.findMany({
+      where: { isActive: true },
+      select: { id: true, title: true, streamCodes: true, combinations: true },
+    }),
+    prisma.professional.findMany({
+      where: { isMentor: true, isVerified: true, isActive: true },
+      select: { relevantStreams: true, relevantCombinations: true },
+    }),
+    prisma.careerStory.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { streamCodes: true, combinations: true },
+    }),
+  ])
+
+  const gaps: {
+    streamCode: string
+    streamName: string
+    careerTitle: string
+    careerId: string
+    mentorCount: number
+    storyCount: number
+    matchesMe: boolean
+  }[] = []
+
+  for (const career of careers) {
+    const streams = streamsFromCareer(career)
+    const mentorCount = mentors.filter((m) => streamsFromMentor(m).some((s) => streams.includes(s))).length
+    const storyCount = stories.filter((s) => streamsFromStory(s).some((st) => streams.includes(st))).length
+    if (mentorCount > 0 && storyCount > 0) continue
+    if (streams.length === 0) continue // untagged career — no specific stream to flag
+
+    for (const streamCode of streams) {
+      const matchesMe = myStreams.length === 0 || myStreams.includes(streamCode)
+      if (myStreams.length > 0 && !matchesMe) continue
+      gaps.push({
+        streamCode,
+        streamName: STREAM_NAMES[streamCode],
+        careerTitle: career.title,
+        careerId: career.id,
+        mentorCount,
+        storyCount,
+        matchesMe,
+      })
+    }
+  }
+
+  return { myStreams, gaps }
 }

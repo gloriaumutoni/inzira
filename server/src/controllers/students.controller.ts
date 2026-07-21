@@ -31,10 +31,44 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
 
 export const logConfidence = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { score, note, combination, sessionId, changedThinking } = req.body
+    const { score, note, combination, sessionId, changedThinking, streamCode } = req.body
     const data = await studentsService.logConfidence(
-      req.auth!.userId, score, note, combination, sessionId, changedThinking
+      req.auth!.userId, score, note, combination, sessionId, changedThinking, streamCode
     )
+    ok(res, data)
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const saveQuizResult = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { answers, scores, topPathways } = req.body
+    if (!Array.isArray(topPathways) || topPathways.length === 0) {
+      badRequest(res, 'topPathways required'); return
+    }
+    const data = await studentsService.saveQuizResult(req.auth!.userId, { answers, scores, topPathways })
+    ok(res, data)
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const savePathway = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { pathway } = req.body
+    if (!pathway || typeof pathway !== 'string') {
+      badRequest(res, 'pathway required'); return
+    }
+    ok(res, await studentsService.savePathway(req.auth!.userId, pathway))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getStreamSupply = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await studentsService.getStreamSupply()
     ok(res, data)
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')

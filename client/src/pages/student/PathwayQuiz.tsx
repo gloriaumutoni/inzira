@@ -2,73 +2,46 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/axios'
 import { useAuth } from '@/contexts/AuthContext'
-import { PATHWAY_LEAVES } from '@/constants/pathways'
+import { PATHWAY_LEAF_MAP } from '@/constants/pathways'
 import type { PathwayLeaf } from '@/constants/pathways'
-
-// ---------------------------------------------------------------------------
-// Quiz data
-// ---------------------------------------------------------------------------
+import { QUIZ_ITEMS, type PathwayLeafCode } from '@/constants/quizItems'
+import { useSaveQuizResult, useSavePathway } from '@/hooks/queries/studentQueries'
 
 const SCALE_LABELS = ['Not at all', 'A little', 'Somewhat', 'Very much', 'Extremely']
-
-interface Question {
-  text: string
-  combos: string[]
-}
-
-const QUESTIONS: Question[] = [
-  {
-    text: 'How much do you enjoy Mathematics or quantitative subjects?',
-    combos: ['PATH_MS_APPLIED', 'PATH_MS_NATURAL'],
-  },
-  {
-    text: 'How much do you enjoy Biology or Life Sciences?',
-    combos: ['PATH_MS_NATURAL'],
-  },
-  {
-    text: 'How much do you enjoy Physics or Chemistry?',
-    combos: ['PATH_MS_NATURAL'],
-  },
-  {
-    text: 'How much do you enjoy History or the study of society?',
-    combos: ['PATH_ARTS_HUMANITIES'],
-  },
-  {
-    text: 'How much do you enjoy languages and communication?',
-    combos: ['PATH_LANGUAGES'],
-  },
-  {
-    text: 'Do you see yourself working in healthcare or science?',
-    combos: ['PATH_MS_NATURAL'],
-  },
-  {
-    text: 'Do you see yourself working in business, economics, or finance?',
-    combos: ['PATH_MS_APPLIED'],
-  },
-  {
-    text: 'Are you interested in engineering or technology?',
-    combos: ['PATH_MS_NATURAL', 'PATH_MS_APPLIED'],
-  },
-  {
-    text: 'Are you interested in law or politics?',
-    combos: ['PATH_ARTS_HUMANITIES'],
-  },
+const LEAF_CODES: PathwayLeafCode[] = [
+  'PATH_MS_NATURAL',
+  'PATH_MS_APPLIED',
+  'PATH_ARTS_HUMANITIES',
+  'PATH_LANGUAGES',
 ]
 
 // ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 
-function computeTopPathways(answers: Record<number, number>): PathwayLeaf[] {
-  const scores: Record<string, number> = Object.fromEntries(PATHWAY_LEAVES.map(l => [l.code, 0]))
+type Scores = Record<PathwayLeafCode, number>
 
-  for (let i = 0; i < QUESTIONS.length; i++) {
-    const score = answers[i] ?? 3
-    const q = QUESTIONS[i]
-    for (const code of q.combos) scores[code] += score
+function computeScores(answers: Record<string, number>): Scores {
+  const scores = Object.fromEntries(LEAF_CODES.map((c) => [c, 0])) as Scores
+  for (const item of QUIZ_ITEMS) {
+    const answer = answers[item.id] ?? 3
+    for (const [leaf, weight] of Object.entries(item.weights)) {
+      scores[leaf as PathwayLeafCode] += (weight ?? 0) * answer
+    }
   }
+  return scores
+}
 
-  return [...PATHWAY_LEAVES].sort((a, b) => (scores[b.code] ?? 0) - (scores[a.code] ?? 0))
+function rankPathways(scores: Scores): PathwayLeafCode[] {
+  return [...LEAF_CODES].sort((a, b) => scores[b] - scores[a])
+}
+
+// The 3 answers that most drove a given leaf recommendation — powers the "why" panel.
+function topDrivers(leaf: PathwayLeafCode, answers: Record<string, number>) {
+  return QUIZ_ITEMS.filter((it) => it.weights[leaf])
+    .map((it) => ({ item: it, contribution: (it.weights[leaf] ?? 0) * (answers[it.id] ?? 3) }))
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 3)
 }
 
 // ---------------------------------------------------------------------------
@@ -76,47 +49,46 @@ function computeTopPathways(answers: Record<number, number>): PathwayLeaf[] {
 // ---------------------------------------------------------------------------
 
 type View = 'intro' | 'quiz' | 'results'
-
 const RANK_LABELS = ['#1 Match', '#2 Match']
 
 export default function PathwayQuiz() {
-  const { setUser } = useAuth()
+  const { user, setUser } = useAuth()
   const navigate = useNavigate()
+  const saveQuiz = useSaveQuizResult()
+  const savePathway = useSavePathway()
 
   const [view, setView] = useState<View>('intro')
   const [currentQ, setCurrentQ] = useState(0)
-  const [answers, setAnswers] = useState<Record<number, number>>({})
-  const [topPathways, setTopPathways] = useState<PathwayLeaf[]>([])
-  const [saving, setSaving] = useState(false)
+  const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [scores, setScores] = useState<Scores | null>(null)
+  const [ranked, setRanked] = useState<PathwayLeafCode[]>([])
   const [saved, setSaved] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [pinnedCode, setPinnedCode] = useState<string | null>(user?.student?.pathway ?? null)
 
+  const total = QUIZ_ITEMS.length
   let progressPct = 0
   if (view === 'results') progressPct = 100
-  else if (view === 'quiz') progressPct = Math.round((currentQ / QUESTIONS.length) * 100)
-
-  // -------------------------------------------------------------------------
-  // Handlers
-  // -------------------------------------------------------------------------
+  else if (view === 'quiz') progressPct = Math.round((currentQ / total) * 100)
 
   const handleAnswer = (score: number) => {
-    const newAnswers = { ...answers, [currentQ]: score }
-    setAnswers(newAnswers)
+    const item = QUIZ_ITEMS[currentQ]
+    const next = { ...answers, [item.id]: score }
+    setAnswers(next)
 
-    if (currentQ < QUESTIONS.length - 1) {
-      setCurrentQ(q => q + 1)
+    if (currentQ < total - 1) {
+      setCurrentQ((q) => q + 1)
     } else {
-      setTopPathways(computeTopPathways(newAnswers))
+      const s = computeScores(next)
+      setScores(s)
+      setRanked(rankPathways(s))
       setView('results')
     }
   }
 
   const handleBack = () => {
-    if (currentQ === 0) {
-      setView('intro')
-    } else {
-      setCurrentQ(q => q - 1)
-    }
+    if (currentQ === 0) setView('intro')
+    else setCurrentQ((q) => q - 1)
   }
 
   const handleRetake = () => {
@@ -127,23 +99,33 @@ export default function PathwayQuiz() {
     setExpanded(null)
   }
 
-  const handleSave = async () => {
-    setSaving(true)
+  const handlePinToHome = async (code: string) => {
     try {
-      const codes = top2.map(p => p.code)
-      await api.patch('/students/me', { combinationsConsidering: codes, pathway: codes[0] })
+      await savePathway.mutateAsync(code)
+      const { data } = await api.get('/auth/me')
+      setUser(data.data)
+      setPinnedCode(code)
+    } catch {
+      // fail silently
+    }
+  }
+
+  const top2 = ranked.slice(0, 2)
+
+  const handleSave = async () => {
+    if (!scores) return
+    try {
+      await saveQuiz.mutateAsync({ answers, scores, topPathways: top2 })
       const { data } = await api.get('/auth/me')
       setUser(data.data)
       setSaved(true)
     } catch {
       // fail silently — not critical
-    } finally {
-      setSaving(false)
     }
   }
 
   // -------------------------------------------------------------------------
-  // Views
+  // Intro
   // -------------------------------------------------------------------------
 
   if (view === 'intro') {
@@ -151,20 +133,21 @@ export default function PathwayQuiz() {
       <div className="p-6 max-w-2xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-primary">Find your pathway</h1>
-          <p className="text-sm text-muted mt-1">9 questions · ~3 minutes</p>
+          <p className="text-sm text-muted mt-1">{total} questions · ~5 minutes</p>
         </div>
 
         <div className="bg-surface rounded-xl border border-border p-6 space-y-4">
           <p className="text-sm text-primary leading-relaxed">
-            Rwanda's A-Level system has 4 pathway streams. This quiz uses your subject preferences
-            and career interests to recommend the pathways that suit you best.
+            Rwanda's A-Level system has pathway streams. This quiz looks at both your
+            <strong> interests</strong> and your <strong>self-rated strengths</strong> to recommend the
+            pathways that suit you best — and explains <em>why</em>.
           </p>
           <p className="text-sm text-muted leading-relaxed">
-            For each question, pick a score from <strong>1</strong> (not at all) to <strong>5</strong> (extremely).
-            Your top matches appear at the end with subject lists, career areas, and a description.
+            For each statement, pick a score from <strong>1</strong> (not at all) to <strong>5</strong> (extremely).
+            Your top matches appear at the end with the answers that drove them, subject lists, and career areas.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
-            {['Mathematics', 'Sciences', 'Humanities', 'Languages', 'Career goals'].map(tag => (
+            {['Interests', 'Aptitude', 'Sciences', 'Humanities', 'Languages'].map((tag) => (
               <span key={tag} className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full">
                 {tag}
               </span>
@@ -183,13 +166,16 @@ export default function PathwayQuiz() {
     )
   }
 
+  // -------------------------------------------------------------------------
+  // Quiz
+  // -------------------------------------------------------------------------
+
   if (view === 'quiz') {
-    const q = QUESTIONS[currentQ]
-    const selected = answers[currentQ]
+    const item = QUIZ_ITEMS[currentQ]
+    const selected = answers[item.id]
 
     return (
       <div className="p-6 max-w-2xl mx-auto space-y-6">
-        {/* Progress header */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <button
@@ -199,9 +185,7 @@ export default function PathwayQuiz() {
             >
               ← Back
             </button>
-            <span className="text-xs text-muted">
-              {currentQ + 1} / {QUESTIONS.length}
-            </span>
+            <span className="text-xs text-muted">{currentQ + 1} / {total}</span>
           </div>
           <div className="w-full bg-border rounded-full h-1.5">
             <div
@@ -211,12 +195,16 @@ export default function PathwayQuiz() {
           </div>
         </div>
 
-        {/* Question card */}
         <div className="bg-surface rounded-xl border border-border p-6 space-y-6">
-          <h2 className="text-base font-semibold text-primary leading-snug">{q.text}</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+              {item.block === 'interest' ? 'Interest' : 'Strength'}
+            </span>
+          </div>
+          <h2 className="text-base font-semibold text-primary leading-snug">{item.prompt}</h2>
 
           <div className="grid grid-cols-5 gap-2">
-            {([1, 2, 3, 4, 5] as const).map(score => (
+            {([1, 2, 3, 4, 5] as const).map((score) => (
               <button
                 key={score}
                 type="button"
@@ -248,26 +236,28 @@ export default function PathwayQuiz() {
     )
   }
 
-  // Results view
-  const top2 = topPathways.slice(0, 2)
+  // -------------------------------------------------------------------------
+  // Results
+  // -------------------------------------------------------------------------
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-primary">Your recommended pathways</h1>
-        <p className="text-sm text-muted mt-1">Based on your answers — tap a card to explore it</p>
+        <p className="text-sm text-muted mt-1">Based on your answers — tap a card to see why it was recommended</p>
       </div>
 
       <div className="space-y-3">
-        {top2.map((pathway, idx) => {
-          const isExpanded = expanded === pathway.code
+        {top2.map((code, idx) => {
+          const pathway = PATHWAY_LEAF_MAP[code] as PathwayLeaf
+          const isExpanded = expanded === code
+          const drivers = topDrivers(code, answers)
           return (
-            <div key={pathway.code} className="bg-surface rounded-xl border border-border overflow-hidden">
-              {/* Summary row */}
+            <div key={code} className="bg-surface rounded-xl border border-border overflow-hidden">
               <button
                 type="button"
                 className="w-full p-4 flex items-start gap-3 text-left hover:bg-border/30 transition-colors"
-                onClick={() => setExpanded(isExpanded ? null : pathway.code)}
+                onClick={() => setExpanded(isExpanded ? null : code)}
               >
                 <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-full shrink-0 mt-0.5 whitespace-nowrap">
                   {RANK_LABELS[idx]}
@@ -277,33 +267,45 @@ export default function PathwayQuiz() {
                   <p className="text-xs text-muted mt-1 line-clamp-2 leading-relaxed">{pathway.description}</p>
                 </div>
                 <span className="text-muted text-xs shrink-0 mt-1 font-medium">
-                  {isExpanded ? '↑ less' : '↓ more'}
+                  {isExpanded ? '↑ less' : '↓ why'}
                 </span>
               </button>
 
-              {/* Expanded detail */}
               {isExpanded && (
                 <div className="px-4 pb-4 border-t border-border pt-4 space-y-4">
                   <div>
+                    <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">
+                      Why this matched you
+                    </p>
+                    <ul className="space-y-1.5">
+                      {drivers.map(({ item }) => (
+                        <li key={item.id} className="flex items-start gap-2 text-xs text-muted">
+                          <span className="text-accent mt-0.5">•</span>
+                          <span className="leading-relaxed">
+                            <span className="text-primary">{item.prompt}</span>
+                            <span className="ml-1 text-[10px] uppercase tracking-wide text-accent">
+                              ({item.dimension})
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
                     <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Subjects</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {pathway.subjects.map(s => (
-                        <span key={s} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                          {s}
-                        </span>
+                      {pathway.subjects.map((s) => (
+                        <span key={s} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{s}</span>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">
-                      Example careers
-                    </p>
+                    <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Example careers</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {pathway.careerAreas.map(c => (
-                        <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                          {c}
-                        </span>
+                      {pathway.careerAreas.map((c) => (
+                        <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c}</span>
                       ))}
                     </div>
                   </div>
@@ -311,11 +313,25 @@ export default function PathwayQuiz() {
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Link
                       to="/student/get-mentor"
-                      state={{ combination: pathway.code }}
+                      state={{ combination: code }}
                       className="text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors"
                     >
                       Find a mentor for {pathway.label} →
                     </Link>
+                    {pinnedCode === code ? (
+                      <span className="text-xs bg-success/10 text-success px-3 py-2 rounded-lg font-medium border border-success/20">
+                        Saved to home screen ✓
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handlePinToHome(code)}
+                        disabled={savePathway.isPending}
+                        className="text-xs bg-accent text-white px-3 py-2 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+                      >
+                        {savePathway.isPending ? 'Saving…' : 'Save to home screen'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -324,8 +340,16 @@ export default function PathwayQuiz() {
         })}
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-col gap-3 pt-2">
+      {/* Compare CTA — every result routes onward, never a dead end */}
+      <Link
+        to="/student/compare"
+        state={{ topPathways: top2 }}
+        className="block w-full text-center text-sm bg-surface border border-accent/40 text-primary py-3 rounded-xl font-medium hover:border-accent transition-colors"
+      >
+        Compare these pathways side by side →
+      </Link>
+
+      <div className="flex flex-col gap-3 pt-1">
         {saved ? (
           <div className="w-full text-center text-sm text-success bg-success/10 py-3 rounded-xl font-medium border border-success/20">
             Saved to your profile ✓
@@ -334,10 +358,10 @@ export default function PathwayQuiz() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saveQuiz.isPending}
             className="w-full bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Save these to my profile'}
+            {saveQuiz.isPending ? 'Saving…' : 'Save these to my profile'}
           </button>
         )}
 

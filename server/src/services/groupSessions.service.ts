@@ -1,5 +1,6 @@
 import { prisma } from '../prisma/client'
 import * as emailService from './email.service'
+import { combinationToStream } from '../utils/streamMap'
 
 const isValidGoogleMeetLink = (url: string): boolean => {
   try {
@@ -106,6 +107,7 @@ export const create = async (
     title: string
     description: string
     sector: string
+    streamCodes?: string[]
     combinations?: string[]
     scheduledAt: string
     duration: number
@@ -126,13 +128,20 @@ export const create = async (
     throw new Error('A valid Google Meet link is required.')
   }
 
+  // Stream is the primary tag; derive it from legacy combinations when not supplied.
+  const combinations = data.combinations ?? []
+  const streamCodes = data.streamCodes && data.streamCodes.length > 0
+    ? data.streamCodes
+    : ([...new Set(combinations.map((c) => combinationToStream(c)).filter(Boolean))] as string[])
+
   const session = await prisma.groupSession.create({
     data: {
       professionalId: professional.id,
       title: data.title,
       description: data.description,
       sector: data.sector,
-      combinations: data.combinations ?? [],
+      streamCodes,
+      combinations,
       scheduledAt: new Date(data.scheduledAt),
       duration: data.duration,
       maxStudents: data.maxStudents ?? 30,
@@ -152,6 +161,7 @@ export const create = async (
         title: session.title,
         description: session.description,
         sector: session.sector,
+        streamCodes: session.streamCodes,
         combinations: session.combinations,
         scheduledAt: nextDate,
         duration: session.duration,

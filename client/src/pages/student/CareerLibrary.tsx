@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Search, BookOpen, Briefcase, Users } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Search, BookOpen, Briefcase, Users, Map as MapIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { type CareerStory } from '@/api/careerStories.api'
-import { useCareerStoriesQuery, useCareerStoryQuery } from '@/hooks/queries/studentQueries'
+import type { Career } from '@/api/careers.api'
+import { useCareerStoriesQuery, useCareerStoryQuery, useCareersQuery } from '@/hooks/queries/studentQueries'
 import { useCareerStoryCombinationsQuery } from '@/hooks/queries/professionalDashboardQueries'
 import ProfessionalProfileModal from '@/components/professionals/ProfessionalProfileModal'
 
@@ -38,41 +39,60 @@ function Avatar({ story, size }: Readonly<{ story: CareerStory; size: 'sm' | 'lg
   )
 }
 
-function StoryCard({ story, onClick }: Readonly<{ story: CareerStory; onClick: () => void }>) {
+function StoryCard({ story, onClick, roadmapId, onSeeRoadmap }: Readonly<{
+  story: CareerStory
+  onClick: () => void
+  roadmapId?: string
+  onSeeRoadmap: (careerId: string) => void
+}>) {
   return (
-    <button
-      onClick={onClick}
-      className="bg-surface border border-border rounded-xl p-5 text-left hover:border-primary/40 hover:shadow-sm transition-all flex flex-col gap-3"
-    >
-      <div className="flex items-center gap-3">
-        <Avatar story={story} size="sm" />
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-primary truncate">
-            {story.professional.firstName} {story.professional.lastName}
-          </p>
-          <p className="text-xs text-muted truncate">
-            {story.jobTitle} · {story.professional.employer}
-          </p>
+    <div className="bg-surface border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all flex flex-col gap-3">
+      <button onClick={onClick} className="text-left flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <Avatar story={story} size="sm" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-primary truncate">
+              {story.professional.firstName} {story.professional.lastName}
+            </p>
+            <p className="text-xs text-muted truncate">
+              {story.jobTitle} · {story.professional.employer}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {story.combinations.map(c => (
-          <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full font-medium">
-            {c}
+        <div className="flex flex-wrap gap-1.5">
+          {story.combinations.map(c => (
+            <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full font-medium">
+              {c}
+            </span>
+          ))}
+          <span className="text-xs bg-muted/10 text-muted px-2 py-0.5 rounded-full">
+            {story.sector}
           </span>
-        ))}
-        <span className="text-xs bg-muted/10 text-muted px-2 py-0.5 rounded-full">
-          {story.sector}
-        </span>
-      </div>
+        </div>
 
-      <p className="text-xs text-muted line-clamp-3">{story.myPath}</p>
-    </button>
+        <p className="text-xs text-muted line-clamp-3">{story.myPath}</p>
+      </button>
+
+      {roadmapId && (
+        <button
+          type="button"
+          onClick={() => onSeeRoadmap(roadmapId)}
+          className="mt-auto self-start flex items-center gap-1.5 text-xs text-accent hover:underline"
+        >
+          <MapIcon className="w-3.5 h-3.5" /> See roadmap
+        </button>
+      )}
+    </div>
   )
 }
 
-function StoryDetail({ story, onBack }: Readonly<{ story: CareerStory; onBack: () => void }>) {
+function StoryDetail({ story, onBack, roadmapId, onSeeRoadmap }: Readonly<{
+  story: CareerStory
+  onBack: () => void
+  roadmapId?: string
+  onSeeRoadmap: (careerId: string) => void
+}>) {
   const [showProfile, setShowProfile] = useState(false)
 
   return (
@@ -118,12 +138,22 @@ function StoryDetail({ story, onBack }: Readonly<{ story: CareerStory; onBack: (
           {story.adviceForStudents}
         </Section>
 
-        <button
-          onClick={() => setShowProfile(true)}
-          className="w-full bg-primary text-white text-sm font-medium py-3 rounded-xl hover:bg-primary/90 transition-colors"
-        >
-          View sessions with {story.professional.firstName}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex-1 bg-primary text-white text-sm font-medium py-3 rounded-xl hover:bg-primary/90 transition-colors"
+          >
+            View sessions with {story.professional.firstName}
+          </button>
+          {roadmapId && (
+            <button
+              onClick={() => onSeeRoadmap(roadmapId)}
+              className="flex-1 bg-surface border border-accent text-accent text-sm font-medium py-3 rounded-xl hover:bg-accent/5 transition-colors flex items-center justify-center gap-2"
+            >
+              <MapIcon className="w-4 h-4" /> See full roadmap
+            </button>
+          )}
+        </div>
       </div>
 
       {showProfile && (
@@ -150,8 +180,26 @@ function Section({ icon, title, children }: Readonly<{ icon: React.ReactNode; ti
 
 const CareerLibrary = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedStory, setSelectedStory] = useState<CareerStory | null>(null)
+
+  const { data: careersRes } = useCareersQuery({ limit: 100 })
+  const careers = careersRes?.careers ?? []
+
+  // Match a story to a structured career roadmap by sector, then combination overlap.
+  const matchCareerId = useMemo(() => {
+    const bySector = new Map<string, Career>()
+    for (const c of careers) if (!bySector.has(c.sector)) bySector.set(c.sector, c)
+    return (story: CareerStory): string | undefined => {
+      const sectorHit = bySector.get(story.sector)
+      if (sectorHit) return sectorHit.id
+      const comboHit = careers.find(c => c.combinations.some(x => story.combinations.includes(x)))
+      return comboHit?.id
+    }
+  }, [careers])
+
+  const goToRoadmap = (careerId: string) => navigate(`/student/career-roadmap/${careerId}`)
 
   const storyIdParam = searchParams.get('story')
   const { data: deepLinkStory, isLoading: deepLinkLoading } = useCareerStoryQuery(storyIdParam, !!storyIdParam)
@@ -203,7 +251,12 @@ const CareerLibrary = () => {
   if (activeStory) {
     return (
       <div className="p-6">
-        <StoryDetail story={activeStory} onBack={handleBack} />
+        <StoryDetail
+          story={activeStory}
+          onBack={handleBack}
+          roadmapId={matchCareerId(activeStory)}
+          onSeeRoadmap={goToRoadmap}
+        />
       </div>
     )
   }
@@ -307,7 +360,13 @@ const CareerLibrary = () => {
         <>
           <div className={GRID}>
             {stories.map(story => (
-              <StoryCard key={story.id} story={story} onClick={() => setSelectedStory(story)} />
+              <StoryCard
+                key={story.id}
+                story={story}
+                onClick={() => setSelectedStory(story)}
+                roadmapId={matchCareerId(story)}
+                onSeeRoadmap={goToRoadmap}
+              />
             ))}
           </div>
 

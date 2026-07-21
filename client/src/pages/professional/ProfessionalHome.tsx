@@ -1,21 +1,13 @@
 import { useState } from 'react'
-import { CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
 import MentorApplicationSection from '@/components/professional/MentorApplicationSection'
 import CreateGroupSessionModal from '@/components/professional/CreateGroupSessionModal'
-import { CareerStoryForm, EMPTY_FORM } from '@/components/professional/CareerStoryForm'
 import {
   professionalDashboardKeys,
   useGroupSessionsMeQuery,
   useMenteeSessionsQuery,
-  useCareerStoriesMeQuery,
-  useCareerStoryCombinationsQuery,
 } from '@/hooks/queries/professionalDashboardQueries'
-import {
-  createCareerStory,
-  type CareerStoryPayload,
-} from '@/api/careerStories.api'
 
 const ProfessionalHome = () => {
   const { user } = useAuth()
@@ -40,28 +32,8 @@ const ProfessionalHome = () => {
     s => new Date(s.scheduledAt) > now && ['PENDING', 'CONFIRMED'].includes(s.status)
   ).length
 
-  const { data: stories = [], isLoading: storiesLoading } = useCareerStoriesMeQuery()
-  const [showStoryForm, setShowStoryForm] = useState(false)
-  const { data: combinations = [] } = useCareerStoryCombinationsQuery(showStoryForm)
-  const [storySubmitting, setStorySubmitting] = useState(false)
-  const [storyFormError, setStoryFormError] = useState('')
-
   const [sessionTab, setSessionTab] = useState<'Group Sessions' | 'Mentor Sessions'>('Group Sessions')
   const [showCreateModal, setShowCreateModal] = useState(false)
-
-  const handleCreateStory = async (data: CareerStoryPayload) => {
-    setStorySubmitting(true)
-    setStoryFormError('')
-    try {
-      await createCareerStory(data)
-      setShowStoryForm(false)
-      queryClient.invalidateQueries({ queryKey: professionalDashboardKeys.careerStoriesMe })
-    } catch (err) {
-      setStoryFormError(err instanceof Error ? err.message : 'Failed to submit story')
-    } finally {
-      setStorySubmitting(false)
-    }
-  }
 
   if (user?.professional && !user.professional.isVerified) {
     const isRejected = user.professional.verificationStatus === 'REJECTED'
@@ -95,11 +67,7 @@ const ProfessionalHome = () => {
 
   const sessionGridClass = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
 
-  const typeLabel = (type: string) => {
-    if (type === 'FREE_INTRO') return 'Free Intro'
-    if (type === 'PRO') return 'Pro'
-    return 'Premium'
-  }
+  const typeLabel = (_type: string) => 'Session'
 
   const renderGroupSessions = () => {
     if (gsLoading) return (
@@ -223,97 +191,6 @@ const ProfessionalHome = () => {
       {user?.professional?.isVerified && !isMentor && (
         <MentorApplicationSection />
       )}
-
-      {/* Career Story section */}
-      <div>
-        <h2 className="text-base font-semibold text-primary mb-4">Your Career Story</h2>
-
-        {storiesLoading && (
-          <div className="animate-pulse bg-border rounded-xl h-24" />
-        )}
-
-        {!storiesLoading && stories.length === 0 && !showStoryForm && (
-          <div className="bg-surface border border-dashed border-border rounded-xl p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-primary">Share your career journey with students considering your field</p>
-              <p className="text-xs text-muted mt-1">Your story helps A-Level students make informed decisions about their subject combinations.</p>
-            </div>
-            <button
-              onClick={() => setShowStoryForm(true)}
-              className="flex-shrink-0 text-sm px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-            >
-              Write Story
-            </button>
-          </div>
-        )}
-
-        {!storiesLoading && showStoryForm && (
-          <div className="bg-surface border border-border rounded-xl p-6">
-            <h3 className="text-sm font-semibold text-primary mb-4">New career story</h3>
-            <CareerStoryForm
-              initialValues={EMPTY_FORM}
-              combinations={combinations}
-              onSubmit={handleCreateStory}
-              onCancel={() => { setShowStoryForm(false); setStoryFormError('') }}
-              submitLabel="Submit for review"
-              loading={storySubmitting}
-              error={storyFormError}
-            />
-          </div>
-        )}
-
-        {!storiesLoading && stories.length > 0 && !showStoryForm && (() => {
-          const story = stories[0]
-          const statusMeta = {
-            PENDING_REVIEW: { icon: Clock,        color: 'text-warning', label: 'Pending Review' },
-            PUBLISHED:      { icon: CheckCircle,  color: 'text-success', label: 'Published'      },
-            REJECTED:       { icon: XCircle,      color: 'text-error',   label: 'Rejected'       },
-            DRAFT:          { icon: Clock,        color: 'text-muted',   label: 'Draft'          },
-          }[story.status]
-          const Icon = statusMeta.icon
-          return (
-            <div className="bg-surface border border-border rounded-xl p-5 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-primary">{story.jobTitle}</p>
-                  <p className="text-xs text-muted mt-0.5">{story.sector}</p>
-                </div>
-                <span className={`inline-flex items-center gap-1 text-xs font-medium ${statusMeta.color}`}>
-                  <Icon className="w-3.5 h-3.5" />
-                  {statusMeta.label}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {story.combinations.map((c: string) => (
-                  <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{c}</span>
-                ))}
-              </div>
-
-              {story.status === 'REJECTED' && story.rejectionReason && (
-                <div className="flex items-start gap-2 text-xs text-error bg-error/5 border border-error/20 rounded-lg p-3">
-                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span><span className="font-medium">Rejection reason:</span> {story.rejectionReason}</span>
-                </div>
-              )}
-
-              {story.status === 'PUBLISHED' && (
-                <div className="space-y-2 border-t border-border pt-3">
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wide">Preview</p>
-                  <p className="text-xs text-foreground leading-relaxed line-clamp-3">{story.myPath}</p>
-                </div>
-              )}
-
-              <a
-                href="/professional/career-stories"
-                className="inline-block text-xs text-accent hover:underline"
-              >
-                {story.status === 'REJECTED' ? 'Edit & resubmit →' : 'View all stories →'}
-              </a>
-            </div>
-          )
-        })()}
-      </div>
 
       {showCreateModal && (
         <CreateGroupSessionModal

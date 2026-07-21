@@ -9,6 +9,22 @@ export const professionalDashboardKeys = {
   careerStoryCombinations: ['career-stories', 'combinations'] as const,
   mentees: ['mentorships', 'students'] as const,
   mentorSlots: ['professionals', 'me', 'mentor-slots'] as const,
+  coverageGaps: ['professionals', 'me', 'coverage-gaps'] as const,
+}
+
+export interface CoverageGap {
+  streamCode: string
+  streamName: string
+  careerTitle: string
+  careerId: string
+  mentorCount: number
+  storyCount: number
+  matchesMe: boolean
+}
+
+export interface CoverageGapsResponse {
+  myStreams: string[]
+  gaps: CoverageGap[]
 }
 
 export interface GroupSession {
@@ -120,4 +136,15 @@ export const useMentorSlotsQuery = () =>
   useQuery({
     queryKey: professionalDashboardKeys.mentorSlots,
     queryFn: fetchMentorSlots,
+  })
+
+const fetchCoverageGaps = async (): Promise<CoverageGapsResponse> => {
+  const { data } = await api.get('/professionals/me/coverage-gaps')
+  return data.data
+}
+
+export const useCoverageGaps = () =>
+  useQuery({
+    queryKey: professionalDashboardKeys.coverageGaps,
+    queryFn: fetchCoverageGaps,
   })

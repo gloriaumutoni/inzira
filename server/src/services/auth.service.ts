@@ -7,6 +7,7 @@ import {
 } from "../utils/jwt";
 import { Role } from "../types";
 import * as emailService from "./email.service";
+import { combinationsToStreams } from "../utils/streamMap";
 
 export const COMMISSION_RATE = 0.15;
 
@@ -31,6 +32,8 @@ interface SignupData {
   careerInterests?: string[];
   combinationsConsidering?: string[];
   relevantCombinations?: string[];
+  relevantStreams?: string[];
+  referredById?: string;
 }
 
 export const signup = async (data: SignupData) => {
@@ -80,6 +83,7 @@ export const signup = async (data: SignupData) => {
     }
 
     if (data.role === "PROFESSIONAL") {
+      const relevantCombinations = data.relevantCombinations ?? [];
       await tx.professional.create({
         data: {
           userId: newUser.id,
@@ -90,7 +94,9 @@ export const signup = async (data: SignupData) => {
           sector: data.sector ?? "",
           bio: data.bio ?? "",
           linkedinUrl: data.linkedinUrl ?? null,
-          relevantCombinations: data.relevantCombinations ?? [],
+          relevantCombinations,
+          relevantStreams: data.relevantStreams?.length ? data.relevantStreams : combinationsToStreams(relevantCombinations),
+          referredById: data.referredById ?? null,
           verificationAttempts: 1,
         },
       });

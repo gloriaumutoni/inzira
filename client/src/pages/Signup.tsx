@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { signupUser, getMe, SignupPayload } from '@/api/auth.api'
@@ -49,6 +49,8 @@ const ROLE_HOME: Record<string, string> = {
 const Signup = () => {
   const navigate = useNavigate()
   const { setAuth } = useAuth()
+  const [searchParams] = useSearchParams()
+  const referredById = searchParams.get('ref') || undefined
 
   const [step, setStep] = useState(1)
   const [step1, setStep1] = useState<Step1Data>({
@@ -78,6 +80,13 @@ const Signup = () => {
       getPublicSchools().then(setSchools).catch(() => {})
     }
   }, [step, role])
+
+  useEffect(() => {
+    if (searchParams.get('role') === 'professional' && step === 2 && !role) {
+      handleStep2('PROFESSIONAL')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (step === 3 && role === 'STUDENT' && step3.level === 'A_LEVEL' && careers.length === 0) {
@@ -172,7 +181,7 @@ const Signup = () => {
         linkedinUrl: step3.linkedinUrl,
         ...(role === 'STUDENT' && step3.level === 'A_LEVEL' ? { careerInterests } : {}),
         ...(role === 'STUDENT' && step3.level === 'O_LEVEL' ? { combinationsConsidering } : {}),
-        ...(role === 'PROFESSIONAL' ? { relevantCombinations } : {}),
+        ...(role === 'PROFESSIONAL' ? { relevantCombinations, referredById } : {}),
       }
 
       const { accessToken } = await signupUser(payload)

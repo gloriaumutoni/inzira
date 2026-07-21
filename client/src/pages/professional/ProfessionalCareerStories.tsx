@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, ChevronDown, ChevronUp, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -7,12 +7,14 @@ import {
   type CareerStory,
   type CareerStoryPayload,
 } from '@/api/careerStories.api'
+import { listCareers } from '@/api/careers.api'
 import {
   professionalDashboardKeys,
   useCareerStoriesMeQuery,
   useCareerStoryCombinationsQuery,
 } from '@/hooks/queries/professionalDashboardQueries'
-import { CareerStoryForm, EMPTY_FORM } from '@/components/professional/CareerStoryForm'
+import { CareerStoryForm, EMPTY_FORM, type CareerOption } from '@/components/professional/CareerStoryForm'
+import { STREAM_MAP, type StreamCode } from '@/constants/streams'
 
 type Status = CareerStory['status']
 
@@ -54,8 +56,13 @@ function StoryCard({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
+        {story.streamCodes.map(s => (
+          <span key={s} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+            {STREAM_MAP[s as StreamCode]?.name ?? s}
+          </span>
+        ))}
         {story.combinations.map(c => (
-          <span key={c} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+          <span key={c} className="text-xs bg-surface border border-border text-muted px-2 py-0.5 rounded-full">
             {c}
           </span>
         ))}
@@ -115,6 +122,13 @@ const ProfessionalCareerStories = () => {
   const [editingStory, setEditingStory] = useState<CareerStory | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
+  const [careerOptions, setCareerOptions] = useState<CareerOption[]>([])
+
+  useEffect(() => {
+    listCareers({ limit: 200 })
+      .then(res => setCareerOptions(res.careers.map(c => ({ id: c.id, title: c.title }))))
+      .catch(() => {})
+  }, [])
 
   const invalidateStories = () =>
     queryClient.invalidateQueries({ queryKey: professionalDashboardKeys.careerStoriesMe })
@@ -174,6 +188,7 @@ const ProfessionalCareerStories = () => {
           <CareerStoryForm
             initialValues={EMPTY_FORM}
             combinations={combinations}
+            careers={careerOptions}
             onSubmit={handleCreate}
             onCancel={() => { setShowForm(false); setFormError('') }}
             submitLabel="Submit for review"
@@ -190,12 +205,21 @@ const ProfessionalCareerStories = () => {
             initialValues={{
               jobTitle: editingStory.jobTitle,
               sector: editingStory.sector,
+              streamCodes: editingStory.streamCodes,
               combinations: editingStory.combinations,
               myPath: editingStory.myPath,
               whatIDo: editingStory.whatIDo,
               adviceForStudents: editingStory.adviceForStudents,
+              universityStudied: editingStory.universityStudied ?? '',
+              program: editingStory.program ?? '',
+              entryRequirements: editingStory.entryRequirements ?? '',
+              firstJobStep: editingStory.firstJobStep ?? '',
+              yearsToGetThere: editingStory.yearsToGetThere ?? '',
+              keySkills: editingStory.keySkills,
+              linkedCareerId: editingStory.linkedCareerId ?? '',
             }}
             combinations={combinations}
+            careers={careerOptions}
             onSubmit={handleEdit}
             onCancel={() => { setEditingStory(null); setFormError('') }}
             submitLabel="Resubmit for review"

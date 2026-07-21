@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { api } from '@/api/axios'
 import { toast } from '@/utils/toast'
 import { listCareerStories, getCareerStory, type CareerStory, type CareerStoryListResponse } from '@/api/careerStories.api'
+import { getCareerRoadmap, getReachableCareers, listCareers } from '@/api/careers.api'
+import { getStreamSupply, saveQuizResult, type QuizResultPayload } from '@/api/students.api'
 import type { ConfidenceLog, CombinationTrend } from '@/hooks/useConfidenceLogs'
 import type { StudentDashboardData } from '@/hooks/useStudentDashboard'
 import type { StudentSession } from '@/hooks/useStudentSessions'
@@ -202,4 +204,41 @@ export const useCareerStoriesDiscoveryQuery = (combos: string[]) =>
     queryKey: ['career-stories', 'discovery', combos] as const,
     queryFn: () => fetchCareerStoriesDiscovery(combos),
     enabled: combos.length > 0,
+  })
+
+// --- Career roadmap (P1) ---
+export const useCareerRoadmap = (id: string) =>
+  useQuery({
+    queryKey: ['career-roadmap', id] as const,
+    queryFn: () => getCareerRoadmap(id),
+    enabled: !!id,
+  })
+
+export const useReachableCareers = () =>
+  useQuery({
+    queryKey: ['reachable-careers'] as const,
+    queryFn: getReachableCareers,
+  })
+
+export const useCareersQuery = (params?: Parameters<typeof listCareers>[0]) =>
+  useQuery({
+    queryKey: ['careers', params ?? {}] as const,
+    queryFn: () => listCareers(params),
+  })
+
+// --- Pathway/stream supply + quiz persistence (P2) ---
+export const usePathwaySupply = () =>
+  useQuery({
+    queryKey: ['stream-supply'] as const,
+    queryFn: getStreamSupply,
+  })
+
+export const useSaveQuizResult = () =>
+  useMutation({
+    mutationFn: (payload: QuizResultPayload) => saveQuizResult(payload),
+  })
+
+export const useSavePathway = () =>
+  useMutation({
+    mutationFn: (pathway: string) => api.patch('/students/me/pathway', { pathway }),
   })

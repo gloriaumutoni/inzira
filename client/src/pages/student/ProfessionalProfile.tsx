@@ -33,8 +33,6 @@ interface ProfessionalProfileData {
   linkedinUrl?: string | null
   isVerified: boolean
   offersFreeIntro: boolean
-  offersProTier: boolean
-  proRate: number
   averageRating: number | null
   reviews: ReviewData[]
 }
@@ -58,7 +56,7 @@ const ProfessionalProfile = () => {
   const [groupSessions, setGroupSessions] = useState<GroupSessionSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [bookingType, setBookingType] = useState<'FREE_INTRO' | 'PRO' | 'GROUP' | null>(null)
+  const [bookingType, setBookingType] = useState<'FREE_INTRO' | 'GROUP' | null>(null)
   const [bookingGroupSessionId, setBookingGroupSessionId] = useState<string | null>(null)
 
   useEffect(() => {

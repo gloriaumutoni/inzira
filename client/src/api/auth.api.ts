@@ -19,6 +19,7 @@ export interface SignupPayload {
   careerInterests?: string[]
   combinationsConsidering?: string[]
   relevantCombinations?: string[]
+  referredById?: string
 }
 
 export const loginUser = async (

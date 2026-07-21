@@ -16,10 +16,18 @@ export interface CareerStory {
   professional: CareerStoryProfessional
   jobTitle: string
   sector: string
+  streamCodes: string[]
   combinations: string[]
   myPath: string
   whatIDo: string
   adviceForStudents: string
+  universityStudied: string | null
+  program: string | null
+  entryRequirements: string | null
+  firstJobStep: string | null
+  yearsToGetThere: number | null
+  keySkills: string[]
+  linkedCareerId: string | null
   status: 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED'
   rejectionReason: string | null
   publishedAt: string | null
@@ -37,13 +45,22 @@ export interface CareerStoryListResponse {
 export interface CareerStoryPayload {
   jobTitle: string
   sector: string
+  streamCodes: string[]
   combinations: string[]
   myPath: string
   whatIDo: string
   adviceForStudents: string
+  universityStudied: string
+  program: string
+  entryRequirements: string
+  firstJobStep: string
+  yearsToGetThere: number | ''
+  keySkills: string[]
+  linkedCareerId: string
 }
 
 export const listCareerStories = async (params?: {
+  stream?: string
   combination?: string
   sector?: string
   search?: string
@@ -65,8 +82,20 @@ export const getMyCareerStories = async (): Promise<CareerStory[]> => {
   return data.data
 }
 
+// Optional roadmap-detail fields are edited as empty strings in the form;
+// strip them to undefined so the API receives null/omitted, not "".
+const serializeStoryPayload = (payload: Partial<CareerStoryPayload>) => ({
+  ...payload,
+  universityStudied: payload.universityStudied || undefined,
+  program: payload.program || undefined,
+  entryRequirements: payload.entryRequirements || undefined,
+  firstJobStep: payload.firstJobStep || undefined,
+  yearsToGetThere: payload.yearsToGetThere === '' || payload.yearsToGetThere === undefined ? undefined : payload.yearsToGetThere,
+  linkedCareerId: payload.linkedCareerId || undefined,
+})
+
 export const createCareerStory = async (payload: CareerStoryPayload): Promise<CareerStory> => {
-  const { data } = await api.post('/career-stories', payload)
+  const { data } = await api.post('/career-stories', serializeStoryPayload(payload))
   return data.data
 }
 
@@ -74,7 +103,7 @@ export const updateCareerStory = async (
   id: string,
   payload: Partial<CareerStoryPayload>
 ): Promise<CareerStory> => {
-  const { data } = await api.patch(`/career-stories/${id}`, payload)
+  const { data } = await api.patch(`/career-stories/${id}`, serializeStoryPayload(payload))
   return data.data
 }
 
@@ -123,7 +152,7 @@ export const adminListVerifiedProfessionals = async (): Promise<VerifiedProfessi
   return data.data
 }
 
-export interface AdminCareerStoryPayload extends CareerStoryPayload {
+export interface AdminCareerStoryPayload extends Pick<CareerStoryPayload, 'jobTitle' | 'sector' | 'combinations' | 'myPath' | 'whatIDo' | 'adviceForStudents'> {
   professionalId: string
 }
 

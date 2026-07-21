@@ -1,11 +1,40 @@
 import { prisma } from '../prisma/client'
 import { CareerStoryStatus } from '@prisma/client'
 import * as emailService from './email.service'
+import { STREAM_CODES, combinationsToStreams, type StreamCode } from '../utils/streamMap'
 
 export const VALID_STUDY_CODES = [
   'HGL', 'HLP', 'LFK', 'MCB', 'MCE', 'MEG', 'MPC', 'MPG', 'PCB', 'PCM',
   'PATH_MS_NATURAL', 'PATH_MS_APPLIED', 'PATH_ARTS_HUMANITIES', 'PATH_LANGUAGES',
 ]
+
+type StoryFields = {
+  jobTitle: string
+  sector: string
+  streamCodes?: string[]
+  combinations: string[]
+  myPath: string
+  whatIDo: string
+  adviceForStudents: string
+  universityStudied?: string | null
+  program?: string | null
+  entryRequirements?: string | null
+  firstJobStep?: string | null
+  yearsToGetThere?: number | null
+  keySkills?: string[]
+  linkedCareerId?: string | null
+}
+
+// Stream is the primary audience tag; derive it from legacy combinations when
+// the caller doesn't supply it directly, so a story never starts untagged.
+const resolveStreamCodes = (streamCodes: string[] | undefined, combinations: string[]): StreamCode[] => {
+  if (streamCodes && streamCodes.length > 0) {
+    const invalid = streamCodes.filter((s) => !STREAM_CODES.includes(s as StreamCode))
+    if (invalid.length > 0) throw new Error(`Invalid stream codes: ${invalid.join(', ')}`)
+    return streamCodes as StreamCode[]
+  }
+  return combinationsToStreams(combinations)
+}
 
 const PUBLIC_INCLUDE = {
   professional: {
@@ -22,6 +51,7 @@ const PUBLIC_INCLUDE = {
 }
 
 export const list = async (filters: {
+  stream?: string
   combination?: string
   sector?: string
   search?: string
@@ -35,6 +65,10 @@ export const list = async (filters: {
 
   const where: Record<string, unknown> = { status: 'PUBLISHED' }
 
+  if (filters.stream) {
+    const streams = filters.stream.split(',').map(s => s.trim()).filter(Boolean)
+    where.streamCodes = streams.length > 1 ? { hasSome: streams } : { has: streams[0] }
+  }
   if (filters.combination) {
     const combos = filters.combination.split(',').map(c => c.trim()).filter(Boolean)
     where.combinations = combos.length > 1 ? { hasSome: combos } : { has: combos[0] }
@@ -90,22 +124,33 @@ export const getMyStories = async (professionalId: string) => {
 
 export const create = async (
   professionalId: string,
-  data: {
-    jobTitle: string
-    sector: string
-    combinations: string[]
-    myPath: string
-    whatIDo: string
-    adviceForStudents: string
-  }
+  data: StoryFields
 ) => {
   const invalid = data.combinations.filter(c => !VALID_STUDY_CODES.includes(c))
   if (invalid.length > 0) {
     throw new Error(`Invalid combinations: ${invalid.join(', ')}`)
   }
+  const streamCodes = resolveStreamCodes(data.streamCodes, data.combinations)
 
   const story = await prisma.careerStory.create({
-    data: { ...data, professionalId, status: 'PENDING_REVIEW' },
+    data: {
+      jobTitle: data.jobTitle,
+      sector: data.sector,
+      streamCodes,
+      combinations: data.combinations,
+      myPath: data.myPath,
+      whatIDo: data.whatIDo,
+      adviceForStudents: data.adviceForStudents,
+      universityStudied: data.universityStudied ?? null,
+      program: data.program ?? null,
+      entryRequirements: data.entryRequirements ?? null,
+      firstJobStep: data.firstJobStep ?? null,
+      yearsToGetThere: data.yearsToGetThere ?? null,
+      keySkills: data.keySkills ?? [],
+      linkedCareerId: data.linkedCareerId ?? null,
+      professionalId,
+      status: 'PENDING_REVIEW',
+    },
   })
 
   ;(async () => {
@@ -126,24 +171,31 @@ export const create = async (
 
 export const adminCreate = async (
   professionalId: string,
-  data: {
-    jobTitle: string
-    sector: string
-    combinations: string[]
-    myPath: string
-    whatIDo: string
-    adviceForStudents: string
-  }
+  data: StoryFields
 ) => {
   const pro = await prisma.professional.findUnique({ where: { id: professionalId } })
   if (!pro?.isVerified) throw new Error('Professional not found or not verified')
 
   const invalid = data.combinations.filter(c => !VALID_STUDY_CODES.includes(c))
   if (invalid.length > 0) throw new Error(`Invalid combinations: ${invalid.join(', ')}`)
+  const streamCodes = resolveStreamCodes(data.streamCodes, data.combinations)
 
   return prisma.careerStory.create({
     data: {
-      ...data,
+      jobTitle: data.jobTitle,
+      sector: data.sector,
+      streamCodes,
+      combinations: data.combinations,
+      myPath: data.myPath,
+      whatIDo: data.whatIDo,
+      adviceForStudents: data.adviceForStudents,
+      universityStudied: data.universityStudied ?? null,
+      program: data.program ?? null,
+      entryRequirements: data.entryRequirements ?? null,
+      firstJobStep: data.firstJobStep ?? null,
+      yearsToGetThere: data.yearsToGetThere ?? null,
+      keySkills: data.keySkills ?? [],
+      linkedCareerId: data.linkedCareerId ?? null,
       professionalId,
       status: 'PUBLISHED',
       publishedAt: new Date(),
@@ -163,14 +215,7 @@ export const listVerifiedProfessionals = async () => {
 export const update = async (
   id: string,
   professionalId: string,
-  data: Partial<{
-    jobTitle: string
-    sector: string
-    combinations: string[]
-    myPath: string
-    whatIDo: string
-    adviceForStudents: string
-  }>
+  data: Partial<StoryFields>
 ) => {
   const story = await prisma.careerStory.findUnique({ where: { id } })
   if (!story) throw new Error('Story not found')
@@ -183,10 +228,18 @@ export const update = async (
     const invalid = data.combinations.filter(c => !VALID_STUDY_CODES.includes(c))
     if (invalid.length > 0) throw new Error(`Invalid combinations: ${invalid.join(', ')}`)
   }
+  const streamCodes = (data.streamCodes || data.combinations)
+    ? resolveStreamCodes(data.streamCodes, data.combinations ?? story.combinations)
+    : undefined
 
   return prisma.careerStory.update({
     where: { id },
-    data: { ...data, status: 'PENDING_REVIEW', rejectionReason: null },
+    data: {
+      ...data,
+      ...(streamCodes !== undefined && { streamCodes }),
+      status: 'PENDING_REVIEW',
+      rejectionReason: null,
+    },
   })
 }
 

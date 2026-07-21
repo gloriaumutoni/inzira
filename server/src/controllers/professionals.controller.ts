@@ -20,14 +20,6 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
-export const updateTiers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    ok(res, await professionalsService.updateTiers(req.auth!.userId, req.body))
-  } catch (err) {
-    badRequest(res, err instanceof Error ? err.message : 'Failed')
-  }
-}
-
 export const getAvailability = async (req: Request, res: Response): Promise<void> => {
   try {
     ok(res, await professionalsService.getAvailability(req.auth!.userId))
@@ -55,6 +47,14 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
 export const getQuota = async (req: Request, res: Response): Promise<void> => {
   try {
     ok(res, await professionalsService.getQuota(req.auth!.userId))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getCoverageGaps = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await professionalsService.getCoverageGaps(req.auth!.userId))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

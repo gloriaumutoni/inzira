@@ -58,9 +58,57 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
+export const getRoadmap = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careersService.getRoadmap(req.params.id))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const getReachable = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careersService.getReachableFromStream(req.auth!.userId))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
 export const getSectors = async (_req: Request, res: Response): Promise<void> => {
   try {
     ok(res, await careersService.getSectors())
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const adminListAll = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careersService.adminListAll())
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const addStep = async (req: Request, res: Response): Promise<void> => {
+  try {
+    created(res, await careersService.addStep(req.params.id, req.body))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const updateStep = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careersService.updateStep(req.params.id, req.params.stepId, req.body))
+  } catch (err) {
+    badRequest(res, err instanceof Error ? err.message : 'Failed')
+  }
+}
+
+export const removeStep = async (req: Request, res: Response): Promise<void> => {
+  try {
+    ok(res, await careersService.removeStep(req.params.id, req.params.stepId))
   } catch (err) {
     badRequest(res, err instanceof Error ? err.message : 'Failed')
   }

@@ -1,4 +1,6 @@
 import { prisma } from '../prisma/client'
+import { normalizeCombinationCode } from '../utils/pathwayMap'
+import { combinationToStream, leafToStream, STREAM_CODES, type StreamCode } from '../utils/streamMap'
 
 export const getMe = async (userId: string) => {
   return prisma.student.findUnique({
@@ -21,9 +23,22 @@ export const updateMe = async (userId: string, data: {
   careerInterests?: string[]
   onboardingCompleted?: boolean
 }) => {
+  const normalizedCombination =
+    data.combination !== undefined ? normalizeCombinationCode(data.combination) : undefined
+
   return prisma.student.update({
     where: { userId },
-    data,
+    data: {
+      ...data,
+      ...(normalizedCombination !== undefined && {
+        combination: normalizedCombination,
+        // Stream is the primary saved unit; derive it from the (legacy) combination.
+        streamCode: combinationToStream(normalizedCombination) ?? null,
+      }),
+      ...(data.combinationsConsidering !== undefined && {
+        combinationsConsidering: data.combinationsConsidering.map((c) => normalizeCombinationCode(c)),
+      }),
+    },
   })
 }
 
@@ -69,6 +84,7 @@ export const logConfidence = async (
   combination?: string,
   sessionId?: string,
   changedThinking?: boolean | null,
+  streamCode?: string,
 ) => {
   const student = await prisma.student.findUnique({ where: { userId } })
   if (!student) throw new Error('Student not found')
@@ -78,6 +94,7 @@ export const logConfidence = async (
       studentId: student.id,
       score,
       note,
+      streamCode: streamCode ?? null,
       combination: combination ?? null,
       sessionId: sessionId ?? null,
       changedThinking: changedThinking ?? null,
@@ -177,4 +194,99 @@ export const getGroupSessions = async (userId: string) => {
     },
     orderBy: { groupSession: { scheduledAt: 'asc' } },
   })
+}
+
+// Persist a quiz result and derive the student's primary stream from the top leaf.
+// Stream is the primary saved unit; the leaf (pathway) is kept as finer detail.
+export const saveQuizResult = async (
+  userId: string,
+  payload: { answers: unknown; scores: unknown; topPathways: string[] },
+) => {
+  const student = await prisma.student.findUnique({ where: { userId } })
+  if (!student) throw new Error('Student not found')
+
+  const topLeaf = payload.topPathways[0]
+  const streamCode = topLeaf ? leafToStream(topLeaf) ?? null : null
+
+  const result = await prisma.quizResult.create({
+    data: {
+      studentId: student.id,
+      answers: payload.answers as object,
+      scores: payload.scores as object,
+      topPathways: payload.topPathways,
+      streamCode,
+    },
+  })
+
+  await prisma.student.update({
+    where: { id: student.id },
+    data: {
+      streamCode,
+      pathway: topLeaf ?? student.pathway,
+      combinationsConsidering: payload.topPathways,
+    },
+  })
+
+  return result
+}
+
+// Pin a specific pathway to the student's home screen.
+export const savePathway = async (userId: string, pathway: string) => {
+  const student = await prisma.student.findUnique({ where: { userId } })
+  if (!student) throw new Error('Student not found')
+  return prisma.student.update({
+    where: { id: student.id },
+    data: { pathway },
+  })
+}
+
+// Mentor / group-session / story supply per stream (the 3 STREAM_CODES). Powers the
+// pathway-comparison availability badges so O-level choice is informed by real supply.
+// Stream leads; legacy combinations are mapped via combinationToStream.
+export const getStreamSupply = async () => {
+  const [mentors, sessions, stories] = await Promise.all([
+    prisma.professional.findMany({
+      where: { isMentor: true, isVerified: true, isActive: true },
+      select: { relevantStreams: true, relevantCombinations: true },
+    }),
+    prisma.groupSession.findMany({
+      where: { isCancelled: false, scheduledAt: { gte: new Date() } },
+      select: { streamCodes: true, combinations: true },
+    }),
+    prisma.careerStory.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { combinations: true },
+    }),
+  ])
+
+  const supply = Object.fromEntries(
+    STREAM_CODES.map((s) => [s, { mentorCount: 0, groupSessionCount: 0, storyCount: 0 }]),
+  ) as Record<StreamCode, { mentorCount: number; groupSessionCount: number; storyCount: number }>
+
+  const streamsFromCombos = (combos: string[]): StreamCode[] => {
+    const set = new Set<StreamCode>()
+    for (const c of combos) {
+      const s = combinationToStream(c)
+      if (s) set.add(s)
+    }
+    return [...set]
+  }
+
+  for (const m of mentors) {
+    const streams = m.relevantStreams.length > 0
+      ? (m.relevantStreams.filter((s): s is StreamCode => s in supply))
+      : streamsFromCombos(m.relevantCombinations)
+    for (const s of streams) supply[s].mentorCount++
+  }
+  for (const gs of sessions) {
+    const streams = gs.streamCodes.length > 0
+      ? (gs.streamCodes.filter((s): s is StreamCode => s in supply))
+      : streamsFromCombos(gs.combinations)
+    for (const s of streams) supply[s].groupSessionCount++
+  }
+  for (const st of stories) {
+    for (const s of streamsFromCombos(st.combinations)) supply[s].storyCount++
+  }
+
+  return supply
 }

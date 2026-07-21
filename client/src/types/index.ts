@@ -15,10 +15,10 @@ export interface StudentProfile {
   lastName: string
   level: 'O_LEVEL' | 'A_LEVEL'
   schoolYear: string
+  streamCode?: string | null
   combination?: string | null
   pathway?: string | null
   confidenceLevel?: number | null
-  mentorPlan: 'FREE' | 'PRO' | 'PREMIUM'
   interests: string[]
   profilePhoto?: string | null
   schoolId?: string | null
@@ -38,11 +38,7 @@ export interface ProfessionalProfile {
   linkedinUrl?: string | null
   isVerified: boolean
   isActive: boolean
-  proRate: number
-  premiumRate: number
   offersFreeIntro: boolean
-  offersProTier: boolean
-  offersPremiumTier: boolean
   isMentor?: boolean
   mentorApplicationStatus?: string | null
   mentorRejectionReason?: string | null

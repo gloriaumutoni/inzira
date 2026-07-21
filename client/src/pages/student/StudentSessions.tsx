@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import useStudentSessions, { StudentSession } from '@/hooks/useStudentSessions'
-import usePendingReflections from '@/hooks/usePendingReflections'
-import PostSessionReflectionModal from '@/components/student/PostSessionReflectionModal'
+// TODO: reflection flow paused — usePendingReflections + PostSessionReflectionModal hidden (not deleted)
 import { api } from '@/api/axios'
-import { PATHWAY_LEAVES } from '@/constants/pathways'
+import { STREAMS, combinationToStream, type StreamCode } from '@/constants/streams'
 
 type ReportReason = 'INAPPROPRIATE_BEHAVIOUR' | 'UNCOMFORTABLE_CONTENT' | 'NO_SHOW' | 'HARASSMENT' | 'OTHER'
 
@@ -116,6 +115,7 @@ interface GroupSession {
   scheduledAt: string
   duration: number
   sector: string
+  streamCodes?: string[]
   combinations: string[]
   maxStudents: number
   joinLink?: string
@@ -171,15 +171,9 @@ const fmtTime = (d: string) =>
 const StudentSessions = () => {
   const { user } = useAuth()
   const { sessions, loading: sessionsLoading } = useStudentSessions()
-  const { pending, dismiss, refetch: refetchPending } = usePendingReflections()
+  // TODO: reflection flow paused
 
-  const studentCombinations = [
-    ...(user?.student?.combinationsConsidering ?? []),
-    ...(user?.student?.careerInterests ?? []),
-  ]
   const careerInterests = user?.student?.careerInterests ?? []
-
-  const activeReflection = pending[0] ?? null
 
   const [categoryTab, setCategoryTab] = useState<'Group Sessions' | 'Mentor Sessions'>('Group Sessions')
   const [timeTab, setTimeTab] = useState<'Upcoming' | 'Past'>('Upcoming')
@@ -191,7 +185,7 @@ const StudentSessions = () => {
   const [gsLoading, setGsLoading] = useState(true)
   const [enrolling, setEnrolling] = useState<string | null>(null)
   const [selectedSectors, setSelectedSectors] = useState<Set<string>>(new Set())
-  const [selectedPathways, setSelectedPathways] = useState<Set<string>>(new Set())
+  const [selectedStreams, setSelectedStreams] = useState<Set<StreamCode>>(new Set())
 
   const [mentorSlots, setMentorSlots] = useState<MentorSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(true)
@@ -258,8 +252,8 @@ const StudentSessions = () => {
     })
   }
 
-  const togglePathway = (code: string) => {
-    setSelectedPathways(prev => {
+  const toggleStream = (code: StreamCode) => {
+    setSelectedStreams(prev => {
       const next = new Set(prev)
       if (next.has(code)) next.delete(code)
       else next.add(code)
@@ -424,30 +418,40 @@ const StudentSessions = () => {
     if (!relevantOnly && selectedSectors.size > 0) {
       filtered = filtered.filter(g => selectedSectors.has(g.sector))
     }
-    if (selectedPathways.size > 0) {
-      filtered = filtered.filter(g => g.combinations?.some(c => selectedPathways.has(c)))
+    if (selectedStreams.size > 0) {
+      filtered = filtered.filter(g => {
+        // Untagged/general sessions are relevant to everyone → always show.
+        const untagged = !g.streamCodes?.length && !g.combinations?.length
+        if (untagged) return true
+        const byStream = g.streamCodes?.some(s => selectedStreams.has(s as StreamCode))
+        const byLegacy = g.combinations?.some(c => {
+          const s = combinationToStream(c)
+          return s ? selectedStreams.has(s) : false
+        })
+        return byStream || byLegacy
+      })
     }
 
     let emptyMsg = 'No group sessions available right now.'
     if (relevantOnly) emptyMsg = 'No sessions available for your career interests yet. Try turning off the filter.'
-    else if (selectedPathways.size > 0) emptyMsg = 'No sessions match the selected learning pathway(s).'
+    else if (selectedStreams.size > 0) emptyMsg = 'No sessions match the selected stream(s).'
     else if (selectedSectors.size > 0) emptyMsg = 'No sessions match the selected careers.'
 
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted">Browse available sessions and enroll to secure your spot. You can be enrolled in up to 3 at a time.</p>
         <div className="flex flex-wrap gap-2">
-          {PATHWAY_LEAVES.map(leaf => (
+          {STREAMS.map(stream => (
             <button
-              key={leaf.code}
+              key={stream.code}
               type="button"
-              onClick={() => togglePathway(leaf.code)}
-              className={selectedPathways.has(leaf.code)
+              onClick={() => toggleStream(stream.code)}
+              className={selectedStreams.has(stream.code)
                 ? 'text-xs px-3 py-1 rounded-full font-medium bg-primary text-white'
                 : 'text-xs px-3 py-1 rounded-full font-medium bg-surface border border-border text-muted hover:text-primary transition-colors'
               }
             >
-              {leaf.label}
+              {stream.name}
             </button>
           ))}
         </div>
@@ -506,14 +510,7 @@ const StudentSessions = () => {
           onClose={() => setReportTarget(null)}
         />
       )}
-      {activeReflection && (
-        <PostSessionReflectionModal
-          reflection={activeReflection}
-          studentCombinations={studentCombinations}
-          onDone={() => { dismiss(activeReflection.sessionId); refetchPending() }}
-          onSkip={() => dismiss(activeReflection.sessionId)}
-        />
-      )}
+      {/* TODO: reflection flow paused — PostSessionReflectionModal render removed */}
       <h1 className="text-xl font-bold text-primary">Sessions</h1>
 
       {careerInterests.length > 0 && categoryTab === 'Group Sessions' && timeTab === 'Upcoming' && (
@@ -536,7 +533,7 @@ const StudentSessions = () => {
           setCategoryTab(t as typeof categoryTab)
           setTimeTab('Upcoming')
           setSelectedSectors(new Set())
-          setSelectedPathways(new Set())
+          setSelectedStreams(new Set())
         }}
       />
 
@@ -546,7 +543,7 @@ const StudentSessions = () => {
         onChange={(t) => {
           setTimeTab(t as typeof timeTab)
           setSelectedSectors(new Set())
-          setSelectedPathways(new Set())
+          setSelectedStreams(new Set())
         }}
       />
 

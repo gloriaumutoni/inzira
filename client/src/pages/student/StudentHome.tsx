@@ -287,7 +287,7 @@ const StudentHome = () => {
     <div className="p-6 space-y-8">
       {showManualLog && (
         <ManualConfidenceModal
-          combinations={user?.student?.careerInterests ?? []}
+          streamCode={user?.student?.streamCode}
           onDone={() => { setShowManualLog(false); refetchLogs() }}
           onClose={() => setShowManualLog(false)}
         />
@@ -342,12 +342,20 @@ const StudentHome = () => {
               <h2 className="text-base font-bold text-primary mt-1">{pathwayResult.label}</h2>
               <p className="text-xs text-muted mt-1 leading-relaxed">{pathwayResult.description}</p>
             </div>
-            <Link
-              to="/student/quiz"
-              className="shrink-0 text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors whitespace-nowrap"
-            >
-              Retake quiz →
-            </Link>
+            <div className="flex flex-col gap-2 shrink-0">
+              <Link
+                to="/student/compare"
+                className="text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors whitespace-nowrap text-center"
+              >
+                Compare pathways →
+              </Link>
+              <Link
+                to="/student/quiz"
+                className="text-xs bg-surface border border-border text-primary px-3 py-2 rounded-lg hover:border-primary transition-colors whitespace-nowrap text-center"
+              >
+                Retake quiz →
+              </Link>
+            </div>
           </div>
           <div>
             <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Subjects</p>
