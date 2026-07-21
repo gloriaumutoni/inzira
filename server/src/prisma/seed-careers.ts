@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client'
+import { getPathwaysForCombinations } from '../utils/pathwayMap'
+import { combinationsToStreams } from '../utils/streamMap'
 
 const prisma = new PrismaClient()
 
@@ -39,8 +41,45 @@ export const seedCareers = async () => {
   for (const career of careers) {
     const existing = await prisma.career.findFirst({ where: { title: career.title } })
     if (!existing) {
-      await prisma.career.create({ data: { ...career, isActive: true } })
+      await prisma.career.create({
+        data: {
+          ...career,
+          isActive: true,
+          streamCodes: combinationsToStreams(career.combinations),
+          pathwayCodes: getPathwaysForCombinations(career.combinations),
+        },
+      })
     }
   }
+  await backfillPathwayCodes()
+  await backfillStreamCodes()
   console.log(`Seeded ${careers.length} careers.`)
+}
+
+// Derive pathwayCodes from combinations for any career that has none yet.
+export const backfillPathwayCodes = async () => {
+  const all = await prisma.career.findMany({ select: { id: true, combinations: true, pathwayCodes: true } })
+  let updated = 0
+  for (const c of all) {
+    if (c.pathwayCodes.length > 0) continue
+    const codes = getPathwaysForCombinations(c.combinations)
+    if (codes.length === 0) continue
+    await prisma.career.update({ where: { id: c.id }, data: { pathwayCodes: codes } })
+    updated++
+  }
+  console.log(`Backfilled pathwayCodes on ${updated} careers.`)
+}
+
+// Derive streamCodes (primary matching unit) from legacy combinations where empty.
+export const backfillStreamCodes = async () => {
+  const all = await prisma.career.findMany({ select: { id: true, combinations: true, streamCodes: true } })
+  let updated = 0
+  for (const c of all) {
+    if (c.streamCodes.length > 0) continue
+    const codes = combinationsToStreams(c.combinations)
+    if (codes.length === 0) continue
+    await prisma.career.update({ where: { id: c.id }, data: { streamCodes: codes } })
+    updated++
+  }
+  console.log(`Backfilled streamCodes on ${updated} careers.`)
 }
