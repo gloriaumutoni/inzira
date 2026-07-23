@@ -16,13 +16,13 @@ const AdminOverview = () => {
 
       {/* Top stats row */}
       {loading ? (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="animate-pulse bg-border rounded-xl h-28" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
               Icon: Users,
@@ -88,7 +88,7 @@ const AdminOverview = () => {
           <p className="text-sm text-muted mb-5">
             Inzira connects Rwandan secondary school students with verified professionals and career guides, helping them explore careers and make informed academic choices.
           </p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               {
                 Icon: Users,

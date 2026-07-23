@@ -68,7 +68,7 @@ export default function AdminImpact() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-primary">Impact Overview</h1>
           <p className="text-sm text-muted mt-0.5">Signup → quiz → pathway → session funnel + confidence delta.</p>
@@ -125,7 +125,7 @@ export default function AdminImpact() {
       {/* Confidence delta */}
       <section className="bg-surface border border-border rounded-xl p-5">
         <h2 className="text-sm font-semibold text-primary mb-4">Confidence Delta</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: 'Avg start', value: confidence.avgStart, colour: 'text-muted' },
             { label: 'Avg latest', value: confidence.avgLatest, colour: 'text-primary' },
@@ -153,8 +153,8 @@ export default function AdminImpact() {
       {bySchool.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-primary mb-3">By School</h2>
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm min-w-[560px]">
               <thead className="bg-background border-b border-border text-muted text-xs uppercase tracking-wide">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">School</th>

@@ -79,11 +79,11 @@ function ReportRow({ report, onStatusChange, onSuspendToggle }: Readonly<{
         className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-background transition-colors"
         onClick={() => setExpanded(v => !v)}
       >
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-3 items-center">
-          <span className="text-sm text-primary font-medium">{sessionDate ? fmtDate(sessionDate) : '—'}</span>
-          <span className="text-sm text-foreground">{studentName}</span>
-          <span className="text-sm text-foreground hidden md:block">{professionalName}</span>
-          <span className="text-sm text-muted hidden md:block">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-center min-w-0">
+          <span className="text-sm text-primary font-medium truncate">{sessionDate ? fmtDate(sessionDate) : '—'}</span>
+          <span className="text-sm text-foreground truncate">{studentName}</span>
+          <span className="text-sm text-foreground hidden md:block truncate">{professionalName}</span>
+          <span className="text-sm text-muted hidden md:block truncate">
             <span className="bg-primary/5 text-primary text-xs px-2 py-0.5 rounded-full mr-1">{sessionLabel}</span>
             {REASON_LABELS[report.reason]}
           </span>
@@ -98,7 +98,7 @@ function ReportRow({ report, onStatusChange, onSuspendToggle }: Readonly<{
 
       {expanded && (
         <div className="border-t border-border px-5 py-4 space-y-4 bg-background">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-xs text-muted uppercase font-semibold tracking-wide mb-1">Student</p>
               <p className="text-foreground">{studentName}</p>
@@ -226,13 +226,13 @@ const AdminSessionReports = () => {
         <p className="text-sm text-muted mt-0.5">Safety concerns reported by students about their sessions</p>
       </div>
 
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {STATUS_FILTER_TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setFilterTab(t.key)}
             className={[
-              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0',
               filterTab === t.key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted hover:text-foreground',

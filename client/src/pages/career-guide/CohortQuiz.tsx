@@ -33,7 +33,7 @@ const CohortQuiz = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-surface rounded-xl border border-border p-4 text-center">
           <p className="text-2xl font-bold text-primary">{summaryLoading ? '—' : summary?.totalStudents ?? 0}</p>
           <p className="text-xs text-muted uppercase tracking-wide mt-1">Total Students</p>
@@ -88,34 +88,36 @@ const CohortQuiz = () => {
         ) : students.length === 0 ? (
           <p className="p-5 text-sm text-muted">No students registered yet.</p>
         ) : (
-          <table className="w-full text-sm mt-4">
-            <thead>
-              <tr className="text-left text-xs text-muted uppercase tracking-wide border-t border-border">
-                <th className="px-5 py-2 font-medium">Student</th>
-                <th className="px-5 py-2 font-medium">Level</th>
-                <th className="px-5 py-2 font-medium">Stream</th>
-                <th className="px-5 py-2 font-medium">Quiz status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...done, ...notStarted].map((s) => (
-                <tr key={s.id} className="border-t border-border">
-                  <td className="px-5 py-3 text-primary">{s.firstName} {s.lastName}</td>
-                  <td className="px-5 py-3 text-muted">{s.level === 'A_LEVEL' ? 'A-Level' : 'O-Level'}</td>
-                  <td className="px-5 py-3 text-muted">
-                    {s.streamCode && isStreamCode(s.streamCode) ? STREAM_MAP[s.streamCode].name : s.streamCode ?? '—'}
-                  </td>
-                  <td className="px-5 py-3">
-                    {s.quizTaken ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">Done</span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">Not started</span>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm mt-4 min-w-[480px]">
+              <thead>
+                <tr className="text-left text-xs text-muted uppercase tracking-wide border-t border-border">
+                  <th className="px-5 py-2 font-medium">Student</th>
+                  <th className="px-5 py-2 font-medium">Level</th>
+                  <th className="px-5 py-2 font-medium">Stream</th>
+                  <th className="px-5 py-2 font-medium">Quiz status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[...done, ...notStarted].map((s) => (
+                  <tr key={s.id} className="border-t border-border">
+                    <td className="px-5 py-3 text-primary whitespace-nowrap">{s.firstName} {s.lastName}</td>
+                    <td className="px-5 py-3 text-muted whitespace-nowrap">{s.level === 'A_LEVEL' ? 'A-Level' : 'O-Level'}</td>
+                    <td className="px-5 py-3 text-muted whitespace-nowrap">
+                      {s.streamCode && isStreamCode(s.streamCode) ? STREAM_MAP[s.streamCode].name : s.streamCode ?? '—'}
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap">
+                      {s.quizTaken ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">Done</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">Not started</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

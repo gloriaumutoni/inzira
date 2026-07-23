@@ -465,10 +465,10 @@ export default function AdminCareers() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-primary">Career Library</h1>
           <p className="text-sm text-muted mt-0.5">
             {careers.length} careers · {careers.filter((c) => c.isActive).length} active
@@ -476,7 +476,7 @@ export default function AdminCareers() {
         </div>
         <button
           onClick={() => setDrawerItem('new')}
-          className="flex items-center gap-2 bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium"
+          className="flex items-center justify-center gap-2 bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto shrink-0"
         >
           <Plus size={16} /> New Career
         </button>
@@ -491,8 +491,8 @@ export default function AdminCareers() {
       />
 
       {/* Table */}
-      <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-background border-b border-border text-muted text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Career</th>
@@ -514,8 +514,8 @@ export default function AdminCareers() {
             {filtered.map((career) => (
               <>
                 <tr key={career.id} className="hover:bg-background transition">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-primary">{career.title}</div>
+                  <td className="px-4 py-3 max-w-[220px]">
+                    <div className="font-medium text-primary truncate">{career.title}</div>
                     <div className="text-xs text-muted line-clamp-1">{career.description}</div>
                   </td>
                   <td className="px-4 py-3 text-muted">{career.sector}</td>

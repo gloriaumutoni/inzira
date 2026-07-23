@@ -203,13 +203,13 @@ export default function PathwayQuiz() {
           </div>
           <h2 className="text-base font-semibold text-primary leading-snug">{item.prompt}</h2>
 
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 gap-1 sm:gap-2">
             {([1, 2, 3, 4, 5] as const).map((score) => (
               <button
                 key={score}
                 type="button"
                 onClick={() => handleAnswer(score)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                className={`flex flex-col items-center gap-1.5 p-1.5 sm:p-3 rounded-xl border transition-all ${
                   selected === score
                     ? 'bg-primary text-white border-primary shadow-sm'
                     : 'bg-background border-border text-primary hover:border-primary'

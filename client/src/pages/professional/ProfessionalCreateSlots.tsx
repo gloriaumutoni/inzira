@@ -249,7 +249,7 @@ const ProfessionalCreateSlots = () => {
                           className="w-full border border-border rounded-lg px-2 py-1.5 text-xs text-primary bg-surface"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label htmlFor={`edit-start-${slot.id}`} className="block text-xs font-medium text-muted mb-1">Start</label>
                           <select
@@ -315,7 +315,7 @@ const ProfessionalCreateSlots = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between py-2 px-3 border border-border rounded-lg hover:border-border/70">
+                    <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-3 border border-border rounded-lg hover:border-border/70">
                       <span className="text-sm text-primary">{slotTimeRange(slot)}</span>
                       <span className="text-xs font-medium text-success bg-success/10 px-2 py-0.5 rounded-full">Open</span>
                       <div className="flex items-center gap-2">
@@ -431,7 +431,7 @@ const ProfessionalCreateSlots = () => {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="create-start" className="block text-xs font-medium text-muted mb-1">Start</label>
                 <select

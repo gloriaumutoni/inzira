@@ -349,7 +349,7 @@ const CareerGuideHome = () => {
             <p className="text-xs text-muted mt-1">Our team is verifying your LinkedIn profile and background. You'll receive an email once approved.</p>
           </div>
         )}
-        <div className="grid grid-cols-3 gap-4 opacity-40 pointer-events-none">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 opacity-40 pointer-events-none">
           {['STUDENTS REGISTERED', 'SESSIONS COMPLETED', 'AVG CONFIDENCE'].map((label) => (
             <div key={label} className="bg-surface border border-border rounded-xl p-5 text-center">
               <p className="text-2xl font-bold text-border">—</p>
@@ -387,7 +387,7 @@ const CareerGuideHome = () => {
       </div>
 
       {/* Student level stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {dashLoading ? (
           <>
             <div className="animate-pulse bg-border rounded-xl h-24" />
@@ -411,7 +411,7 @@ const CareerGuideHome = () => {
       {!studentsLoading && (
         <div className="bg-surface rounded-xl border border-border p-5">
           <h2 className="text-base font-semibold text-primary mb-4">Session Activity</h2>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -442,7 +442,7 @@ const CareerGuideHome = () => {
                 <p className="text-xs text-muted leading-tight">done</p>
               </div>
             </div>
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 w-full space-y-3">
               <div className="flex justify-between">
                 <span className="text-xs text-muted">Mentor Bookings</span>
                 <span className="text-xs font-semibold text-primary">{totalMentorBooked}</span>

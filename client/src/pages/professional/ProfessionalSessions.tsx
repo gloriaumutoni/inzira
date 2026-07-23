@@ -32,15 +32,15 @@ const statusBadge = (status: string) => {
 }
 
 const TabBar = ({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) => (
-  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
     {tabs.map(t => (
       <button
         key={t}
         onClick={() => onChange(t)}
-        className={active === t
+        className={(active === t
           ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
           : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
-        }
+        ) + ' whitespace-nowrap'}
       >
         {t}
       </button>
@@ -135,11 +135,11 @@ const ProfessionalSessions = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-primary">Sessions</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+          className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors self-start sm:self-auto"
         >
           Create Group Session +
         </button>

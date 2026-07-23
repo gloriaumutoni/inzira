@@ -43,7 +43,7 @@ function ReportModal({ sessionId, sessionType, onClose }: Readonly<{
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md space-y-4">
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
         {done ? (
           <>
             <h3 className="text-sm font-semibold text-primary">Report received</h3>
@@ -139,15 +139,15 @@ const TabBar = ({ tabs, active, onChange }: {
   active: string
   onChange: (t: string) => void
 }) => (
-  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
     {tabs.map(t => (
       <button
         key={t}
         onClick={() => onChange(t)}
-        className={active === t
+        className={(active === t
           ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
           : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
-        }
+        ) + ' whitespace-nowrap'}
       >
         {t}
       </button>

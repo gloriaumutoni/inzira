@@ -22,7 +22,7 @@ const CohortImpact = () => {
         {isLoading || !impact ? (
           <div className="animate-pulse bg-border rounded-lg h-24" />
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {FUNNEL_STEPS(impact).map((step, i) => {
               const prev = i === 0 ? impact.signups : FUNNEL_STEPS(impact)[i - 1].value
               const pct = prev > 0 ? Math.round((step.value / prev) * 100) : 0
@@ -43,7 +43,7 @@ const CohortImpact = () => {
         {isLoading || !impact ? (
           <div className="animate-pulse bg-border rounded-lg h-20" />
         ) : (
-          <div className="grid grid-cols-3 gap-4 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
             <div className="text-center">
               <p className="text-2xl font-bold text-primary">{impact.avgConfidenceStart.toFixed(1)}</p>
               <p className="text-xs text-muted uppercase tracking-wide mt-1">Avg Start</p>

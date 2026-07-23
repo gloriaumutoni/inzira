@@ -68,7 +68,7 @@ const CareerGuideSessions = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {dashLoading ? (
           <>
             <div className="animate-pulse bg-border rounded-xl h-24" />

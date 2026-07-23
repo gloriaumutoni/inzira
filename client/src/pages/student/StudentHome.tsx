@@ -37,15 +37,15 @@ const TabBar = ({ tabs, active, onChange }: {
   active: string
   onChange: (t: string) => void
 }) => (
-  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+  <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
     {tabs.map(t => (
       <button
         key={t}
         onClick={() => onChange(t)}
-        className={active === t
+        className={(active === t
           ? 'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium'
           : 'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm transition-colors'
-        }
+        ) + ' whitespace-nowrap'}
       >
         {t}
       </button>

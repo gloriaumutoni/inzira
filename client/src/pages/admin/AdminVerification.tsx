@@ -118,9 +118,9 @@ const AdminVerification = () => {
   }
 
   const activeTabClass =
-    'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2'
+    'bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap'
   const inactiveTabClass =
-    'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2'
+    'text-muted hover:text-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2 whitespace-nowrap'
 
   return (
     <div className="p-6 space-y-6">
@@ -158,7 +158,7 @@ const AdminVerification = () => {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
         <button
           onClick={() => setActiveTab('professionals')}
           className={activeTab === 'professionals' ? activeTabClass : inactiveTabClass}
@@ -202,15 +202,15 @@ const AdminVerification = () => {
           {!proLoading && professionals.length > 0 && professionals.map((p) => (
               <div key={p.id} className="bg-surface rounded-xl border border-border p-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold flex-shrink-0">
                       {initials(p.firstName, p.lastName)}
                     </div>
-                    <div>
-                      <p className="font-semibold text-primary text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-primary text-sm truncate">
                         {p.firstName} {p.lastName}
                       </p>
-                      <p className="text-xs text-muted">{p.email}</p>
+                      <p className="text-xs text-muted truncate">{p.email}</p>
                     </div>
                   </div>
                   <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
@@ -218,7 +218,7 @@ const AdminVerification = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                   <div>
                     <p className="text-xs text-muted uppercase tracking-wide">Job Title</p>
                     <p className="text-sm text-primary font-medium mt-0.5">{p.jobTitle}</p>
@@ -256,7 +256,7 @@ const AdminVerification = () => {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
                   <p className="text-xs text-muted">Submitted {formatDate(p.submittedAt)}</p>
                   <div className="flex gap-2">
                     <button
@@ -288,15 +288,15 @@ const AdminVerification = () => {
           {!mentorLoading && mentorApps.length > 0 && mentorApps.map((m) => (
               <div key={m.id} className="bg-surface rounded-xl border border-border p-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold flex-shrink-0">
                       {initials(m.firstName, m.lastName)}
                     </div>
-                    <div>
-                      <p className="font-semibold text-primary text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-primary text-sm truncate">
                         {m.firstName} {m.lastName}
                       </p>
-                      <p className="text-xs text-muted">{m.email}</p>
+                      <p className="text-xs text-muted truncate">{m.email}</p>
                     </div>
                   </div>
                   <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
@@ -304,7 +304,7 @@ const AdminVerification = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                   <div>
                     <p className="text-xs text-muted uppercase tracking-wide">Job Title</p>
                     <p className="text-sm text-primary font-medium mt-0.5">{m.jobTitle}</p>
@@ -365,7 +365,7 @@ const AdminVerification = () => {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
                   <p className="text-xs text-muted">Applied {formatDate(m.appliedAt)}</p>
                   <div className="flex gap-2">
                     <button
@@ -395,7 +395,7 @@ const AdminVerification = () => {
           <dialog
             open
             aria-labelledby="decline-modal-title"
-            className="static bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 m-0 border-0"
+            className="static bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 m-0 border-0 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-3">
               <h2 id="decline-modal-title" className="text-base font-bold text-primary">Decline application</h2>
@@ -441,15 +441,15 @@ const AdminVerification = () => {
           {!cgLoading && careerGuides.length > 0 && careerGuides.map((cg) => (
               <div key={cg.id} className="bg-surface rounded-xl border border-border p-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
                       {initials(cg.firstName, cg.lastName)}
                     </div>
-                    <div>
-                      <p className="font-semibold text-primary text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-primary text-sm truncate">
                         {cg.firstName} {cg.lastName}
                       </p>
-                      <p className="text-xs text-muted">{cg.email}</p>
+                      <p className="text-xs text-muted truncate">{cg.email}</p>
                     </div>
                   </div>
                   <span className="bg-warning/10 text-warning text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
@@ -485,7 +485,7 @@ const AdminVerification = () => {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
                   <p className="text-xs text-muted">Submitted {formatDate(cg.submittedAt)}</p>
                   <div className="flex gap-2">
                     <button

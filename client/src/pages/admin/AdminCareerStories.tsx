@@ -285,7 +285,7 @@ function RejectModal({
   const [reason, setReason] = useState('')
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md space-y-4">
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
         <h3 className="text-sm font-semibold text-primary">Reject story</h3>
         <textarea
           className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary min-h-[100px] resize-y"
@@ -338,10 +338,10 @@ function StoryCard({
           {inits}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-primary">
+          <p className="text-sm font-semibold text-primary truncate">
             {pro.firstName} {pro.lastName}
           </p>
-          <p className="text-xs text-muted">{story.jobTitle} · {story.sector}</p>
+          <p className="text-xs text-muted truncate">{story.jobTitle} · {story.sector}</p>
         </div>
         {tab === 'PUBLISHED' && story.publishedAt && (
           <p className="text-xs text-muted flex-shrink-0">
@@ -381,7 +381,7 @@ function StoryCard({
         </div>
       )}
 
-      <div className="flex gap-3 pt-2 border-t border-border">
+      <div className="flex flex-wrap gap-3 pt-2 border-t border-border">
         {tab === 'PENDING_REVIEW' && (
           <>
             <button
@@ -538,7 +538,7 @@ const AdminCareerStories = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-primary">Career Stories Review</h1>
           <p className="text-sm text-muted mt-0.5">
@@ -547,7 +547,7 @@ const AdminCareerStories = () => {
         </div>
         <button
           onClick={() => setShowWriteModal(true)}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
+          className="flex items-center justify-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0 w-full sm:w-auto"
         >
           <PenLine className="w-3.5 h-3.5" />
           Write a story

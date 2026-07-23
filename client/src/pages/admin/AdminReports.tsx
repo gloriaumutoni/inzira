@@ -175,13 +175,13 @@ const StudentsSection = () => {
           <h2 className="text-base font-semibold text-primary">Students</h2>
           <p className="text-xs text-muted mt-0.5">{total} total</p>
         </div>
-        <div className="flex items-center gap-3 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 print:hidden w-full sm:w-auto">
           <input
             type="text"
             placeholder="Search name or school…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-border rounded-lg px-3 py-1.5 text-sm w-48 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
+            className="border border-border rounded-lg px-3 py-1.5 text-sm w-full sm:w-48 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <div className="flex gap-1 bg-background rounded-lg p-1">
             {(['A_LEVEL', 'O_LEVEL'] as const).map((l) => (
@@ -422,13 +422,13 @@ const ProfessionalsSection = () => {
           <h2 className="text-base font-semibold text-primary">{HEADING[category][status]}</h2>
           <p className="text-xs text-muted mt-0.5">{total} total</p>
         </div>
-        <div className="flex items-center gap-3 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 print:hidden w-full sm:w-auto">
           <input
             type="text"
             placeholder={isGuide ? 'Search name or school…' : 'Search name, sector…'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-border rounded-lg px-3 py-1.5 text-sm w-48 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
+            className="border border-border rounded-lg px-3 py-1.5 text-sm w-full sm:w-48 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             onClick={handleExport}
@@ -630,12 +630,12 @@ const SessionsSection = () => {
 
   return (
     <div className="bg-surface rounded-xl border border-border p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-base font-semibold text-primary">Sessions</h2>
           <p className="text-xs text-muted mt-0.5">Upcoming and recent mentor and group sessions.</p>
         </div>
-        <div className="flex gap-2 print:hidden">
+        <div className="flex flex-wrap gap-2 print:hidden">
           <div className="flex gap-1 bg-background rounded-lg p-1">
             {(['upcoming', 'recent'] as const).map((t) => (
               <button
@@ -764,13 +764,13 @@ const AdminReports = () => {
       </div>
 
       {summaryLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {(['s0', 's1', 's2', 's3'] as const).map((k) => (
             <div key={k} className="animate-pulse bg-border rounded-xl h-24" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
               Icon: Users,

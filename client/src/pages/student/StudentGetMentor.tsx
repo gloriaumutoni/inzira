@@ -182,7 +182,7 @@ const StudentGetMentor = () => {
           <select
             value={selectedCombination ?? ''}
             onChange={(e) => setSelectedCombination(e.target.value || undefined)}
-            className="border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
+            className="w-full sm:w-auto border border-border rounded-lg px-3 py-2 text-sm text-primary bg-surface"
           >
             <TrackOptgroups />
           </select>

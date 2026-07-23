@@ -90,7 +90,7 @@ export default function AdminCoverage() {
       {/* Stream summary (3 rows) */}
       <section>
         <h2 className="text-sm font-semibold text-primary mb-3">By Stream</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {data.byStream.map((s: StreamCoverage) => (
             <div
               key={s.streamCode}
@@ -147,7 +147,7 @@ export default function AdminCoverage() {
 
       {/* Per-career table */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <h2 className="text-sm font-semibold text-primary">By Career</h2>
           <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
             <input
@@ -159,7 +159,7 @@ export default function AdminCoverage() {
             Show gaps only
           </label>
         </div>
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-background border-b border-border text-muted text-xs uppercase tracking-wide">
               <tr>

@@ -293,7 +293,7 @@ const CareerLibrary = () => {
         <select
           value={combo}
           onChange={e => setCombo(e.target.value)}
-          className="text-sm bg-surface border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
+          className="w-full sm:w-auto text-sm bg-surface border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
         >
           <option value="">All combinations/pathways</option>
           {combinations.map(c => (
@@ -304,7 +304,7 @@ const CareerLibrary = () => {
         <select
           value={sector}
           onChange={e => setSector(e.target.value)}
-          className="text-sm bg-surface border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
+          className="w-full sm:w-auto text-sm bg-surface border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
         >
           <option value="">All careers</option>
           {SECTORS.map(s => (
@@ -316,7 +316,7 @@ const CareerLibrary = () => {
           <button
             type="button"
             onClick={() => setMatchInterests(v => !v)}
-            className={`text-sm px-3 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+            className={`w-full sm:w-auto text-sm px-3 py-2 rounded-lg border transition-colors whitespace-nowrap ${
               matchInterests
                 ? 'bg-primary text-white border-primary'
                 : 'bg-surface border-border hover:border-primary'

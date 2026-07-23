@@ -53,7 +53,7 @@ const ProfessionalHome = () => {
             <p className="text-xs text-muted mt-1">Our team is verifying your LinkedIn profile and background. You'll receive an email once approved.</p>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4 opacity-40 pointer-events-none">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-40 pointer-events-none">
           {['GROUP SESSIONS COMPLETED', 'UPCOMING GROUP SESSIONS'].map(label => (
             <div key={label} className="bg-surface border border-border rounded-xl p-5 text-center">
               <p className="text-2xl font-bold text-border">—</p>
@@ -131,7 +131,7 @@ const ProfessionalHome = () => {
       </div>
 
       {/* Stats */}
-      <div className={`grid gap-4 ${isMentor ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'}`}>
+      <div className={`grid gap-4 ${isMentor ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2'}`}>
         <div className="bg-surface border border-border rounded-xl p-5 text-center">
           <p className="text-2xl font-bold text-primary">{gsCompletedCount ?? '—'}</p>
           <p className="text-xs text-muted uppercase tracking-wide mt-1">GROUP SESSIONS COMPLETED</p>
@@ -156,17 +156,17 @@ const ProfessionalHome = () => {
 
       {/* Sessions section with tabs (mentor) or plain (non-mentor) */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           {isMentor ? (
-            <div className="flex gap-1 bg-surface border border-border rounded-xl p-1">
+            <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
               {(['Group Sessions', 'Mentor Sessions'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSessionTab(tab)}
-                  className={sessionTab === tab
+                  className={(sessionTab === tab
                     ? 'bg-primary text-white px-4 py-1.5 rounded-lg text-sm font-medium'
                     : 'text-muted hover:text-primary px-4 py-1.5 rounded-lg text-sm transition-colors'
-                  }
+                  ) + ' whitespace-nowrap'}
                 >
                   {tab}
                 </button>
@@ -177,7 +177,7 @@ const ProfessionalHome = () => {
           )}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+            className="bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0 self-start sm:self-auto"
           >
             Create Session
           </button>

@@ -34,7 +34,7 @@ const ManualConfidenceModal = ({ streamCode, onDone, onClose }: Props) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+      <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         <h2 className="text-base font-bold text-primary">Log confidence</h2>
 
         <div className="space-y-1.5">

@@ -26,17 +26,17 @@ export function CoverageGapsPanel({ onWriteStory }: Readonly<{
         {gaps.slice(0, 6).map(gap => (
           <div
             key={`${gap.careerId}-${gap.streamCode}`}
-            className="flex items-center justify-between gap-3 bg-background border border-border rounded-lg px-3 py-2"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-background border border-border rounded-lg px-3 py-2"
           >
-            <div>
-              <p className="text-sm font-medium text-primary">{gap.careerTitle}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-primary truncate">{gap.careerTitle}</p>
               <p className="text-xs text-muted">
                 {gap.streamName} · {gap.mentorCount} mentor{gap.mentorCount === 1 ? '' : 's'} · {gap.storyCount} stor{gap.storyCount === 1 ? 'y' : 'ies'}
               </p>
             </div>
             <button
               onClick={() => onWriteStory({ careerId: gap.careerId, careerTitle: gap.careerTitle, streamCode: gap.streamCode })}
-              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors self-start sm:self-auto"
             >
               Write a story
             </button>
