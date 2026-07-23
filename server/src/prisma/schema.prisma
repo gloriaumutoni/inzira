@@ -64,6 +64,11 @@ model Student {
   SessionFeedback         SessionFeedback[]
   school                  School?                 @relation(fields: [schoolId], references: [id])
   user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([level])
+  @@index([streamCode])
+  @@index([createdAt])
 }
 
 model Professional {
@@ -109,6 +114,12 @@ model Professional {
   reviews                    Review[]
   sessions                   Session[]
   careerStories              CareerStory[]
+
+  @@index([isVerified, isActive])
+  @@index([isMentor])
+  @@index([mentorApplicationStatus])
+  @@index([verificationStatus])
+  @@index([createdAt])
 }
 
 model CareerGuide {
@@ -128,6 +139,8 @@ model CareerGuide {
   verificationAttempts Int      @default(0)
   school               School?  @relation(fields: [schoolId], references: [id])
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isVerified])
 }
 
 model School {
@@ -198,6 +211,12 @@ model Session {
   student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
   SessionFeedback  SessionFeedback?
   reports          SessionReport[]
+
+  @@index([studentId])
+  @@index([professionalId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([updatedAt])
 }
 
 model GroupSession {
@@ -223,6 +242,9 @@ model GroupSession {
   reports         SessionReport[]
 
   @@unique([professionalId, scheduledAt])
+  @@index([isCancelled])
+  @@index([parentSessionId])
+  @@index([scheduledAt])
 }
 
 model GroupSessionEnrolment {
@@ -234,6 +256,7 @@ model GroupSessionEnrolment {
   student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([groupSessionId, studentId])
+  @@index([studentId])
 }
 
 model Mentorship {
@@ -247,6 +270,8 @@ model Mentorship {
   updatedAt       DateTime         @updatedAt
   professional    Professional     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
 }
 
 model Message {
@@ -270,6 +295,8 @@ model Notification {
   link      String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Review {
@@ -283,6 +310,9 @@ model Review {
   professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   session        Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
+  @@index([studentId])
 }
 
 model ConfidenceLog {
@@ -296,6 +326,8 @@ model ConfidenceLog {
   changedThinking Boolean?
   createdAt       DateTime @default(now())
   student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
 }
 
 model QuizResult {
@@ -307,6 +339,8 @@ model QuizResult {
   streamCode   String?
   createdAt    DateTime @default(now())
   student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
 }
 
 model AdminInterviewSlot {
@@ -334,6 +368,8 @@ model MentorApplicationInterviewBooking {
   createdAt      DateTime           @default(now())
   adminSlot      AdminInterviewSlot @relation(fields: [adminSlotId], references: [id])
   professional   Professional       @relation(fields: [professionalId], references: [id])
+
+  @@index([adminSlotId])
 }
 
 model MentorAvailabilityTemplate {
@@ -364,6 +400,8 @@ model MentorSlot {
   Professional      Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 
   @@unique([professionalId, scheduledAt])
+  @@index([bookedByStudentId])
+  @@index([isBooked])
 }
 
 model ProfessionalCareer {
@@ -375,6 +413,7 @@ model ProfessionalCareer {
   Professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 
   @@unique([professionalId, careerId])
+  @@index([careerId])
 }
 
 model CareerStory {
@@ -401,6 +440,10 @@ model CareerStory {
   publishedAt       DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+
+  @@index([professionalId])
+  @@index([status])
+  @@index([linkedCareerId])
 }
 
 model SessionFeedback {
@@ -414,6 +457,8 @@ model SessionFeedback {
   createdAt            DateTime @default(now())
   Session              Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   Student              Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
 }
 
 enum Role {
@@ -463,6 +508,11 @@ model SessionReport {
   session      Session?      @relation(fields: [sessionId], references: [id])
   groupSession GroupSession? @relation(fields: [groupSessionId], references: [id])
   reporter     User          @relation(fields: [reportedBy], references: [id])
+
+  @@index([sessionId])
+  @@index([groupSessionId])
+  @@index([reportedBy])
+  @@index([status])
 }
 
 enum SessionReportReason {
