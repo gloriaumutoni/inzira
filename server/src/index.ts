@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import apiRouter from "./routes/index";
 import { errorHandler } from "./middleware/index";
@@ -10,6 +11,9 @@ const app = express();
 
 // Security headers
 app.use(helmet());
+
+// Gzip/deflate JSON responses — cuts payload size over the wire between Render and the client
+app.use(compression());
 
 // Allow requests from the frontend
 app.use(
