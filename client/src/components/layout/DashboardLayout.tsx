@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2, BookOpen, Flag, Compass, ClipboardList, TrendingUp, Briefcase } from 'lucide-react'
+import { Home, Calendar, Users, LogOut, LayoutDashboard, ShieldCheck, Building2, CalendarPlus, Lock, BarChart2, BookOpen, Flag, Compass, ClipboardList, TrendingUp, Briefcase, Menu, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { logoutUser } from '@/api/auth.api'
 
@@ -136,6 +137,7 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const getProfessionalNav = (): NavItem[] => {
     if (!user?.professional?.isVerified) return [...UNDER_REVIEW_NAV, { ...CAREER_STORY_NAV_ITEM, disabled: true }]
@@ -162,49 +164,52 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
     navigate('/')
   }
 
+  const renderNavItems = (onNavigate?: () => void) => navItems.map((item) => {
+    const Icon = item.icon
+    const active = location.pathname === item.path
+    if (item.disabled) {
+      return (
+        <div
+          key={item.path}
+          className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/25 cursor-not-allowed select-none"
+          title="Available once your account is verified"
+        >
+          <Icon size={16} className="opacity-40" />
+          <span>{item.label}</span>
+          <span className="ml-auto">
+            <Lock size={12} className="opacity-40" />
+          </span>
+        </div>
+      )
+    }
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={onNavigate}
+        className={[
+          'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
+          active
+            ? 'bg-accent/20 text-white border-r-2 border-accent'
+            : 'text-white/60 hover:text-white hover:bg-white/5',
+        ].join(' ')}
+      >
+        <Icon size={16} />
+        {item.label}
+      </Link>
+    )
+  })
+
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar (desktop) */}
       <aside className="hidden md:flex flex-col w-56 bg-primary flex-shrink-0">
         <div className="px-6 py-5">
           <span className="text-white font-bold text-lg">Inzira</span>
         </div>
 
-        <nav className="flex-1 mt-2">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const active = location.pathname === item.path
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.path}
-                  className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white/25 cursor-not-allowed select-none"
-                  title="Available once your account is verified"
-                >
-                  <Icon size={16} className="opacity-40" />
-                  <span>{item.label}</span>
-                  <span className="ml-auto">
-                    <Lock size={12} className="opacity-40" />
-                  </span>
-                </div>
-              )
-            }
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={[
-                  'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-accent/20 text-white border-r-2 border-accent'
-                    : 'text-white/60 hover:text-white hover:bg-white/5',
-                ].join(' ')}
-              >
-                <Icon size={16} />
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 mt-2 overflow-y-auto">
+          {renderNavItems()}
         </nav>
 
         <button
@@ -216,12 +221,55 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
         </button>
       </aside>
 
+      {/* Sidebar (mobile drawer) */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-64 max-w-[80vw] bg-primary shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-6 py-5">
+              <span className="text-white font-bold text-lg">Inzira</span>
+              <button
+                onClick={() => setMobileNavOpen(false)}
+                className="p-1 text-white/60 hover:text-white"
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav className="flex-1 mt-2 overflow-y-auto">
+              {renderNavItems(() => setMobileNavOpen(false))}
+            </nav>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-6 py-4 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
-        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 flex-shrink-0">
-          <span className="text-sm font-semibold text-primary">{pageTitle}</span>
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden p-1.5 -ml-1.5 rounded-md text-muted hover:text-primary hover:bg-background transition-colors flex-shrink-0"
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="text-sm font-semibold text-primary truncate">{pageTitle}</span>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm text-muted">{getDisplayName(user)}</span>
               {role === 'CAREER_GUIDE' && (
@@ -240,7 +288,7 @@ const DashboardLayout = ({ role, level, children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-background">
           {children}
         </main>
       </div>
