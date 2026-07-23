@@ -216,7 +216,6 @@ model Session {
   @@index([professionalId])
   @@index([status])
   @@index([scheduledAt])
-  @@index([updatedAt])
 }
 
 model GroupSession {
@@ -244,7 +243,6 @@ model GroupSession {
   @@unique([professionalId, scheduledAt])
   @@index([isCancelled])
   @@index([parentSessionId])
-  @@index([scheduledAt])
 }
 
 model GroupSessionEnrolment {
@@ -283,6 +281,9 @@ model Message {
   createdAt  DateTime @default(now())
   receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
 }
 
 model Notification {
