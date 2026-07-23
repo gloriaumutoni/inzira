@@ -567,19 +567,25 @@ export const getAdminImpact = async (params: { schoolId?: string; level?: string
   if (params.schoolId) studentWhere.schoolId = params.schoolId
   if (params.level) studentWhere.level = params.level
 
-  const [signups, quizCompletions, streamChosen, mentorSessionsBooked, confidenceLogs, allSchools] =
+  const [signups, streamChosen, mentorSessionsBooked, quizResults, confidenceLogs, allSchools, signupsBySchool] =
     await Promise.all([
       prisma.student.count({ where: studentWhere }),
-      prisma.quizResult.count({ where: { student: studentWhere } }),
       prisma.student.count({ where: { ...studentWhere, streamCode: { not: null } } }),
       prisma.session.count({ where: { status: 'COMPLETED', student: studentWhere } }),
+      prisma.quizResult.findMany({
+        where: { student: studentWhere },
+        select: { student: { select: { schoolId: true } } },
+      }),
       prisma.confidenceLog.findMany({
         where: { student: studentWhere },
-        select: { score: true, studentId: true, createdAt: true },
+        select: { score: true, studentId: true, createdAt: true, student: { select: { schoolId: true } } },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.school.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+      prisma.student.groupBy({ by: ['schoolId'], where: studentWhere, _count: { _all: true } }),
     ])
+
+  const quizCompletions = quizResults.length
 
   const computeConfidenceDelta = (logs: { score: number; studentId: string }[]) => {
     const firstByStudent = new Map<string, number>()
@@ -602,27 +608,34 @@ export const getAdminImpact = async (params: { schoolId?: string; level?: string
 
   const confidence = computeConfidenceDelta(confidenceLogs)
 
-  const bySchool = await Promise.all(
-    allSchools.map(async (school) => {
-      const [schoolSignups, schoolQuiz, schoolLogs] = await Promise.all([
-        prisma.student.count({ where: { ...studentWhere, schoolId: school.id } }),
-        prisma.quizResult.count({ where: { student: { ...studentWhere, schoolId: school.id } } }),
-        prisma.confidenceLog.findMany({
-          where: { student: { schoolId: school.id } },
-          select: { score: true, studentId: true },
-          orderBy: { createdAt: 'asc' },
-        }),
-      ])
-      const { delta } = computeConfidenceDelta(schoolLogs)
-      return {
-        schoolId: school.id,
-        schoolName: school.name,
-        signups: schoolSignups,
-        quizCompletions: schoolQuiz,
-        avgDelta: delta,
-      }
-    }),
-  )
+  const signupsBySchoolMap = new Map(signupsBySchool.map((s) => [s.schoolId, s._count._all]))
+
+  const quizBySchoolMap = new Map<string, number>()
+  for (const q of quizResults) {
+    const schoolId = q.student.schoolId
+    if (!schoolId) continue
+    quizBySchoolMap.set(schoolId, (quizBySchoolMap.get(schoolId) ?? 0) + 1)
+  }
+
+  const logsBySchool = new Map<string, { score: number; studentId: string }[]>()
+  for (const log of confidenceLogs) {
+    const schoolId = log.student.schoolId
+    if (!schoolId) continue
+    const arr = logsBySchool.get(schoolId)
+    if (arr) arr.push(log)
+    else logsBySchool.set(schoolId, [log])
+  }
+
+  const bySchool = allSchools.map((school) => {
+    const { delta } = computeConfidenceDelta(logsBySchool.get(school.id) ?? [])
+    return {
+      schoolId: school.id,
+      schoolName: school.name,
+      signups: signupsBySchoolMap.get(school.id) ?? 0,
+      quizCompletions: quizBySchoolMap.get(school.id) ?? 0,
+      avgDelta: delta,
+    }
+  })
 
   return {
     funnel: { signups, quizCompletions, streamChosen, mentorSessionsBooked },
